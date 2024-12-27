@@ -1,17 +1,19 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiMenu, FiX } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiMenu, FiX, FiArrowLeft } from 'react-icons/fi';
 import { RiLightbulbLine, RiQuestionLine } from 'react-icons/ri';
 
-import TopNavigation from './components/TopNavigation';
-import ContentSkeleton from './components/ContentSkeleton';
-import ProgressCard from './components/ProgressCard';
-import SectionsList from './components/SectionsList';
-import ContentRenderer from './components/ContentRenderer';
-import ImageViewer from './components/ImageViewer';
-import VideoPlayer from './components/VideoPlayer';
-import QuickTips from './components/QuickTips';
-import QuickQuiz from './components/QuickQuiz';
+import {
+  TopNavigation,
+  ContentSkeleton,
+  SectionsList,
+  ContentRenderer,
+  ImageViewer,
+  VideoPlayer,
+  QuickTips,
+  QuickQuiz
+} from './components';
+
 import iconCourse2 from '/src/assets/images/courses/iconCourse2.svg';
 import DiscussionPanel from '../DiscussionPanel';
 
@@ -215,8 +217,41 @@ const TheoryStep = ({ material }) => {
   const [showMedia, setShowMedia] = useState(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState(false);
   const [showRightSidebar, setShowRightSidebar] = useState(false);
+  const [showNav, setShowNav] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [manuallyHidden, setManuallyHidden] = useState(false);
+  const mainContentRef = useRef(null);
+  
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
+
+  useEffect(() => {
+    const mainContent = mainContentRef.current;
+    if (!mainContent) return;
+
+    const controlNavbar = () => {
+      const currentScrollY = mainContent.scrollTop;
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 50) { 
+        // Scrolling down & not at top - hide nav
+        setShowNav(false);
+      } else if (currentScrollY === 0) { 
+        // Only show nav when at the very top
+        setShowNav(true);
+        setManuallyHidden(false);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    mainContent.addEventListener('scroll', controlNavbar);
+    return () => mainContent.removeEventListener('scroll', controlNavbar);
+  }, [lastScrollY]);
+
+  const handleCloseNav = () => {
+    setShowNav(false);
+    setManuallyHidden(true);
+  };
 
   const handleBackToMaterials = () => {
     navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/materials`);
@@ -230,10 +265,11 @@ const TheoryStep = ({ material }) => {
       <TopNavigation 
         section={currentSection} 
         onBack={handleBackToMaterials}
-        onMenuClick={() => setShowLeftSidebar(true)}
+        onClose={handleCloseNav}
+        show={showNav}
       />
 
-      <div className="fixed inset-0 top-[144px] bottom-16 lg:bottom-20 flex">
+      <div className={`fixed inset-0 transition-all duration-300 ${showNav ? 'top-[160px]' : 'top-0'} bottom-16 lg:bottom-20 flex`}>
         {/* Mobile Menu Buttons */}
         <button
           onClick={() => setShowLeftSidebar(true)}
@@ -251,18 +287,11 @@ const TheoryStep = ({ material }) => {
 
         {/* Left Sidebar - Fixed */}
         <aside className={`
-          fixed left-0 top-[144px] bottom-16 lg:bottom-20 w-80 lg:w-72 
+          fixed left-0 ${showNav ? 'top-[160px]' : 'top-0'} bottom-16 lg:bottom-20 w-80 lg:w-72 
           bg-black/80 backdrop-blur-lg border-r border-white/[0.05]
-          transition-transform duration-300 z-50 overflow-y-auto
+          transition-all duration-300 z-40 overflow-y-auto
           ${showLeftSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
-          <div className="sticky top-0 p-4 border-b border-white/[0.05] bg-black/80 backdrop-blur-lg">
-            <ProgressCard 
-              activeSection={activeSection}
-              totalSections={sections.length}
-            />
-          </div>
-
           <div className="p-4">
             <SectionsList 
               sections={sections}
@@ -276,35 +305,107 @@ const TheoryStep = ({ material }) => {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 ml-0 lg:ml-72 mr-0 lg:mr-72">
-          <div className="h-full overflow-y-auto">
+        <main ref={mainContentRef} className="flex-1 ml-0 lg:ml-72 mr-0 lg:mr-72 overflow-y-auto">
+          <div className="min-h-full">
             <div className="max-w-[2000px] mx-auto px-4 lg:px-5 py-8">
-              {/* Welcome Message */}
-              <div className="flex items-center gap-3 mb-8 justify-center items-center">
-                <img src={iconCourse2} alt="Course Icon" className="w-[200px] h-[200px] " />
-                <div>
-                  <h2 className="text-xl font-semibold text-white/80 italic">Good luck learning!</h2>
+              {/* Welcome Message - Only show on first section */}
+              {currentSection.id === 'basics' && (
+                <div className="flex flex-col items-center gap-6 mb-12 text-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-3xl rounded-full"></div>
+                    <img src={iconCourse2} alt="Course Icon" className="relative w-[250px] h-[250px] animate-float" />
+                  </div>
+                  <div className="space-y-3">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      Selamat datang di pembelajaran Segitiga!
+                    </h2>
+                    <p className="text-white/60 max-w-2xl">
+                      Mari kita mulai petualangan belajar yang menyenangkan. Setiap langkah membawamu lebih dekat ke penguasaan materi!
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <Suspense fallback={<ContentSkeleton />}>
                 {/* Main Content */}
-                <div className="mb-5 bg-black/[0.02] border border-white/[0.05] rounded-2xl p-4">
+                <div className="mb-8 bg-black/[0.02] border border-white/[0.05] rounded-2xl p-6 lg:p-8 backdrop-blur-sm hover:border-white/10 transition-colors">
+                  {/* Section Progress */}
+                  <div className="mb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
+                        <RiLightbulbLine className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-white/60">Progress Belajar</p>
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-32 bg-white/5 rounded-full">
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                              style={{ width: `${(activeSection + 1) / sections.length * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm text-white/80">{Math.round((activeSection + 1) / sections.length * 100)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="px-3 py-1 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-white/5">
+                        <span className="text-sm text-white/80">Bagian {activeSection + 1} dari {sections.length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Content */}
                   <ContentRenderer section={currentSection} />
+
+                  {/* Section Objectives */}
+                  <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 border border-white/5">
+                    <h3 className="text-lg font-semibold text-white/90 mb-3">Tujuan Pembelajaran</h3>
+                    <ul className="space-y-2">
+                      {currentSection.objectives?.map((objective, index) => (
+                        <li key={index} className="flex items-start gap-2 text-white/70">
+                          <div className="h-5 w-5 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-xs text-blue-400">{index + 1}</span>
+                          </div>
+                          {objective}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex justify-between items-center mb-12">
+                  <button
+                    onClick={() => activeSection > 0 && setActiveSection(activeSection - 1)}
+                    className={`flex items-center gap-2 px-2 py-1 transition-all ${
+                      activeSection > 0 
+                        ? 'text-white/80 hover:text-white' 
+                        : 'text-white/20 cursor-not-allowed'
+                    }`}
+                    disabled={activeSection === 0}
+                  >
+                    <FiArrowLeft className="w-5 h-5" />
+                    <span>Previous</span>
+                  </button>
+                  <button
+                    onClick={() => activeSection < sections.length - 1 && setActiveSection(activeSection + 1)}
+                    className={`flex items-center gap-2 px-2 py-1 transition-all ${
+                      activeSection < sections.length - 1 
+                        ? 'text-white/80 hover:text-white' 
+                        : 'text-white/20 cursor-not-allowed'
+                    }`}
+                    disabled={activeSection === sections.length - 1}
+                  >
+                    <span>Next</span>
+                    <FiArrowLeft className="w-5 h-5 rotate-180" />
+                  </button>
                 </div>
 
                 {/* Discussion Panel */}
                 <div className="mt-12 pt-8 border-t border-white/[0.05]">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                      <FiMessageCircle className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-white">Diskusi</h2>
-                      <p className="text-sm text-white/60">Diskusikan materi ini dengan teman belajarmu</p>
-                    </div>
-                  </div>
-                  <div className="bg-black/[0.02] border border-white/[0.05] rounded-2xl p-8">
+                 
+                  <div className="bg-black/[0.02] border border-white/[0.05] rounded-2xl p-8 hover:border-white/10 transition-colors backdrop-blur-sm">
                     <DiscussionPanel 
                       materialId={material?.id}
                       sectionId={currentSection.id}
@@ -318,13 +419,13 @@ const TheoryStep = ({ material }) => {
 
         {/* Right Sidebar - Fixed */}
         <aside className={`
-          fixed right-0 top-[144px] bottom-16 lg:bottom-20 w-80 lg:w-72
+          fixed right-0 ${showNav ? 'top-[160px]' : 'top-0'} bottom-16 lg:bottom-20 w-80 lg:w-72
           bg-black/80 backdrop-blur-lg border-l border-white/[0.05]
-          transition-transform duration-300 z-50 overflow-y-auto
+          transition-all duration-300 z-40
           ${showRightSidebar ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         `}>
-          <div className="p-6">
-            <div className="space-y-6">
+          <div className="h-full p-6 overflow-y-auto">
+            <div className="space-y-8">
               {currentSection.quickTips && (
                 <QuickTips tips={currentSection.quickTips} />
               )}

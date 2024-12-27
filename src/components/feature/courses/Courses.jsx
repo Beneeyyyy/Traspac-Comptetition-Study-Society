@@ -90,13 +90,13 @@ function Courses() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white">
+    <div className="min-h-screen bg-black text-white">
       <Navbar />
       
       <main className="relative">
         {/* Background Gradient */}
         <div className="fixed top-0 inset-x-0 h-screen pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/10 via-transparent to-transparent" />
         </div>
 
         {/* Hero Section */}

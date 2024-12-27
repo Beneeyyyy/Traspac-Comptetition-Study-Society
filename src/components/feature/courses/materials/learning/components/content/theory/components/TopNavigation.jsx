@@ -1,11 +1,15 @@
-import { FiArrowLeft, FiClock, FiAward } from 'react-icons/fi';
+import { FiArrowLeft, FiClock, FiAward, FiX } from 'react-icons/fi';
 import { RiBrainLine, RiFlashlightLine } from 'react-icons/ri';
 
-const TopNavigation = ({ section, onBack }) => {
+function TopNavigation({ section, onBack, onClose, show = true }) {
   return (
-    <div className="fixed top-20 left-0 right-0 z-30 bg-black/80 backdrop-blur-lg border-b border-white/[0.05]">
-      <div className="max-w-[1920px] mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
+    <div className={`
+      fixed top-0 left-0 right-0 z-30 bg-black/80 backdrop-blur-lg border-b border-white/[0.05] h-40
+      transition-all duration-300 
+      ${show ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}
+    `}>
+      <div className="max-w-[1920px] mx-auto px-6 py-10 h-full flex items-center">
+        <div className="flex items-center justify-between w-full">
           {/* Back Button & Title */}
           <div className="flex items-center gap-4">
             <button
@@ -23,10 +27,22 @@ const TopNavigation = ({ section, onBack }) => {
             </h1>
           </div>
 
-          {/* Meta Info */}
-          <div
-            className="flex items-center gap-6"
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="group relative flex items-center justify-center w-20 h-20"
           >
+            {/* Static Glow Effect */}
+            <div className="absolute inset-0">
+              <div className="absolute -inset-4 bg-red-500/15 blur-2xl rounded-full" />
+            </div>
+            
+            {/* Icon Only */}
+            <FiX className="w-12 h-12 text-red-700 group-hover:text-red-500 transition-all duration-300 group-hover:rotate-90 relative" />
+          </button>
+
+          {/* Meta Info */}
+          <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 text-white/60">
               <FiClock className="w-4 h-4" />
               <span>{section.duration}</span>
@@ -48,6 +64,7 @@ const TopNavigation = ({ section, onBack }) => {
       </div>
     </div>
   );
-};
+}
 
+export { TopNavigation };
 export default TopNavigation; 

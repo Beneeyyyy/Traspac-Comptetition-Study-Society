@@ -1,105 +1,67 @@
-import { FiImage, FiPlay } from 'react-icons/fi';
+import React from 'react';
+import { motion } from 'framer-motion';
 
-const ContentRenderer = ({ section, onMediaClick }) => {
-  const renderContent = () => {
-    switch (section.type) {
-      case 'text':
-        return (
-          <div className="space-y-6">
-            {/* Text Content */}
-            <div
-              className="text-lg text-white leading-relaxed"
-            >
-              {section.content}
-            </div>
-
-            {/* Media Preview */}
-            {section.media && (
-              <button
-                onClick={onMediaClick}
-                className="w-full relative group"
-              >
-                <div className="aspect-video rounded-xl overflow-hidden">
-                  {/* Preview Image */}
-                  <img 
-                    src={section.media.url} 
-                    alt={section.media.caption}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  />
-                  
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="absolute bottom-4 left-4 flex items-center gap-2 text-sm">
-                      <FiImage className="w-4 h-4" />
-                      <span>Klik untuk memperbesar</span>
-                    </div>
-                  </div>
-                </div>
-                {section.media.caption && (
-                  <p className="mt-2 text-sm text-white/40 text-center">
-                    {section.media.caption}
-                  </p>
-                )}
-              </button>
-            )}
-          </div>
-        );
-
-      case 'interactive':
-        return (
-          <div className="space-y-6">
-            {/* Text Content */}
-            <div
-              className="text-lg text-white/80 leading-relaxed"
-            >
-              {section.content}
-            </div>
-
-            {/* Points List */}
-            {section.points && (
-              <ul
-                className="space-y-3"
-              >
-                {section.points.map((point, index) => (
-                  <li
-                    key={index}
-                    className="flex items-start gap-3 text-white/70"
-                  >
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/[0.05] flex items-center justify-center text-sm">
-                      {index + 1}
-                    </span>
-                    <span className="text-lg leading-relaxed">{point}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* Interactive Demo */}
-            {section.demo && (
-              <div
-                className="relative aspect-video rounded-xl overflow-hidden bg-white/[0.02] border border-white/[0.05]"
-              >
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <FiPlay className="w-12 h-12 text-white/40" />
-                    <span className="text-sm text-white/40">Demo Interaktif</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
+export function ContentRenderer({ section }) {
+  if (!section) return null;
 
   return (
-    <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-8">
-      {renderContent()}
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-12"
+    >
+      {/* Text Content */}
+      <div className="text-xl text-white/80 leading-relaxed whitespace-pre-line max-w-4xl mx-auto">
+        {section.content}
+      </div>
+      
+      {/* Points List if exists */}
+      {section.points && (
+        <div className="max-w-3xl mx-auto">
+          <ul className="space-y-6">
+            {section.points.map((point, index) => (
+              <li
+                key={index}
+                className="flex items-start gap-4 text-white/70 hover:text-white/90 transition-colors group"
+              >
+                <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center text-sm text-blue-400 group-hover:from-blue-500/20 group-hover:to-purple-500/20 transition-all">
+                  {index + 1}
+                </span>
+                <span className="text-lg leading-relaxed pt-1">{point}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
+      {/* Media Content */}
+      {section.media && (
+        <div className="mt-12 max-w-5xl mx-auto">
+          {section.media.type === 'image' && (
+            <img 
+              src={section.media.url} 
+              alt={section.media.caption} 
+              className="rounded-2xl w-full shadow-lg hover:shadow-xl transition-shadow"
+            />
+          )}
+          {section.media.type === 'video' && (
+            <video 
+              src={section.media.url}
+              controls
+              className="rounded-2xl w-full shadow-lg"
+            />
+          )}
+          {section.media.caption && (
+            <p className="mt-4 text-base text-white/60 text-center">
+              {section.media.caption}
+            </p>
+          )}
+        </div>
+      )}
+    </motion.div>
   );
-};
+}
 
+// Re-export for backward compatibility
 export default ContentRenderer; 

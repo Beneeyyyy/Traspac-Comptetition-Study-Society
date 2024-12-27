@@ -48,14 +48,14 @@ const Community = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white flex flex-col">
+    <div className="min-h-screen bg-black text-white flex flex-col">
       <Navbar />
       
       {/* Main Content */}
       <main className="relative flex-1">
         {/* Top Gradient */}
         <div className="absolute top-0 inset-x-0 h-[500px] pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/10 via-transparent to-transparent" />
         </div>
 
         {/* Content Wrapper */}
