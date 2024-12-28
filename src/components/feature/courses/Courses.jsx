@@ -2,7 +2,9 @@ import { useState, useEffect, Suspense, lazy, useRef } from 'react'
 import { motion } from 'framer-motion'
 import Navbar from '../../layouts/Navbar'
 import Footer from '../../layouts/Footer'
-import HeroSection from './heroSection/HeroSection'
+import HeroSection from '../../layouts/HeroSection'
+import { FiBook, FiUsers, FiBarChart } from 'react-icons/fi'
+import iconCourse1 from '../../../assets/images/courses/iconCourse1.svg'
 
 // Lazy load components
 const CategorySection = lazy(() => import('./contentSection/CategorySection'))
@@ -12,16 +14,22 @@ function Courses() {
   const [isLoading, setIsLoading] = useState(true)
   const [categories, setCategories] = useState([])
   const [activeFilter, setActiveFilter] = useState('all')
-  const [visibleSection, setVisibleSection] = useState('hero') // 'hero' or 'category'
+  const [visibleSection, setVisibleSection] = useState('hero')
   const heroRef = useRef(null)
   const categoryRef = useRef(null)
+
+  const courseStats = [
+    { icon: FiBook, value: categories.length || '20+', label: 'Learning Paths' },
+    { icon: FiUsers, value: '2.5k+', label: 'Active Learners' },
+    { icon: FiBarChart, value: '94%', label: 'Success Rate' }
+  ]
 
   useEffect(() => {
     console.log('🚀 Initial page load - Setting up observers')
     
     const options = {
       threshold: 0.1,
-      rootMargin: '-10% 0px -10% 0px' // Trigger when section is 10% in view
+      rootMargin: '-10% 0px -10% 0px'
     }
 
     const handleIntersect = (entries) => {
@@ -31,7 +39,6 @@ function Courses() {
           console.log(`📍 ${section} section is in view`)
           setVisibleSection(section)
           
-          // Load categories data if entering category section
           if (section === 'category' && isLoading) {
             fetchCategories()
           }
@@ -109,9 +116,12 @@ function Courses() {
               transition={{ duration: 0.3 }}
             >
               <HeroSection 
-                categories={categories}
+                type="courses"
+                icon={iconCourse1}
+                stats={courseStats}
                 activeFilter={activeFilter}
                 setActiveFilter={setActiveFilter}
+                showFilters={true}
               />
               <Suspense fallback={
                 <div className="mt-20 flex items-center justify-center">
