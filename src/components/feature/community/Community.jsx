@@ -5,7 +5,7 @@ import HeroSection from '../../layouts/HeroSection'
 import ForumSection from './components/ForumSection'
 import ExploreSection from './components/ExploreSection'
 import { FiUsers, FiMessageSquare, FiAward } from 'react-icons/fi'
-import iconCommunity from '../../../assets/images/community/iconCommunity.svg'
+import iconCommunity from '../../../assets/images/community/iconCommunityFront.svg'
 import { CommunityProvider } from './context/CommunityContext'
 
 const Community = () => {
