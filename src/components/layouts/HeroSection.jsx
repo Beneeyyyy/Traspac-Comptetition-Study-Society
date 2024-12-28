@@ -7,7 +7,8 @@ function HeroSection({
   activeFilter,
   setActiveFilter,
   showFilters = false,
-  className = ''
+  className = '',
+  onExploreClick
 }) {
   const content = {
     courses: {
@@ -72,7 +73,10 @@ function HeroSection({
                 </div>
               ) : (
                 <div className="flex gap-4 pt-2">
-                  <button className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 transition-all flex items-center gap-2">
+                  <button 
+                    onClick={type === 'community' ? onExploreClick : undefined}
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 transition-all flex items-center gap-2"
+                  >
                     {type === 'community' ? 'Jelajahi Komunitas' : 'Explore Courses'}
                   </button>
                   <button className="px-6 py-3 rounded-xl bg-white/[0.05] backdrop-blur-xl border border-white/10 text-white font-medium hover:bg-white/[0.08] transition-all">
