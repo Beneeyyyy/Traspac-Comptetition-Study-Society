@@ -1,25 +1,24 @@
-import { useState, useMemo, useCallback } from 'react'
+import React, { Suspense, lazy } from 'react'
 import { FiSearch, FiFilter, FiTrendingUp, FiClock, FiMessageSquare, FiHeart } from 'react-icons/fi'
-import { useDebounce } from '../hooks/useDebounce'
-import { Suspense, lazy } from 'react'
-import QuestionCardSkeleton from './skeletons/QuestionCardSkeleton'
+import { useDebounce } from '../../../../hooks/useDebounce'
+import QuestionCardSkeleton from './forumComponents/skeletons/QuestionCardSkeleton'
 import { useCommunity } from '../context/CommunityContext'
 
 // Lazy load components
-const CreatePost = lazy(() => import('./Post/CreatePost'))
-const QuestionCard = lazy(() => import('./Post/QuestionCard'))
+const CreatePost = lazy(() => import('./forumComponents/Post/CreatePost'))
+const QuestionCard = lazy(() => import('./forumComponents/Post/QuestionCard'))
 
 const ForumSection = () => {
-  const { questions, isLoading } = useCommunity()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFilter, setSelectedFilter] = useState('all')
-  const [expandedQuestion, setExpandedQuestion] = useState(null)
+  const { questions = [], isLoading } = useCommunity() || {}
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [selectedFilter, setSelectedFilter] = React.useState('all')
+  const [expandedQuestion, setExpandedQuestion] = React.useState(null)
 
   // Debounce search query to prevent excessive filtering
   const debouncedSearch = useDebounce(searchQuery, 300)
 
   // Memoize filters to prevent unnecessary re-renders
-  const filters = useMemo(() => [
+  const filters = React.useMemo(() => [
     { id: 'all', label: 'Semua', icon: FiFilter },
     { id: 'trending', label: 'Trending', icon: FiTrendingUp },
     { id: 'recent', label: 'Terbaru', icon: FiClock },
@@ -28,22 +27,22 @@ const ForumSection = () => {
   ], [])
 
   // Memoize filtered questions
-  const filteredQuestions = useMemo(() => {
-    if (!debouncedSearch) return questions
+  const filteredQuestions = React.useMemo(() => {
+    if (!questions || !debouncedSearch) return questions || []
     return questions.filter(question => 
-      question.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      question.content.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      question.tags.some(tag => tag.toLowerCase().includes(debouncedSearch.toLowerCase()))
+      question.title?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      question.content?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      question.tags?.some(tag => tag.toLowerCase().includes(debouncedSearch.toLowerCase()))
     )
   }, [questions, debouncedSearch])
 
   // Memoize search handler
-  const handleSearch = useCallback((e) => {
+  const handleSearch = React.useCallback((e) => {
     setSearchQuery(e.target.value)
   }, [])
 
   // Memoize filter handler
-  const handleFilterChange = useCallback((filterId) => {
+  const handleFilterChange = React.useCallback((filterId) => {
     setSelectedFilter(filterId)
   }, [])
 
@@ -111,7 +110,7 @@ const ForumSection = () => {
             <QuestionCardSkeleton />
             <QuestionCardSkeleton />
           </>
-        ) : filteredQuestions.length === 0 ? (
+        ) : !filteredQuestions || filteredQuestions.length === 0 ? (
           // Show empty state when no questions match the filter
           <div className="text-center py-12">
             <p className="text-lg text-white/40">Tidak ada pertanyaan ditemukan</p>

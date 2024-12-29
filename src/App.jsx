@@ -7,6 +7,7 @@ import MaterialsPage from './components/feature/courses/materials/Materials'
 import LearningPage from './components/feature/courses/materials/learning/LearningPage'
 import IntroductionStep from './components/feature/courses/materials/learning/components/content/IntroductionStep'
 import CommunityPage from './components/feature/community/Community'
+import SquadDetail from './components/feature/community/components/squadDetail/SquadDetail'
 import UpCreation from './components/feature/upcreation/UpCreation'
 import UpService from './components/feature/upservice/UpService'
 import AdminDashboard from './pages/admin/Dashboard'
@@ -16,6 +17,7 @@ import SubcategoryManagement from './pages/admin/SubcategoryManagement'
 import MaterialManagement from './pages/admin/MaterialManagement'
 import Navbar from './components/layouts/Navbar'
 import Leaderboard from './components/feature/leaderboard/Leaderboard'
+import { CommunityProvider } from './components/feature/community/context/CommunityContext'
 
 function AppContent() {
   const location = useLocation()
@@ -42,8 +44,11 @@ function AppContent() {
             <Route path="/courses/:categoryId/subcategory/:subcategoryId/materials" element={<MaterialsPage />} />
             <Route path="/courses/:categoryId/subcategory/:subcategoryId/learn/:materialId/*" element={<LearningPage />} />
             
-            {/* Other Routes */}
+            {/* Community Routes */}
             <Route path="/community" element={<CommunityPage />} />
+            <Route path="/community/squad/:squadId" element={<SquadDetail />} />
+            
+            {/* Other Routes */}
             <Route path="/upcreation" element={<UpCreation />} />
             <Route path="/upservice" element={<UpService />} />
 
@@ -62,11 +67,13 @@ function AppContent() {
 
 function App() {
   return (
-    <MotionConfig reducedMotion="user">
-      <Router>
-        <AppContent />
-      </Router>
-    </MotionConfig>
+    <Router>
+      <MotionConfig reducedMotion="user">
+        <CommunityProvider>
+          <AppContent />
+        </CommunityProvider>
+      </MotionConfig>
+    </Router>
   )
 }
 

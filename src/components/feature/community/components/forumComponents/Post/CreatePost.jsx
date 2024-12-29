@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { FiImage, FiX, FiMessageSquare, FiLink, FiHash } from 'react-icons/fi'
-import { useCommunity } from '../../context/CommunityContext'
+import { useCommunity } from '../../../context/CommunityContext'
 
 const CreatePost = () => {
   const { addQuestion } = useCommunity()
