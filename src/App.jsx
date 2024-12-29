@@ -5,7 +5,6 @@ import Courses from './components/feature/courses/Courses'
 import SubcategoryPage from './components/feature/courses/subcategory/subCategory'
 import MaterialsPage from './components/feature/courses/materials/Materials'
 import LearningPage from './components/feature/courses/materials/learning/LearningPage'
-import IntroductionStep from './components/feature/courses/materials/learning/components/content/IntroductionStep'
 import CommunityPage from './components/feature/community/Community'
 import SquadDetail from './components/feature/community/components/squadDetail/SquadDetail'
 import UpCreation from './components/feature/upcreation/UpCreation'
@@ -19,6 +18,7 @@ import Navbar from './components/layouts/Navbar'
 import Leaderboard from './components/feature/leaderboard/Leaderboard'
 import { CommunityProvider } from './components/feature/community/context/CommunityContext'
 
+
 function AppContent() {
   const location = useLocation()
   
@@ -27,7 +27,7 @@ function AppContent() {
       <Navbar />
       <AnimatePresence mode="wait">
         <motion.div
-          key={location.pathname}
+          key={location.pathname.split('/')[1]}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -35,6 +35,7 @@ function AppContent() {
         >
           <Routes location={location}>
             <Route path="/" element={<LandingPage />} />
+            
             <Route path='/dashboard' element={<LandingPage />} />
             <Route path="/courses" element={<Courses />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
@@ -46,8 +47,9 @@ function AppContent() {
             
             {/* Community Routes */}
             <Route path="/community" element={<CommunityPage />} />
+            <Route path="/community/explore" element={<CommunityPage />} />
             <Route path="/community/squad/:squadId" element={<SquadDetail />} />
-            
+
             {/* Other Routes */}
             <Route path="/upcreation" element={<UpCreation />} />
             <Route path="/upservice" element={<UpService />} />

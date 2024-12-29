@@ -1,15 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../../layouts/Navbar'
 import Footer from '../../layouts/Footer'
 import HeroSection from '../../layouts/HeroSection'
 import ForumSection from './components/ForumSection'
-import ExploreSection from './components/ExploreSection'
 import { FiUsers, FiMessageSquare, FiAward } from 'react-icons/fi'
 import iconCommunity from '../../../assets/images/community/iconCommunityFront.svg'
 import { CommunityProvider } from './context/CommunityContext'
+import ExploreSection from './components/ExploreSection'
 
 const Community = () => {
-  const [activeSection, setActiveSection] = useState('forum')
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [activeSection, setActiveSection] = useState(location.pathname === '/community/explore' ? 'explore' : 'forum')
+
+  useEffect(() => {
+    if (location.pathname === '/community/explore') {
+      setActiveSection('explore')
+    } else if (location.pathname === '/community') {
+      setActiveSection('forum')
+    }
+  }, [location.pathname])
 
   const communityStats = [
     { icon: FiUsers, value: '2,500+', label: 'Total Anggota' },
@@ -19,6 +31,7 @@ const Community = () => {
 
   const handleExploreClick = () => {
     setActiveSection('explore')
+    navigate('/community/explore')
   }
 
   return (
@@ -33,23 +46,25 @@ const Community = () => {
           </div>
 
           <div className="relative container max-w-screen-xl mx-auto px-6">
-            {activeSection === 'forum' && (
-              <HeroSection 
-                type="community"
-                icon={iconCommunity}
-                stats={communityStats}
-                showFilters={false}
-                className="mb-20"
-                onExploreClick={handleExploreClick}
-              />
-            )}
-
-            {/* Content Sections */}
-            {activeSection === 'forum' ? (
-              <ForumSection />
-            ) : (
-              <ExploreSection />
-            )}
+              <div>
+                {activeSection === 'forum' ? (
+                  <>
+                    <HeroSection 
+                      type="community"
+                      icon={iconCommunity}
+                      stats={communityStats}
+                      showFilters={false}
+                      className="mb-20"
+                      onExploreClick={handleExploreClick}
+                    />
+                    <ForumSection />
+                  </>
+                ) : (
+                 <ExploreSection />
+                )
+                }
+              </div>
+          
           </div>
         </main>
         <Footer />

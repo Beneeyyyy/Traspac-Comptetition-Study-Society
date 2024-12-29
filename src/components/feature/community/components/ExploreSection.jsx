@@ -2,7 +2,7 @@ import React from 'react'
 import { useCommunity } from '../context/CommunityContext'
 import HeroSection from './exploreComponents/HeroSection'
 import TopSquads from './exploreComponents/TopSquads'
-import AllSquads from './exploreComponents/AllSquads'
+import SquadNav from './exploreComponents/AllSquads'
 
 // Dummy study groups data for testing
 const dummyStudyGroups = [
@@ -130,10 +130,10 @@ const ExploreSection = () => {
   }, [localStudyGroups, searchQuery, sortOption])
 
   return (
-    <div className="min-h-screen bg-black pt-24 pb-12">
+    <div className="min-h-screen pt-24 pb-12">
       <HeroSection searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       <TopSquads topCommunities={topCommunities} />
-      <AllSquads 
+      <SquadNav 
         studyGroups={filteredAndSortedGroups} 
         selectedSort={sortOption}
         setSelectedSort={setSortOption}

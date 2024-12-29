@@ -1,7 +1,9 @@
+import React from 'react'
+import { motion } from 'framer-motion'
 import { FiUsers, FiSearch } from 'react-icons/fi'
 import iconCommunityBack from '../../../../../assets/images/community/iconCommunityBack.svg'
 
-const HeroSection = ({ searchQuery, setSearchQuery }) => {
+export default function HeroSection({ searchQuery, setSearchQuery }) {
   return (
     <div className="relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -9,10 +11,13 @@ const HeroSection = ({ searchQuery, setSearchQuery }) => {
           {/* Community Mascot */}
           <div className="w-48 lg:w-72 flex-shrink-0 relative">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-2xl" />
-            <img 
-              src={iconCommunityBack} 
+            <motion.img 
+              src={iconCommunityBack}
               alt="Community Mascot" 
               className="relative w-full h-full object-contain"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1, ease: "easeIn" }}
             />
           </div>
 
@@ -50,6 +55,4 @@ const HeroSection = ({ searchQuery, setSearchQuery }) => {
       </div>
     </div>
   )
-}
-
-export default HeroSection 
+} 

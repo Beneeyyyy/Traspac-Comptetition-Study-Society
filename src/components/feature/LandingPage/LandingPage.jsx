@@ -1,7 +1,35 @@
 import React from 'react'
+import { motion } from 'framer-motion'
 
-const StatItem = ({ icon, value, label }) => (
-  <div className="group">
+const fadeInUpVariant = {
+  hidden: { 
+    opacity: 0, 
+    y: 20 
+  },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      duration: 0.6,
+      delay: 0.2,
+      ease: "easeOut"
+    }
+  }
+};
+
+const containerVariant = {
+  visible: {
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const StatItem = ({ icon, value, label, index }) => (
+  <motion.div 
+    className="group"
+    variants={fadeInUpVariant}
+  >
     <div className="flex flex-col items-center text-center p-6 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
       <span className="text-4xl mb-2" role="img" aria-label={label}>{icon}</span>
       <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
@@ -9,7 +37,7 @@ const StatItem = ({ icon, value, label }) => (
       </span>
       <span className="text-sm text-white/60 mt-2">{label}</span>
     </div>
-  </div>
+  </motion.div>
 );
 
 // Data statis untuk stats dan features
@@ -31,15 +59,25 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-white overflow-hidden">
       {/* Abstract Background Elements */}
-      <div className="fixed inset-0 z-0">
+      <motion.div 
+        className="fixed inset-0 z-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-radial from-blue-500/10 via-transparent to-transparent" />
         <div className="absolute bottom-0 right-0 w-full h-full bg-gradient-radial from-purple-500/10 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay" />
         <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-[url('/grid.svg')] opacity-[0.02] rotate-12" />
-      </div>
+      </motion.div>
 
       {/* Main Content */}
-      <main className="relative z-10">
+      <motion.main 
+        className="relative z-10"
+        initial="hidden"
+        animate="visible"
+        variants={fadeInUpVariant}
+      >
         <div className="max-w-7xl mx-auto px-4">
           {/* Hero Section */}
           <section className="min-h-screen flex items-center">
@@ -99,7 +137,13 @@ const LandingPage = () => {
           </section>
 
           {/* Features Section */}
-          <section className="py-32">
+          <motion.section 
+            className="py-32"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeInUpVariant}
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {FEATURES_DATA.map((feature, index) => (
                 <div 
@@ -119,9 +163,9 @@ const LandingPage = () => {
                 </div>
               ))}
             </div>
-          </section>
+          </motion.section>
         </div>
-      </main>
+      </motion.main>
     </div>
   )
 }
