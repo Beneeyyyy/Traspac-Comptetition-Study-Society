@@ -1,0 +1,29 @@
+model Achievement {
+  id            Int       @id @default(autoincrement())
+  title         String
+  description   String
+  type          String    // e.g., "learning", "streak", "quiz", "course"
+  requirement   Int       // target value to complete achievement
+  xpReward      Int
+  icon          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  achievementId Int
+  progress      Int       @default(0)
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  user          User      @relation(fields: [userId], references: [id])
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+} 

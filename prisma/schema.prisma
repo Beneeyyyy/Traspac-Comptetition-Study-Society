@@ -7,65 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Category {
-  id          Int           @id @default(autoincrement())
-  name        String
-  description String?
-  image       String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  Subcategory Subcategory[]
-  Point       Point[]
-}
-
-model Material {
-  id            Int         @id @default(autoincrement())
-  title         String
-  content       String
-  image         String?
-  pointValue    Int         @default(0)
-  subcategoryId Int
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  Subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
-  Point         Point[]
-}
-
-model Point {
-  id            Int         @id @default(autoincrement())
-  value         Int
-  userId        Int
-  categoryId    Int
-  subcategoryId Int
-  materialId    Int
-  createdAt     DateTime   @default(now())
-  Category      Category   @relation(fields: [categoryId], references: [id])
-  Subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
-  Material      Material   @relation(fields: [materialId], references: [id])
-  User          User       @relation(fields: [userId], references: [id])
-}
-
-model Subcategory {
-  id          Int        @id @default(autoincrement())
-  name        String
-  description String?
-  image       String?
-  categoryId  Int
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  Material    Material[]
-  Point       Point[]
-  Category    Category   @relation(fields: [categoryId], references: [id])
-}
-
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("user")
-  image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  Point     Point[]
-}
+// Import all models
+import "models/user.prisma"
+import "models/learning.prisma"
+import "models/achievement.prisma"
+import "models/category.prisma"

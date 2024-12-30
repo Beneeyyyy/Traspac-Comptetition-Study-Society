@@ -17,6 +17,7 @@ import MaterialManagement from './pages/admin/MaterialManagement'
 import Navbar from './components/layouts/Navbar'
 import Leaderboard from './components/feature/leaderboard/Leaderboard'
 import { CommunityProvider } from './components/feature/community/context/CommunityContext'
+import Profile from './components/feature/profile/Profile'
 
 
 function AppContent() {
@@ -39,6 +40,7 @@ function AppContent() {
             <Route path='/dashboard' element={<LandingPage />} />
             <Route path="/courses" element={<Courses />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/profile" element={<Profile />} />
             
             {/* Learning Flow Routes */}
             <Route path="/courses/:categoryId/subcategory" element={<SubcategoryPage />} />

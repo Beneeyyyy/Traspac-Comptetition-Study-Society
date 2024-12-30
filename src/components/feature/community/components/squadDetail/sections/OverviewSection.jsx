@@ -1,6 +1,54 @@
 import { FiUsers, FiTarget, FiCalendar, FiAward, FiTrendingUp, FiInfo, FiBook, FiFlag, FiStar } from 'react-icons/fi'
 import { useSquad } from '../../../context/SquadContext'
 
+function CircularProgress({ percentage, size = 120, label, sublabel }) {
+  const strokeWidth = 8
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const offset = circumference - (percentage / 100) * circumference
+
+  return (
+    <div className="relative flex flex-col items-center">
+      <svg width={size} height={size} className="transform -rotate-90">
+        {/* Background circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+          stroke="rgba(255,255,255,0.1)"
+          fill="none"
+        />
+        {/* Progress circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+          stroke="url(#gradient)"
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-all duration-1000 ease-out"
+        />
+        {/* Gradient definition */}
+        <defs>
+          <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3B82F6" />
+            <stop offset="100%" stopColor="#8B5CF6" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold">{percentage}%</span>
+        <span className="text-sm text-white/60">{label}</span>
+        {sublabel && <span className="text-xs text-white/40">{sublabel}</span>}
+      </div>
+    </div>
+  )
+}
+
 const StatCard = ({ icon: Icon, label, value, color }) => (
   <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white/5 border border-gray-800">
     <div className={`p-1.5 rounded-lg ${color}/10`}>
@@ -25,6 +73,31 @@ const OverviewSection = ({ squad }) => {
 
   return (
     <div className="space-y-6">
+      {/* Progress Circles */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-[#0A0A0A] rounded-xl p-6 flex flex-col items-center">
+          <CircularProgress 
+            percentage={85} 
+            label="Course Progress"
+            sublabel="15/20 Completed"
+          />
+        </div>
+        <div className="bg-[#0A0A0A] rounded-xl p-6 flex flex-col items-center">
+          <CircularProgress 
+            percentage={75} 
+            label="Weekly Target"
+            sublabel="6/8 Hours"
+          />
+        </div>
+        <div className="bg-[#0A0A0A] rounded-xl p-6 flex flex-col items-center">
+          <CircularProgress 
+            percentage={90} 
+            label="Attendance"
+            sublabel="27/30 Days"
+          />
+        </div>
+      </div>
+
       {/* About Squad */}
       <div className="bg-[#0A0A0A] rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-4">About Squad</h2>

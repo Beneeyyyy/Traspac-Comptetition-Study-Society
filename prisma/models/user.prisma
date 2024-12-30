@@ -1,0 +1,42 @@
+model User {
+  id              Int           @id @default(autoincrement())
+  name            String
+  email           String        @unique
+  password        String
+  role            String        @default("user")
+  image           String?
+  
+  // Profile Info
+  school          String?
+  bio             String?
+  interests       String[]      @default([])
+  currentGoal     String?
+  bannerImage     String?
+  
+  // Stats & Progress
+  totalPoints     Int           @default(0)
+  totalXP         Int           @default(0)
+  rank            String        @default("Pemula")
+  level           Int           @default(1)
+  studyStreak     Int           @default(0)
+  lastStudyDate   DateTime?
+  weeklyStudyTime Int           @default(0)    // in minutes
+  monthlyStudyTime Int          @default(0)    // in minutes
+  totalStudyTime  Int           @default(0)    // in minutes
+  
+  // Achievements & Progress
+  completedMaterials Int        @default(0)
+  completedQuizzes   Int        @default(0)
+  completedCourses   Int        @default(0)
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lastActive      DateTime      @default(now())
+  
+  // Relations
+  points          Point[]
+  achievements    UserAchievement[]
+  studyHistory    StudyHistory[]
+  materialProgress MaterialProgress[]
+} 
