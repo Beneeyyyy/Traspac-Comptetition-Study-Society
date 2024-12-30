@@ -6,38 +6,24 @@ export default {
   ],
   theme: {
     extend: {
-      animation: {
-        'line-to-center': 'line-to-center 3s ease-in-out infinite',
-        'pulse-slow': 'pulse 3s ease-in-out infinite',
-      },
       keyframes: {
-        'line-to-center': {
-          '0%': { 
-            transform: 'scaleX(0)',
-            opacity: '0'
-          },
-          '35%': {
-            transform: 'scaleX(1)',
-            opacity: '1'
-          },
-          '65%': {
-            transform: 'scaleX(1)',
-            opacity: '1'
-          },
-          '100%': { 
-            transform: 'scaleX(0)',
-            opacity: '0'
-          }
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        wag: {
+          '0%, 100%': { transform: 'rotate(0deg)' },
+          '50%': { transform: 'rotate(10deg)' },
         }
       },
-      backdropBlur: {
-        xs: '2px'
+      animation: {
+        'float': 'float 3s ease-in-out infinite',
+        'float-delay': 'float 3s ease-in-out 1s infinite',
+        'float-slow': 'float 4s ease-in-out infinite',
+        'wag': 'wag 2s ease-in-out infinite',
       }
     },
   },
-  plugins: [require("daisyui")],
-  daisyui: {
-    themes: ["light", "dark"],
-  }
+  plugins: [],
 }
 

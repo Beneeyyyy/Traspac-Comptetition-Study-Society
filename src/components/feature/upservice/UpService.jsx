@@ -1,14 +1,28 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { FiUsers, FiBook, FiMonitor, FiCode, FiMessageSquare, FiCalendar } from 'react-icons/fi'
+import { AnimatePresence } from 'framer-motion'
+import { FiUsers, FiBook, FiMonitor, FiCode, FiMessageSquare } from 'react-icons/fi'
 import Navbar from '../../layouts/Navbar'
 import Footer from '../../layouts/Footer'
+import ServiceCard from './components/ServiceCard'
+import CreateServiceModal from './components/CreateServiceModal'
+import ServiceHeader from './components/ServiceHeader'
+import ServiceDetailModal from './components/ServiceDetailModal'
+import HeroSection from './components/HeroSection'
 
 const UpService = () => {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedService, setSelectedService] = useState(null)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [message, setMessage] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All')
+
+  // Form state for creating new service
+  const [newService, setNewService] = useState({
+    title: '',
+    description: '',
+    price: '',
+    category: 'Mentoring',
+    showcaseImages: []
+  })
 
   const services = [
     {
@@ -16,183 +30,181 @@ const UpService = () => {
       icon: FiUsers,
       title: '1-on-1 Mentoring',
       description: 'Get personalized guidance from experienced mentors',
-      price: '$50/hour'
+      price: '$50',
+      category: 'Mentoring',
+      showcaseImages: [
+        'https://images.unsplash.com/photo-1515378960530-7c0da6231fb1?w=500&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=500&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=500&h=300&fit=crop'
+      ],
+      provider: {
+        name: 'John Smith',
+        image: 'https://i.pravatar.cc/150?img=1',
+        rating: 4.8,
+        totalReviews: 124,
+        totalServices: 15,
+        location: 'New York, USA'
+      }
     },
     {
       id: 'tutoring',
       icon: FiBook,
       title: 'Private Tutoring',
       description: 'Learn at your own pace with dedicated tutors',
-      price: '$40/hour'
+      price: '$40',
+      category: 'Tutoring',
+      showcaseImages: [
+        'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=500&h=300&fit=crop'
+      ],
+      provider: {
+        name: 'Sarah Johnson',
+        image: 'https://i.pravatar.cc/150?img=2',
+        rating: 4.9,
+        totalReviews: 89,
+        totalServices: 8,
+        location: 'London, UK'
+      }
     },
     {
       id: 'workshop',
       icon: FiMonitor,
       title: 'Live Workshops',
       description: 'Join interactive group learning sessions',
-      price: '$30/person'
+      price: '$30',
+      category: 'Workshop',
+      showcaseImages: [
+        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=500&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=500&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1552581234-26160f608093?w=500&h=300&fit=crop'
+      ],
+      provider: {
+        name: 'Mike Chen',
+        image: 'https://i.pravatar.cc/150?img=3',
+        rating: 4.7,
+        totalReviews: 156,
+        totalServices: 12,
+        location: 'Singapore'
+      }
     },
     {
       id: 'review',
       icon: FiCode,
       title: 'Code Review',
       description: 'Get expert feedback on your code',
-      price: '$45/review'
+      price: '$45',
+      category: 'Review',
+      showcaseImages: [
+        'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=500&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=500&h=300&fit=crop'
+      ],
+      provider: {
+        name: 'Alex Kumar',
+        image: 'https://i.pravatar.cc/150?img=4',
+        rating: 5.0,
+        totalReviews: 67,
+        totalServices: 5,
+        location: 'Berlin, Germany'
+      }
     },
     {
       id: 'consultation',
       icon: FiMessageSquare,
       title: 'Tech Consultation',
       description: 'Professional advice for your tech projects',
-      price: '$60/hour'
+      price: '$60',
+      category: 'Consultation',
+      showcaseImages: [
+        'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=500&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=500&h=300&fit=crop'
+      ],
+      provider: {
+        name: 'Emma Wilson',
+        image: 'https://i.pravatar.cc/150?img=5',
+        rating: 4.9,
+        totalReviews: 203,
+        totalServices: 18,
+        location: 'Toronto, Canada'
+      }
     }
   ]
 
-  const getServiceButtonClass = (serviceId) => {
-    const baseClass = "relative p-6 rounded-xl border transition-colors text-left group"
-    const activeClass = "bg-blue-500/10 border-blue-500/50"
-    const inactiveClass = "bg-white/[0.02] border-white/10 hover:bg-white/[0.05]"
-    return `${baseClass} ${selectedService?.id === serviceId ? activeClass : inactiveClass}`
-  }
+  const categories = ['All', 'Mentoring', 'Tutoring', 'Workshop', 'Review', 'Consultation']
 
-  const getIconContainerClass = (serviceId) => {
-    const baseClass = "w-12 h-12 rounded-lg flex items-center justify-center"
-    const activeClass = "bg-blue-500/20"
-    const inactiveClass = "bg-white/5"
-    return `${baseClass} ${selectedService?.id === serviceId ? activeClass : inactiveClass}`
-  }
+  const filteredServices = services.filter(service => {
+    if (selectedCategory !== 'All' && service.category !== selectedCategory) return false
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      return service.title.toLowerCase().includes(query) ||
+             service.description.toLowerCase().includes(query)
+    }
+    return true
+  })
 
-  const getIconClass = (serviceId) => {
-    const baseClass = "text-2xl"
-    const activeClass = "text-blue-400"
-    const inactiveClass = "text-white/60"
-    return `${baseClass} ${selectedService?.id === serviceId ? activeClass : inactiveClass}`
-  }
-
-  const getTitleClass = (serviceId) => {
-    const baseClass = "font-medium"
-    const activeClass = "text-blue-400"
-    const inactiveClass = "text-white"
-    return `${baseClass} ${selectedService?.id === serviceId ? activeClass : inactiveClass}`
+  const handleCreateService = (e) => {
+    e.preventDefault()
+    console.log('Creating new service:', newService)
+    setIsCreateModalOpen(false)
+    setNewService({
+      title: '',
+      description: '',
+      price: '',
+      category: 'Mentoring',
+      showcaseImages: []
+    })
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white flex flex-col">
+    <div className="min-h-screen bg-black text-white flex flex-col">
       <Navbar />
       
-      <main className="relative flex-1">
-        <div className="absolute top-0 inset-x-0 h-[500px] pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-transparent" />
+      <main className="flex-1 relative">
+        {/* Static Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-[35vw] h-[35vw] bg-gradient-to-r from-blue-500/[0.03] to-purple-500/[0.03] rounded-full blur-[60px]"></div>
+          <div className="absolute bottom-1/3 right-1/4 w-[25vw] h-[25vw] bg-gradient-to-r from-purple-500/[0.03] to-pink-500/[0.03] rounded-full blur-[50px]"></div>
+          <div className="absolute top-1/2 left-1/3 w-[30vw] h-[30vw] bg-gradient-to-r from-pink-500/[0.03] to-blue-500/[0.03] rounded-full blur-[55px]"></div>
         </div>
 
-        <div className="relative w-full">
-          <section className="py-12 pt-20">
-            <div className="container max-w-screen-xl mx-auto px-6">
-              <div className="mb-12">
-                <h1 className="text-4xl font-bold text-white mb-4">Up Services</h1>
-                <p className="text-lg text-white/60 max-w-2xl">Get expert help and guidance from our community of professionals.</p>
-              </div>
+        <HeroSection />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-                {services.map((service) => (
-                  <motion.button
-                    key={service.id}
-                    onClick={() => setSelectedService(service)}
-                    className={getServiceButtonClass(service.id)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className={getIconContainerClass(service.id)}>
-                        <service.icon className={getIconClass(service.id)} />
-                      </div>
-                      <div>
-                        <h3 className={getTitleClass(service.id)}>{service.title}</h3>
-                        <p className="text-sm text-white/40">{service.price}</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-white/40">{service.description}</p>
-                  </motion.button>
-                ))}
-              </div>
+        <div className="container max-w-7xl mx-auto px-4 relative pb-12">
+          <ServiceHeader
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+            categories={categories}
+            onCreateClick={() => setIsCreateModalOpen(true)}
+          />
 
-              {selectedService && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white/[0.02] border border-white/10 rounded-xl p-8"
-                >
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-16 h-16 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                      <selectedService.icon className="text-3xl text-blue-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-semibold text-white">{selectedService.title}</h2>
-                      <p className="text-white/60">{selectedService.description}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-white/60 mb-2">Name</label>
-                        <input
-                          type="text"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Your name"
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-white/60 mb-2">Email</label>
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="Your email"
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-white/60 mb-2">Message</label>
-                      <textarea
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Describe what you need help with"
-                        rows={4}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50 resize-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-white/60 mb-2">Preferred Schedule</label>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {['Morning', 'Afternoon', 'Evening', 'Flexible'].map((time) => (
-                          <button
-                            key={time}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                          >
-                            <FiCalendar />
-                            <span>{time}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end pt-6 border-t border-white/5">
-                      <button className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                        Request Service
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
+          <AnimatePresence mode="wait">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              {filteredServices.map((service) => (
+                <ServiceCard 
+                  key={service.id} 
+                  service={service} 
+                  onCardClick={setSelectedService}
+                />
+              ))}
             </div>
-          </section>
+          </AnimatePresence>
         </div>
+
+        <CreateServiceModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={handleCreateService}
+          newService={newService}
+          setNewService={setNewService}
+          categories={categories}
+        />
+
+        <ServiceDetailModal
+          isOpen={!!selectedService}
+          onClose={() => setSelectedService(null)}
+          service={selectedService}
+        />
       </main>
       <Footer />
     </div>
