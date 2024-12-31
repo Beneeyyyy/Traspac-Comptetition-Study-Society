@@ -10,6 +10,7 @@ const categoryRoutes = require('../routes/coursesManagement/categoryRoutes')
 const subcategoryRoutes = require('../routes/coursesManagement/subcategoryRoutes')
 const materialRoutes = require('../routes/coursesManagement/materialRoutes')
 const pointRoutes = require('../routes/leaderBoard/pointRoutes')
+const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoolRoutes')
 
 
 // Test Cloudinary connection
@@ -30,7 +31,8 @@ const app = express()
 app.use(cors({
   origin: 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Accept']
 }))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
@@ -41,6 +43,7 @@ app.use('/api/categories', categoryRoutes)
 app.use('/api/subcategories', subcategoryRoutes)
 app.use('/api/materials', materialRoutes)
 app.use('/api/points', pointRoutes)
+app.use('/api/schools', schoolRoutes)
 
 
 

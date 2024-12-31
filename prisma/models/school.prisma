@@ -1,0 +1,19 @@
+model School {
+  id              Int       @id @default(autoincrement())
+  npsn            String    @unique  // Nomor Pokok Sekolah Nasional
+  name            String    // Nama Sekolah
+  address         String    // Alamat Lengkap
+  city            String    // Kota/Kabupaten
+  province        String    // Provinsi
+  postalCode      String    // Kode Pos
+  level           String    // SD/SMP/SMA/SMK
+  type            String    // Negeri/Swasta
+  status          String    @default("active") // active/inactive
+  
+  // Metadata
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  students        User[]    // Relasi dengan User
+}

@@ -7,8 +7,145 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Import all models
-import "models/user.prisma"
-import "models/learning.prisma"
-import "models/achievement.prisma"
-import "models/category.prisma"
+model School {
+  id              Int       @id @default(autoincrement())
+  npsn            String    @unique  // Nomor Pokok Sekolah Nasional
+  name            String    // Nama Sekolah
+  address         String    // Alamat Lengkap
+  city            String    // Kota/Kabupaten
+  province        String    // Provinsi
+  postalCode      String    // Kode Pos
+  level           String    // SD/SMP/SMA/SMK
+  type            String    // Negeri/Swasta
+  status          String    @default("active") // active/inactive
+  
+  // Metadata
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  students        User[]    // Relasi dengan User
+}
+
+model Category {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?
+  image       String?
+  points      Point[]
+  subcategories Subcategory[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Subcategory {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?
+  image       String?
+  categoryId  Int
+  category    Category      @relation(fields: [categoryId], references: [id])
+  points      Point[]
+  materials   Material[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Material {
+  id            Int           @id @default(autoincrement())
+  title         String
+  description   String?
+  content       String?
+  subcategoryId Int
+  subcategory   Subcategory   @relation(fields: [subcategoryId], references: [id])
+  points        Point[]
+  progress      MaterialProgress[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model User {
+  id              Int           @id @default(autoincrement())
+  name            String
+  email           String        @unique
+  password        String
+  role            String        @default("user")
+  image           String?
+  
+  // Profile Info
+  schoolId        Int?          // Foreign key for School
+  school          School?       @relation(fields: [schoolId], references: [id])
+  bio             String?
+  interests       String[]      @default([])
+  currentGoal     String?
+  bannerImage     String?
+  
+  // Stats & Progress
+  totalPoints     Int           @default(0)
+  totalXP         Int           @default(0)
+  rank            String        @default("Pemula")
+  level           Int           @default(1)
+  studyStreak     Int           @default(0)
+  lastStudyDate   DateTime?
+  weeklyStudyTime Int           @default(0)    // in minutes
+  monthlyStudyTime Int          @default(0)    // in minutes
+  totalStudyTime  Int           @default(0)    // in minutes
+  
+  // Achievements & Progress
+  completedMaterials Int        @default(0)
+  completedQuizzes   Int        @default(0)
+  completedCourses   Int        @default(0)
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lastActive      DateTime      @default(now())
+  
+  // Relations
+  points          Point[]
+  achievements    UserAchievement[]
+  studyHistory    StudyHistory[]
+  materialProgress MaterialProgress[]
+}
+
+model Point {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  categoryId    Int
+  category      Category @relation(fields: [categoryId], references: [id])
+  subcategoryId Int
+  subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
+  materialId    Int
+  material      Material @relation(fields: [materialId], references: [id])
+  value         Int      @default(0)
+  createdAt     DateTime @default(now())
+}
+
+model UserAchievement {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  achievementId Int
+  unlockedAt    DateTime @default(now())
+}
+
+model StudyHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  activity  String
+  duration  Int      // in minutes
+  createdAt DateTime @default(now())
+}
+
+model MaterialProgress {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  materialId  Int
+  material    Material @relation(fields: [materialId], references: [id])
+  progress    Float    @default(0)
+  completed   Boolean  @default(false)
+  lastAccessed DateTime @default(now())
+}

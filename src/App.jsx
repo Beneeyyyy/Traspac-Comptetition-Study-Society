@@ -18,14 +18,17 @@ import Navbar from './components/layouts/Navbar'
 import Leaderboard from './components/feature/leaderboard/Leaderboard'
 import { CommunityProvider } from './components/feature/community/context/CommunityContext'
 import Profile from './components/feature/profile/Profile'
+import Login from './components/feature/auth/Login'
+import Signup from './components/feature/auth/Signup'
 
 
 function AppContent() {
   const location = useLocation()
+  const isAuthPage = ['/login', '/signup'].includes(location.pathname)
   
   return (
     <div className="min-h-screen">
-      <Navbar />
+      {!isAuthPage && <Navbar />}
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname.split('/')[1]}
@@ -36,6 +39,10 @@ function AppContent() {
         >
           <Routes location={location}>
             <Route path="/" element={<LandingPage />} />
+            
+            {/* Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
             
             <Route path='/dashboard' element={<LandingPage />} />
             <Route path="/courses" element={<Courses />} />
@@ -62,6 +69,9 @@ function AppContent() {
             <Route path="/admin/categories" element={<CategoryManagement />} />
             <Route path="/admin/subcategories" element={<SubcategoryManagement />} />
             <Route path="/admin/materials" element={<MaterialManagement />} />
+            
+            {/* Catch-all route */}
+            <Route path="*" element={<div>404 - Page Not Found</div>} />
           </Routes>
         </motion.div>
       </AnimatePresence>

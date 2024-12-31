@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const uploadImage = require('../../utils/uploadImage');
 
 const prisma = new PrismaClient();
@@ -149,6 +150,114 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'User berhasil dihapus' });
   } catch (error) {
     res.status(500).json({ error: 'Gagal menghapus user' });
+  }
+});
+
+// Signup endpoint
+router.post('/signup', async (req, res) => {
+  try {
+    console.log('Received signup request');
+    const {
+      name,
+      email,
+      password,
+      schoolId,
+      schoolName,
+      bio,
+      interests,
+      currentGoal,
+      profilePicture
+    } = req.body;
+
+    console.log('Processing signup for:', { email, name, schoolName });
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      console.log('Missing required fields');
+      return res.status(400).json({ message: 'Name, email and password are required' });
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (existingUser) {
+      console.log('User already exists:', email);
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    // Upload profile picture to Cloudinary if provided
+    let profilePictureUrl = null;
+    if (profilePicture) {
+      try {
+        console.log('Uploading profile picture to Cloudinary');
+        profilePictureUrl = await uploadImage(profilePicture);
+        console.log('Profile picture uploaded:', profilePictureUrl);
+      } catch (error) {
+        console.error('Error uploading profile picture:', error);
+        return res.status(400).json({ message: 'Failed to upload profile picture: ' + error.message });
+      }
+    }
+
+    // Hash password
+    console.log('Hashing password');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    console.log('Creating user in database');
+    try {
+      const user = await prisma.user.create({
+        data: {
+          name: name,
+          email: email,
+          password: hashedPassword,
+          ...(schoolId ? {
+            school: {
+              connect: {
+                id: parseInt(schoolId)
+              }
+            }
+          } : {}),
+          bio: bio || null,
+          interests: interests || [],
+          currentGoal: currentGoal || null,
+          image: profilePictureUrl,
+          role: 'user'
+        }
+      });
+
+      console.log('User created successfully:', user.id);
+
+      // Remove password from response
+      const { password: _, ...userWithoutPassword } = user;
+
+      res.status(201).json({
+        message: 'User created successfully',
+        user: userWithoutPassword
+      });
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Detailed signup error:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack
+    });
+    
+    // Handle Prisma specific errors
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Internal server error',
+      details: error.message 
+    });
   }
 });
 

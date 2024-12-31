@@ -7,7 +7,8 @@ model User {
   image           String?
   
   // Profile Info
-  school          String?
+  schoolId        Int?          // Foreign key for School
+  school          School?       @relation(fields: [schoolId], references: [id])
   bio             String?
   interests       String[]      @default([])
   currentGoal     String?
