@@ -192,6 +192,9 @@ const checkAuth = async (req, res, next) => {
 // Signout controller
 const signout = (req, res) => {
   res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     path: '/',
     domain: 'localhost'
   });

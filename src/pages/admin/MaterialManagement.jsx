@@ -6,9 +6,9 @@ function MaterialManagement() {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    pointValue: 0,
+    point_value: 0,
     subcategoryId: '',
-    image: ''
+    image: null
   })
   const [imagePreview, setImagePreview] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -21,26 +21,35 @@ function MaterialManagement() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsLoading(true);
         const [materialsRes, subcategoriesRes] = await Promise.all([
-          fetch('http://localhost:3000/api/materials'),
-          fetch('http://localhost:3000/api/subcategories')
-        ])
+          fetch('http://localhost:3000/api/materials', {
+            credentials: 'include'
+          }),
+          fetch('http://localhost:3000/api/subcategories', {
+            credentials: 'include'
+          })
+        ]);
 
-        const materialsData = await materialsRes.json()
-        const subcategoriesData = await subcategoriesRes.json()
+        if (!materialsRes.ok || !subcategoriesRes.ok) {
+          throw new Error('Failed to fetch data');
+        }
 
-        setMaterials(materialsData)
-        setSubcategories(subcategoriesData)
-        setIsLoading(false)
+        const materialsData = await materialsRes.json();
+        const subcategoriesData = await subcategoriesRes.json();
+
+        setMaterials(materialsData);
+        setSubcategories(subcategoriesData);
       } catch (error) {
-        console.error('Error fetching data:', error)
-        setError(error.message)
-        setIsLoading(false)
+        console.error('Error fetching data:', error);
+        setError(error.message);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   // Handle image compression dan upload
   const compressImage = (imageFile) => {
@@ -123,7 +132,13 @@ function MaterialManagement() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          title: formData.title,
+          content: formData.content,
+          point_value: parseInt(formData.point_value),
+          subcategoryId: parseInt(formData.subcategoryId),
+          image: formData.image
+        }),
       })
 
       if (!response.ok) {
@@ -137,9 +152,9 @@ function MaterialManagement() {
       setFormData({
         title: '',
         content: '',
-        pointValue: 0,
+        point_value: 0,
         subcategoryId: '',
-        image: ''
+        image: null
       })
       setImagePreview('')
     } catch (err) {
@@ -235,8 +250,8 @@ function MaterialManagement() {
                 <label className="block text-sm font-medium text-white/70 mb-1">Point Value</label>
                 <input
                   type="number"
-                  value={formData.pointValue}
-                  onChange={(e) => setFormData(prev => ({ ...prev, pointValue: parseInt(e.target.value) }))}
+                  value={formData.point_value}
+                  onChange={(e) => setFormData(prev => ({ ...prev, point_value: parseInt(e.target.value) }))}
                   className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
                   required
                 />
@@ -297,7 +312,7 @@ function MaterialManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {materials.map((material) => (
+            {Array.isArray(materials) && materials.map((material) => (
               <tr key={material.id} className="hover:bg-white/5">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
@@ -312,10 +327,10 @@ function MaterialManagement() {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-sm text-white/60">
-                  {material.Subcategory?.name}
+                  {material.subcategory?.name}
                 </td>
                 <td className="px-6 py-4 text-sm text-white/60">
-                  {material.pointValue}
+                  {material.point_value}
                 </td>
                 <td className="px-6 py-4 text-sm text-white/60">
                   {new Date(material.createdAt).toLocaleDateString()}

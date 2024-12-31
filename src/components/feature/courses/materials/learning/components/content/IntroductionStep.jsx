@@ -7,56 +7,9 @@ const GlossaryItem = lazy(() => import('./introduction/GlossaryItem'));
 const IntroductionStep = ({ material, onComplete }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const glossaryItems = useMemo(() => [
-    ["Segitiga", "Bangun datar dengan tiga sisi dan tiga sudut"],
-    ["Sudut", "Pertemuan dua sisi yang membentuk rotasi"],
-    ["Sisi", "Garis yang membentuk segitiga"],
-    ["Tinggi", "Jarak tegak lurus dari titik ke alas"],
-    ["Alas", "Sisi segitiga yang dijadikan dasar pengukuran"],
-    ["Luas", "Ukuran yang menyatakan besaran bidang segitiga"],
-    ["Keliling", "Jumlah panjang semua sisi segitiga"],
-    ["Sudut Dalam", "Sudut yang terbentuk di dalam segitiga"],
-    ["Median", "Garis yang menghubungkan titik sudut dengan titik tengah sisi di hadapannya"],
-    ["Garis Tinggi", "Garis yang ditarik dari titik sudut tegak lurus terhadap sisi di hadapannya"]
-  ], []);
+  const glossaryItems = useMemo(() => material?.glossary || [], [material]);
 
-  const stages = useMemo(() => [
-    {
-      title: "Pengenalan",
-      desc: "Mengenal dasar-dasar segitiga",
-      status: "current",
-      reward: "25 XP",
-      color: "blue",
-      time: "15-20 menit"
-    },
-    {
-      title: "Eksplorasi",
-      desc: "Jenis dan sifat segitiga",
-      status: "locked",
-      reward: "35 XP",
-      color: "purple",
-      time: "20-25 menit",
-      opacity: "opacity-40"
-    },
-    {
-      title: "Praktik",
-      desc: "Latihan dan perhitungan",
-      status: "locked",
-      reward: "40 XP",
-      color: "emerald",
-      time: "25-30 menit",
-      opacity: "opacity-30"
-    },
-    {
-      title: "Penguasaan",
-      desc: "Uji pemahaman",
-      status: "locked",
-      reward: "50 XP",
-      color: "yellow",
-      time: "30-35 menit",
-      opacity: "opacity-20"
-    }
-  ], []);
+  const stages = useMemo(() => material?.stages || [], [material]);
 
   const filteredGlossary = useMemo(() => 
     glossaryItems.filter(([term]) => 
@@ -69,6 +22,8 @@ const IntroductionStep = ({ material, onComplete }) => {
     setSearchTerm(e.target.value);
   }, []);
 
+  if (!material) return null;
+
   return (
     <div className="w-full space-y-8 px-8">
       {/* Header */}
@@ -77,30 +32,30 @@ const IntroductionStep = ({ material, onComplete }) => {
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <div className="space-y-3">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent">
-                Segitiga
+                {material.title}
               </h1>
               <div className="flex items-center justify-center gap-3">
-                <span className="text-lg text-white/60">Level 1 - Fundamental</span>
+                <span className="text-lg text-white/60">{material.level}</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                <span className="text-lg text-white/60">Geometri</span>
+                <span className="text-lg text-white/60">{material.category}</span>
               </div>
             </div>
 
             <p className="text-lg text-white/70 max-w-2xl mx-auto leading-relaxed">
-              Pelajari konsep dasar segitiga, mulai dari definisi, jenis-jenis, hingga penerapannya dalam kehidupan sehari-hari.
+              {material.description}
             </p>
 
             <div className="flex items-center justify-center gap-8 pt-4">
               <div className="px-6 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] backdrop-blur-sm">
-                <div className="text-xl font-semibold text-yellow-400">100 XP</div>
+                <div className="text-xl font-semibold text-yellow-400">{material.total_xp} XP</div>
                 <div className="text-sm text-white/40">Experience Points</div>
               </div>
               <div className="px-6 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] backdrop-blur-sm">
-                <div className="text-xl font-semibold text-blue-400">4 Bagian</div>
+                <div className="text-xl font-semibold text-blue-400">{material.total_stages} Bagian</div>
                 <div className="text-sm text-white/40">Materi Pembelajaran</div>
               </div>
               <div className="px-6 py-2 rounded-xl bg-white/[0.03] border border-white/[0.05] backdrop-blur-sm">
-                <div className="text-xl font-semibold text-purple-400">90 Menit</div>
+                <div className="text-xl font-semibold text-purple-400">{material.estimated_time}</div>
                 <div className="text-sm text-white/40">Estimasi Waktu</div>
               </div>
             </div>

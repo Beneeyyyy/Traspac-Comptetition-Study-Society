@@ -48,7 +48,9 @@ const LearningPage = () => {
       try {
         setIsLoading(true);
         // Replace with your actual API endpoint
-        const response = await fetch(`/api/materials/${materialId}`);
+        const response = await fetch(`http://localhost:3000/api/materials/${materialId}`, {
+          credentials: 'include'
+        });
         if (!response.ok) throw new Error('Failed to fetch material');
         const data = await response.json();
         setMaterial(data);

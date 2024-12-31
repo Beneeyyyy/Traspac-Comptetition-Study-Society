@@ -1,28 +1,20 @@
-const express = require('express');
-const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
-const uploadImage = require('../../utils/uploadImage');
+const uploadImage = require('../../../utils/uploadImage');
 
 const prisma = new PrismaClient();
 
-// Get all categories with stats
-router.get('/', async (req, res) => {
+// Get all categories
+const getAllCategories = async (req, res) => {
   try {
     console.log('Fetching categories from database...')
     const categories = await prisma.category.findMany({
       include: {
-        Subcategory: {
+        subcategories: {
           include: {
-            Material: {
-              select: {
-                id: true,
-                title: true,
-                pointValue: true
-              }
-            }
+            materials: true
           }
         },
-        Point: {
+        points: {
           select: {
             value: true
           }
@@ -32,32 +24,22 @@ router.get('/', async (req, res) => {
     
     console.log('Categories fetched:', categories.length)
     
-    if (categories.length === 0) {
-      return res.json([{
-        id: 1,
-        name: "Sample Category",
-        description: "This is a sample category",
-        _count: { materials: 0 },
-        _sum: { materials: { pointValue: 0 } }
-      }]);
+    if (!categories || categories.length === 0) {
+      return res.json([]);
     }
 
-    // Transform data untuk include total materials dan points
     const transformedCategories = categories.map(category => {
-      // Hitung total materials dari semua subcategory
-      const totalMaterials = category.Subcategory.reduce((acc, sub) => 
-        acc + (sub.Material?.length || 0), 0);
+      const totalMaterials = category.subcategories.reduce((acc, sub) => 
+        acc + (sub.materials?.length || 0), 0);
 
-      // Hitung total points dari materials
-      const totalPoints = category.Subcategory.reduce((acc, sub) => {
-        const subPoints = sub.Material?.reduce((sum, mat) => 
-          sum + (mat?.pointValue || 0), 0) || 0;
+      const totalPoints = category.subcategories.reduce((acc, sub) => {
+        const subPoints = sub.materials?.reduce((sum, mat) => 
+          sum + (mat?.point_value || 0), 0) || 0;
         return acc + subPoints;
       }, 0);
 
-      // Hitung points yang sudah didapat
-      const earnedPoints = category.Point.reduce((acc, point) => 
-        acc + (point.value || 0), 0);
+      const earnedPoints = category.points?.reduce((acc, point) => 
+        acc + (point?.value || 0), 0) || 0;
 
       return {
         id: category.id,
@@ -68,34 +50,41 @@ router.get('/', async (req, res) => {
           materials: totalMaterials
         },
         _sum: {
-          materials: {
-            pointValue: totalPoints
-          },
+          points: totalPoints,
           earnedPoints: earnedPoints
         },
-        subcategories: category.Subcategory.map(sub => ({
+        subcategories: category.subcategories.map(sub => ({
           id: sub.id,
           name: sub.name,
           description: sub.description,
-          materials: sub.Material
+          image: sub.image,
+          materials: sub.materials.map(mat => ({
+            id: mat.id,
+            title: mat.title,
+            content: mat.content,
+            point_value: mat.point_value,
+            image: mat.image
+          }))
         }))
       };
     });
 
     res.json(transformedCategories);
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({ error: 'Gagal mengambil data kategori' });
+    console.error('Error in getAllCategories:', error);
+    res.status(500).json({ 
+      error: 'Gagal mengambil data kategori',
+      details: error.message 
+    });
   }
-});
+};
 
-// Get category by id with subcategories and materials
-router.get('/:id', async (req, res) => {
+// Get category by ID
+const getCategoryById = async (req, res) => {
   try {
     const { id } = req.params;
     console.log('Attempting to fetch category with ID:', id);
 
-    // Validate ID
     const categoryId = parseInt(id);
     if (isNaN(categoryId)) {
       console.log('Invalid category ID:', id);
@@ -109,21 +98,13 @@ router.get('/:id', async (req, res) => {
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
       include: {
-        Subcategory: {
+        subcategories: {
           include: {
-            Material: {
-              select: {
-                id: true,
-                title: true,
-                pointValue: true
-              }
-            }
+            materials: true
           }
         }
       }
     });
-
-    console.log('Database query completed. Category found:', !!category);
 
     if (!category) {
       console.log('Category not found');
@@ -133,8 +114,6 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // Transform data untuk konsistensi
-    console.log('Transforming category data...');
     const transformedCategory = {
       id: category.id,
       name: category.name,
@@ -143,36 +122,42 @@ router.get('/:id', async (req, res) => {
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
       _count: {
-        materials: category.Subcategory.reduce((acc, sub) => 
-          acc + (sub.Material?.length || 0), 0)
+        materials: category.subcategories.reduce((acc, sub) => 
+          acc + (sub.materials?.length || 0), 0)
       },
-      Subcategory: category.Subcategory.map(sub => ({
+      subcategories: category.subcategories.map(sub => ({
         id: sub.id,
         name: sub.name,
         description: sub.description,
+        image: sub.image,
         categoryId: sub.categoryId,
         createdAt: sub.createdAt,
         updatedAt: sub.updatedAt,
-        materialCount: sub.Material?.length || 0,
-        Material: sub.Material
+        materialCount: sub.materials?.length || 0,
+        materials: sub.materials.map(mat => ({
+          id: mat.id,
+          title: mat.title,
+          content: mat.content,
+          point_value: mat.point_value,
+          image: mat.image
+        }))
       }))
     };
 
-    console.log('Successfully transformed category data with image:', !!transformedCategory.image);
+    console.log('Successfully transformed category data');
     res.json(transformedCategory);
   } catch (error) {
     console.error('Error fetching category:', error);
     res.status(500).json({ error: 'Gagal mengambil data kategori' });
   }
-});
+};
 
 // Create category
-router.post('/', async (req, res) => {
+const createCategory = async (req, res) => {
   try {
     const { name, description, image } = req.body;
     console.log('Creating category with image:', image ? 'Image present' : 'No image');
     
-    // Upload image if provided
     let imageUrl = null;
     if (image) {
       try {
@@ -220,16 +205,15 @@ router.post('/', async (req, res) => {
       details: error.message
     });
   }
-});
+};
 
 // Update category
-router.put('/:id', async (req, res) => {
+const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, image } = req.body;
     console.log('Updating category:', id, 'with image:', image ? 'Image present' : 'No image');
 
-    // Upload image if provided
     let imageUrl = undefined;
     if (image) {
       try {
@@ -246,7 +230,7 @@ router.put('/:id', async (req, res) => {
       data: {
         name,
         description,
-        ...(imageUrl && { image: imageUrl }) // Only update image if new one is uploaded
+        ...(imageUrl && { image: imageUrl })
       },
       select: {
         id: true,
@@ -273,10 +257,10 @@ router.put('/:id', async (req, res) => {
       res.status(500).json({ error: 'Gagal mengupdate kategori' });
     }
   }
-});
+};
 
 // Delete category
-router.delete('/:id', async (req, res) => {
+const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.category.delete({
@@ -290,6 +274,12 @@ router.delete('/:id', async (req, res) => {
       res.status(500).json({ error: 'Gagal menghapus kategori' });
     }
   }
-});
+};
 
-module.exports = router; 
+module.exports = {
+  getAllCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory
+}; 

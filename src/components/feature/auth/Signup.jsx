@@ -149,7 +149,7 @@ const Signup = () => {
       console.log('Sending signup data:', { ...userData, password: '[REDACTED]' });
 
       // Send request to backend
-      const response = await fetch('http://localhost:3000/api/users/signup', {
+      const response = await fetch('http://localhost:3000/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

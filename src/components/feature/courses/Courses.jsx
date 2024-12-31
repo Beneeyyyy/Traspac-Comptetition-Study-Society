@@ -10,7 +10,7 @@ import iconCourse1 from '../../../assets/images/courses/iconCourse1.svg'
 const CategorySection = lazy(() => import('./contentSection/CategorySection'))
 const ActivityChart = lazy(() => import('./contentSection/ActivityChart'))
 
-function Courses() {
+export default function Courses() {
   const [isLoading, setIsLoading] = useState(true)
   const [categories, setCategories] = useState([])
   const [activeFilter, setActiveFilter] = useState('all')
@@ -62,12 +62,21 @@ function Courses() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/categories')
-      if (!response.ok) throw new Error('Network response was not ok')
-      const data = await response.json()
-      setCategories(data)
+      const response = await fetch('http://localhost:3000/api/categories', {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+      console.log('Categories fetched:', data);
+      setCategories(data);
     } catch (error) {
-      console.error('Error fetching categories:', error)
+      console.error('Error fetching categories:', error);
+      // Fallback data jika terjadi error
       setCategories([
         {
           id: 1,
@@ -90,11 +99,11 @@ function Courses() {
           _count: { materials: 15 },
           _sum: { materials: { pointValue: 1500 } }
         }
-      ])
+      ]);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -167,6 +176,4 @@ function Courses() {
       <Footer />
     </div>
   )
-}
-
-export default Courses 
+} 

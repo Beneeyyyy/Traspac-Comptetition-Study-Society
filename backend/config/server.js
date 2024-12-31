@@ -8,9 +8,9 @@ const cookieParser = require('cookie-parser')
 // Import routes
 const authRoutes = require('../routes/usersManagement/routes/authRoutes');
 const userRoutes = require('../routes/usersManagement/routes/userRoutes');
-const categoryRoutes = require('../routes/coursesManagement/categoryRoutes');
-const subcategoryRoutes = require('../routes/coursesManagement/subcategoryRoutes');
-const materialRoutes = require('../routes/coursesManagement/materialRoutes');
+const categoryRoutes = require('../routes/coursesManagement/routes/categoryRoutes');
+const subcategoryRoutes = require('../routes/coursesManagement/routes/subcategoryRoutes');
+const materialRoutes = require('../routes/coursesManagement/routes/materialRoutes');
 const pointRoutes = require('../routes/leaderBoard/pointRoutes');
 const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoolRoutes');
 
@@ -29,6 +29,16 @@ cloudinary.api.ping((error, result) => {
 // Inisialisasi Prisma dan Express
 const prisma = new PrismaClient()
 const app = express()
+
+// Test database connection
+prisma.$connect()
+  .then(() => {
+    console.log('Database connected successfully')
+  })
+  .catch((error) => {
+    console.error('Database connection failed:', error)
+    process.exit(1)
+  })
 
 // Middleware
 app.use(cors({

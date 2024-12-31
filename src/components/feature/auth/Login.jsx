@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -9,11 +9,35 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Check auth status when component mounts
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/auth/check-auth', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          // If already authenticated, redirect to dashboard
+          navigate('/dashboard');
+        }
+        // If not authenticated (401), we just stay on login page
+        // No need to handle this as an error
+      } catch (error) {
+        // Only log actual errors (network issues, server down, etc)
+        if (!error.response || error.response.status !== 401) {
+          console.error('Auth check error:', error);
+        }
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
   const handleChange = (e) => {
-    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [e.target.name]: e.target.value
     });
   };
 
@@ -62,7 +86,7 @@ const Login = () => {
 
       if (authCheck.ok) {
         console.log('Auth check successful, redirecting to dashboard...');
-        window.location.href = '/dashboard';
+        navigate('/dashboard');
       } else {
         console.error('Auth check failed:', authData);
         throw new Error(authData.message || 'Failed to verify authentication');

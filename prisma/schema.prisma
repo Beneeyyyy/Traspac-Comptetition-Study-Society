@@ -52,16 +52,36 @@ model Subcategory {
 }
 
 model Material {
-  id            Int           @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   title         String
-  description   String?
-  content       String?
+  description   String      @default("")
+  image         String?     // Thumbnail material
+  xp_reward     Int         @default(0)
+  estimated_time Int        @default(30)
+  glossary      Json?       // Array of {term: string, definition: string}
   subcategoryId Int
-  subcategory   Subcategory   @relation(fields: [subcategoryId], references: [id])
+  is_published  Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
+  stages        Stage[]
   points        Point[]
   progress      MaterialProgress[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+}
+
+model Stage {
+  id          Int       @id @default(autoincrement())
+  title       String    // "1. Materi" atau "2. Eksplorasi"
+  order       Int       // Urutan stage
+  contents    Json      // Array of content items
+  materialId  Int       // Foreign key ke Material
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  material    Material  @relation(fields: [materialId], references: [id])
 }
 
 model User {

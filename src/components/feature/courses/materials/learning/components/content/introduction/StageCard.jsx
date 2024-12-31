@@ -2,9 +2,7 @@ import { FiArrowRight, FiZap } from 'react-icons/fi';
 
 const StageCard = ({ stage, onComplete }) => {
   return (
-    <div
-      className="relative flex items-start gap-8"
-    >
+    <div className="relative flex items-start gap-8">
       {/* Stage Marker */}
       <div className="relative z-10 flex-shrink-0 mt-6">
         <div className={`
@@ -33,11 +31,11 @@ const StageCard = ({ stage, onComplete }) => {
                   </span>
                 )}
               </h3>
-              <p className="text-base text-white/60">{stage.desc}</p>
+              <p className="text-base text-white/60">{stage.description}</p>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5">
               <FiZap className="w-5 h-5 text-yellow-400" />
-              <span className="text-white/60">{stage.reward}</span>
+              <span className="text-white/60">{stage.xp_reward} XP</span>
             </div>
           </div>
 
