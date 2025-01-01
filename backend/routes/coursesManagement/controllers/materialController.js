@@ -70,12 +70,6 @@ const getMaterialById = async (req, res) => {
       return res.status(404).json({ error: 'Materi tidak ditemukan' });
     }
 
-    console.log('Raw material data:', {
-      id: material.id,
-      title: material.title,
-      glossary: material.glossary
-    });
-
     // Transform stages into learning steps
     const learningSteps = material.stages.map((stage, index) => ({
       id: stage.id,
@@ -85,7 +79,26 @@ const getMaterialById = async (req, res) => {
       xp_reward: stage.xp_reward || 25 + (index * 10),
       color: ["blue", "purple", "emerald", "yellow"][index % 4],
       time: `${15 + (index * 5)}-${20 + (index * 5)} menit`,
-      opacity: index > 0 ? `opacity-${40 - (index * 10)}` : ""
+      opacity: index > 0 ? `opacity-${40 - (index * 10)}` : "",
+      order: stage.order,
+      contents: [
+        {
+          type: "text",
+          content: "JavaScript adalah bahasa pemrograman yang sangat populer untuk pengembangan web. Mari mulai dengan memahami apa itu JavaScript dan mengapa kita menggunakannya.",
+          order: 1
+        },
+        {
+          type: "image",
+          content: "https://example.com/js-ecosystem.jpg",
+          caption: "Ekosistem JavaScript",
+          order: 2
+        },
+        {
+          type: "text",
+          content: "JavaScript memungkinkan kita membuat website yang interaktif dan dinamis.",
+          order: 3
+        }
+      ]
     }));
 
     const transformedMaterial = {
@@ -100,12 +113,6 @@ const getMaterialById = async (req, res) => {
       stages: learningSteps,
       glossary: material.glossary ? material.glossary.map(item => [item.term, item.definition]) : []
     };
-
-    console.log('Transformed material:', {
-      id: transformedMaterial.id,
-      title: transformedMaterial.title,
-      glossary: transformedMaterial.glossary
-    });
 
     res.json(transformedMaterial);
   } catch (error) {
