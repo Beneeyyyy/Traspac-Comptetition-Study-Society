@@ -11,6 +11,7 @@ import {
   QuickTips,
   QuickQuiz
 } from './components';
+import DiscussionPanel from '../DiscussionPanel';
 
 const TheoryStep = ({ material }) => {
   const [activeSection, setActiveSection] = useState(0);
@@ -23,6 +24,7 @@ const TheoryStep = ({ material }) => {
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
 
+  // Handle scroll behavior
   useEffect(() => {
     const mainContent = mainContentRef.current;
     if (!mainContent) return;
@@ -41,29 +43,17 @@ const TheoryStep = ({ material }) => {
     return () => mainContent.removeEventListener('scroll', controlNavbar);
   }, [lastScrollY]);
 
+  // Reset content index when section changes
+  useEffect(() => {
+    setActiveContentIndex(0);
+  }, [activeSection]);
+
   const handleBackToMaterials = () => {
     navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/materials`);
   };
 
-  // Debug logs
-  console.log('Material Data:', {
-    id: material?.id,
-    title: material?.title,
-    stages: material?.stages?.map(stage => ({
-      id: stage.id,
-      title: stage.title,
-      order: stage.order,
-      contents: stage.contents
-    }))
-  });
-
   const currentStage = material?.stages?.[activeSection];
   const sortedContents = currentStage?.contents?.sort((a, b) => a.order - b.order) || [];
-  const currentContent = sortedContents[activeContentIndex];
-
-  useEffect(() => {
-    setActiveContentIndex(0);
-  }, [activeSection]);
 
   const handleNext = () => {
     if (!currentStage?.contents?.length) return;
@@ -90,52 +80,58 @@ const TheoryStep = ({ material }) => {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      {/* Top Navigation */}
-      <TopNavigation 
-        section={currentStage} 
-        onBack={handleBackToMaterials}
-        show={showNav}
-      />
+    <div className="min-h-screen bg-black">
+      {/* Top Navigation - Fixed */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-lg border-b border-white/5">
+        <TopNavigation 
+          section={currentStage} 
+          onBack={handleBackToMaterials}
+          show={showNav}
+          material={material}
+        />
+      </div>
 
-      <div className={`fixed inset-0 transition-all duration-300 ${showNav ? 'top-[160px]' : 'top-0'} bottom-0 flex`}>
+      {/* Main Layout */}
+      <div className="pt-20 flex min-h-screen">
+        {/* Left Sidebar */}
+        <aside className={`
+          fixed lg:sticky top-20 h-[calc(100vh-5rem)] w-72
+          bg-black/50 backdrop-blur-lg border-r border-white/5
+          transition-transform duration-300 z-40
+          ${showLeftSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}>
+          <div className="h-full overflow-y-auto custom-scrollbar">
+            <div className="p-4">
+              <SectionsList 
+                material={material}
+                activeSection={activeSection}
+                onSectionChange={(index) => {
+                  setActiveSection(index);
+                  setShowLeftSidebar(false);
+                }}
+              />
+            </div>
+          </div>
+        </aside>
+
         {/* Mobile Menu Button */}
         <button
           onClick={() => setShowLeftSidebar(true)}
-          className="lg:hidden fixed left-4 top-4 z-50 p-2 bg-white/5 rounded-lg backdrop-blur-sm border border-white/10"
+          className="lg:hidden fixed left-4 top-24 z-50 p-2.5 bg-white/5 rounded-xl backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-colors"
         >
           <FiMenu className="w-5 h-5" />
         </button>
 
-        {/* Left Sidebar - Fixed */}
-        <aside className={`
-          fixed left-0 ${showNav ? 'top-[160px]' : 'top-0'} bottom-0 w-80 lg:w-72 
-          bg-black/80 backdrop-blur-lg border-r border-white/[0.05]
-          transition-all duration-300 z-40 overflow-y-auto
-          ${showLeftSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}>
-          <div className="p-4">
-            <SectionsList 
-              material={material}
-              activeSection={activeSection}
-              onSectionChange={(index) => {
-                setActiveSection(index);
-                setShowLeftSidebar(false);
-              }}
-            />
-          </div>
-        </aside>
-
-        {/* Main Content Area */}
-        <main ref={mainContentRef} className="flex-1 ml-0 lg:ml-72 overflow-y-auto">
-          <div className="min-h-full">
-            <div className="max-w-[2000px] mx-auto px-4 lg:px-8 py-8">
-              {/* Welcome Message - Only show on first stage */}
-              {activeSection === 0 && currentStage?.order === 1 && (
-                <div className="flex flex-col items-center gap-6 mb-12 text-center">
+        {/* Main Content */}
+        <main className="flex-1 min-w-0">
+          <div ref={mainContentRef} className="h-full px-4 lg:px-8 py-6">
+            {/* Welcome Message */}
+            {activeSection === 0 && currentStage?.order === 1 && (
+              <div className="max-w-2xl mx-auto mb-12">
+                <div className="flex flex-col items-center gap-6 text-center p-8 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/10">
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-3xl rounded-full"></div>
-                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
+                    <div className="relative h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
                       <RiBookLine className="w-8 h-8 text-blue-400" />
                     </div>
                   </div>
@@ -143,91 +139,127 @@ const TheoryStep = ({ material }) => {
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                       Selamat datang di pembelajaran {material.title}!
                     </h2>
-                    <p className="text-white/60 max-w-2xl">
+                    <p className="text-white/60">
                       Mari kita mulai petualangan belajar yang menyenangkan. Setiap langkah membawamu lebih dekat ke penguasaan materi!
                     </p>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              <Suspense fallback={<ContentSkeleton />}>
-                {/* Stage Progress */}
-                <div className="mb-8 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                      <RiLightbulbLine className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-white mb-1">{currentStage?.title}</h3>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-32 bg-white/5 rounded-full">
-                          <div 
-                            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
-                            style={{ 
-                              width: sortedContents.length 
-                                ? `${((activeContentIndex + 1) / sortedContents.length) * 100}%`
-                                : '0%'
-                            }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-white/60">
-                          Content {activeContentIndex + 1} dari {sortedContents.length}
-                        </span>
+            <Suspense fallback={<ContentSkeleton />}>
+              {/* Stage Progress */}
+              <div className="max-w-4xl mx-auto mb-8">
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
+                    <RiLightbulbLine className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-white mb-2 truncate">{currentStage?.title}</h3>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300"
+                          style={{ 
+                            width: sortedContents.length 
+                              ? `${((activeContentIndex + 1) / sortedContents.length) * 100}%`
+                              : '0%'
+                          }}
+                        />
                       </div>
+                      <span className="text-sm font-medium text-white/60 whitespace-nowrap">
+                        {activeContentIndex + 1} / {sortedContents.length}
+                      </span>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Content */}
-                <div className="prose prose-invert max-w-none">
-                  {currentStage?.contents && (
-                    <ContentRenderer 
-                      contents={currentStage.contents}
-                      currentStage={currentStage}
-                    />
-                  )}
-                </div>
+              {/* Content */}
+              <div className="max-w-4xl mx-auto">
+                {currentStage?.contents && (
+                  <ContentRenderer 
+                    contents={currentStage.contents}
+                    currentStage={currentStage}
+                    onNextStage={handleNext}
+                    currentContentIndex={activeContentIndex}
+                    onContentChange={setActiveContentIndex}
+                  />
+                )}
+              </div>
 
-                {/* Navigation Buttons */}
-                <div className="flex justify-between items-center mt-12 pt-8 border-t border-white/[0.05]">
+              {/* Navigation Buttons */}
+              <div className="max-w-4xl mx-auto mt-8 mb-16">
+                <div className="flex justify-between items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
                   <button
                     onClick={handlePrevious}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                      activeContentIndex > 0 || activeSection > 0
-                        ? 'text-white/80 hover:text-white hover:bg-white/5' 
-                        : 'text-white/20 cursor-not-allowed'
-                    }`}
                     disabled={activeContentIndex === 0 && activeSection === 0}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
+                      activeContentIndex === 0 && activeSection === 0
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'hover:bg-white/5 active:bg-white/10 hover:shadow-lg'
+                    }`}
                   >
                     <FiArrowLeft className="w-5 h-5" />
                     <span>Previous</span>
                   </button>
+
+                  <div className="text-sm font-medium text-white/60">
+                    Stage {activeSection + 1} • Content {activeContentIndex + 1} / {sortedContents.length}
+                  </div>
+                  
                   <button
                     onClick={handleNext}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                      (activeContentIndex < sortedContents.length - 1) || (material?.stages && activeSection < material.stages.length - 1)
-                        ? 'text-white/80 hover:text-white hover:bg-white/5' 
-                        : 'text-white/20 cursor-not-allowed'
-                    }`}
                     disabled={activeContentIndex === sortedContents.length - 1 && (!material?.stages || activeSection === material.stages.length - 1)}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
+                      activeContentIndex === sortedContents.length - 1 && (!material?.stages || activeSection === material.stages.length - 1)
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:shadow-lg hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
+                    }`}
                   >
-                    <span>Next</span>
+                    <span>
+                      {activeContentIndex === sortedContents.length - 1 && material?.stages && activeSection < material.stages.length - 1 
+                        ? 'Next Stage' 
+                        : 'Next'
+                      }
+                    </span>
                     <FiArrowLeft className="w-5 h-5 rotate-180" />
                   </button>
                 </div>
-              </Suspense>
-            </div>
+              </div>
+
+              {/* Discussion Panel */}
+              <div className="max-w-4xl mx-auto">
+                <DiscussionPanel materialId={material?.id} />
+              </div>
+            </Suspense>
           </div>
         </main>
       </div>
 
-      {/* Backdrop for mobile sidebar */}
+      {/* Mobile Sidebar Backdrop */}
       {showLeftSidebar && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setShowLeftSidebar(false)}
         />
       )}
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+      `}</style>
     </div>
   );
 };

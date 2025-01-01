@@ -17,6 +17,7 @@
     "cloudinary": "^2.5.1",
     "cloudinary-react": "^1.8.1",
     "daisyui": "^4.12.22",
+    "dompurify": "^3.2.3",
     "framer-motion": "^11.15.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
