@@ -133,7 +133,7 @@ const signup = async (req, res) => {
   }
 };
 
-// Check auth status controller
+// Check auth status controller (as endpoint)
 const checkAuth = async (req, res, next) => {
   try {
     const token = req.cookies.token;
@@ -189,6 +189,50 @@ const checkAuth = async (req, res, next) => {
   }
 };
 
+// Auth middleware for protected routes
+const requireAuth = async (req, res, next) => {
+  try {
+    const token = req.cookies.token;
+    
+    if (!token) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      return res.status(401).json({ 
+        message: 'Authentication failed',
+        error: jwtError.message 
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { 
+        id: parseInt(decoded.userId)
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        image: true
+      }
+    });
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    // Attach user to request object
+    req.user = user;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Signout controller
 const signout = (req, res) => {
   res.clearCookie('token', {
@@ -205,5 +249,6 @@ module.exports = {
   login,
   signup,
   checkAuth,
+  requireAuth,
   signout
 }; 

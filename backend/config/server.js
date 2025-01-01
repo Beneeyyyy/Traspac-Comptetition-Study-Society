@@ -15,6 +15,7 @@ const pointRoutes = require('../routes/leaderBoard/pointRoutes');
 const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoolRoutes');
 const progressRoutes = require('../routes/progress/progressRoutes');
 const notificationRoutes = require('../routes/progress/routes/notificationRoutes');
+const discussionRoutes = require('../routes/coursesManagement/routes/discussionRoutes');
 
 
 
@@ -45,7 +46,7 @@ prisma.$connect()
 // Middleware
 app.use(cors({
   origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With', 'Cookie']
 }))
@@ -63,6 +64,7 @@ app.use('/api/points', pointRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/discussions', discussionRoutes);
 
 // Global error handling
 app.use((err, req, res, next) => {
