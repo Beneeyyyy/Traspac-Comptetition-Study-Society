@@ -63,10 +63,11 @@ function AppContent() {
           <Route path="/admin/subcategories" element={<SubcategoryManagement />} />
           <Route path="/admin/materials" element={<MaterialManagement />} />
           
+          {/* Test Routes */}
+          <Route path="/test-discussion" element={<TestDiscussion />} />
+          
           {/* Catch-all route */}
           <Route path="*" element={<div>404 - Page Not Found</div>} />
-
-          <Route path="/test-discussion/:materialId" element={<TestDiscussion />} />
         </Routes>
       </div>
     </div>

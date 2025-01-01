@@ -66,7 +66,13 @@ const ReplyList = ({
         throw new Error(data.error || 'Failed to add reply');
       }
 
-      setReplies([...replies, data.data]);
+      // Add default _count if it doesn't exist
+      const replyWithCount = {
+        ...data.data,
+        _count: data.data._count || { likes: 0, children: 0 }
+      };
+
+      setReplies([...replies, replyWithCount]);
       setNewReply('');
     } catch (err) {
       setError(err.message);
@@ -78,15 +84,19 @@ const ReplyList = ({
 
   const handleLike = async (replyId) => {
     try {
-      const response = await fetch(`${API_URL}/api/discussions/like/reply/${replyId}`, {
+      const response = await fetch(`${API_URL}/api/discussions/reply/${replyId}/like`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         credentials: 'include'
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to toggle like');
+        throw new Error(data.error || data.message || 'Failed to toggle like');
       }
 
       setReplies(replies.map(reply => {
@@ -179,7 +189,7 @@ const ReplyList = ({
                 className={`flex items-center gap-1.5 ${reply.isLiked ? 'text-white' : 'text-white/40 hover:text-white/60'}`}
               >
                 <FiHeart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
-                <span className="text-sm">{reply._count.likes}</span>
+                <span className="text-sm">{(reply._count?.likes || 0)}</span>
               </button>
 
               {/* Resolve Button */}

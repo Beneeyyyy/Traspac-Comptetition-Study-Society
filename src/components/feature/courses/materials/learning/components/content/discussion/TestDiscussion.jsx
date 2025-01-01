@@ -2,8 +2,8 @@ import React from 'react';
 import DiscussionPanel from '../DiscussionPanel';
 
 const TestDiscussion = () => {
-  // Test material ID
-  const materialId = 1; // Ganti dengan ID material yang ingin ditest
+  // Test material ID (use an existing ID from your database)
+  const materialId = 1;
 
   return (
     <div className="min-h-screen bg-black p-8">

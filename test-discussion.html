@@ -219,25 +219,29 @@
             try {
                 const materialId = document.getElementById('viewMaterialId').value;
                 const filter = document.getElementById('filter').value;
-                
-                const result = await apiCall(`/discussions/material/${materialId}?filter=${filter}`);
+                const result = await apiCall(`/discussions/material/${materialId}${filter ? `?filter=${filter}` : ''}`);
                 
                 const discussionsList = document.getElementById('discussionsList');
-                discussionsList.innerHTML = '<h3>Discussions:</h3>' + 
-                    result.data.discussions.map(d => `
-                        <div class="card ${d.isResolved ? 'resolved' : ''}">
-                            <div class="user-info">
-                                <img src="${d.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.user.name)}`}" alt="${d.user.name}">
-                                <span class="user-name">${d.user.name}</span>
-                                <span class="user-rank">${d.user.rank}</span>
-                            </div>
-                            <p>${d.content}</p>
-                            <div>
-                                <small>Replies: ${d._count.replies} | Likes: ${d._count.likes}</small>
-                                ${d.isResolved ? '<p><strong>✓ Resolved</strong></p>' : ''}
-                            </div>
+                discussionsList.innerHTML = result.data.discussions.map(d => `
+                    <div class="card ${d.isResolved ? 'resolved' : ''}">
+                        <div class="user-info">
+                            <img src="${d.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.user.name)}`}" alt="${d.user.name}">
+                            <span class="user-name">${d.user.name}</span>
+                            <span class="user-rank">${d.user.rank}</span>
                         </div>
-                    `).join('');
+                        <p>${d.content}</p>
+                        <div>
+                            <small>
+                                Replies: ${d._count.replies} | 
+                                Likes: ${d._count.likes} 
+                                <button onclick="toggleLike('discussion', ${d.id})">
+                                    ${d.isLiked ? '❤️ Unlike' : '🤍 Like'}
+                                </button>
+                            </small>
+                            ${d.isResolved ? '<p><strong>✓ Resolved</strong></p>' : ''}
+                        </div>
+                    </div>
+                `).join('');
             } catch (error) {
                 alert(`Error: ${error.message}`);
             }
@@ -260,7 +264,13 @@
                             <span class="user-rank">${discussion.user.rank}</span>
                         </div>
                         <p>${discussion.content}</p>
-                        <small>Discussion ID: ${discussion.id} | Likes: ${discussion._count.likes}</small>
+                        <small>
+                            Discussion ID: ${discussion.id} | 
+                            Likes: ${discussion._count.likes}
+                            <button onclick="toggleLike('discussion', ${discussion.id})">
+                                ${discussion.isLiked ? '❤️ Unlike' : '🤍 Like'}
+                            </button>
+                        </small>
                         ${discussion.isResolved ? `
                             <p><strong>✓ Resolved with answer from ${discussion.resolvedReply.user.name}</strong></p>
                         ` : ''}
@@ -273,7 +283,13 @@
                                     <span class="user-rank">${r.user.rank}</span>
                                 </div>
                                 <p>${r.content}</p>
-                                <small>Reply ID: ${r.id} | Likes: ${r._count.likes}</small>
+                                <small>
+                                    Reply ID: ${r.id} | 
+                                    Likes: ${r._count.likes}
+                                    <button onclick="toggleLike('reply', ${r.id})">
+                                        ${r.isLiked ? '❤️ Unlike' : '🤍 Like'}
+                                    </button>
+                                </small>
                             </div>
                         `).join('')}
                     </div>
@@ -331,6 +347,25 @@
                 }
             } catch (error) {
                 console.error('Resolve error details:', error);
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Add like function
+        async function toggleLike(type, id) {
+            try {
+                const result = await apiCall(`/discussions/${type}/${id}/like`, 'POST');
+                alert(result.message);
+                
+                // Refresh the discussion if we're viewing it
+                if (document.getElementById('discussionId').value === id) {
+                    getDiscussion();
+                }
+                // Refresh discussions list if we're viewing discussions
+                if (document.getElementById('viewMaterialId').value) {
+                    getDiscussions();
+                }
+            } catch (error) {
                 alert(`Error: ${error.message}`);
             }
         }

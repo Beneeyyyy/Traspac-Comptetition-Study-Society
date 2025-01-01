@@ -29,16 +29,32 @@ const DiscussionPanel = ({ materialId }) => {
     try {
       setIsLoading(true);
       setError(null);
+
+      // Log request details
+      console.log('Fetching discussions from:', `${API_URL}/api/discussions/material/${materialId}?filter=${filter}`);
+      
       const response = await fetch(`${API_URL}/api/discussions/material/${materialId}?filter=${filter}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        },
         credentials: 'include'
       });
+
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch discussions');
+        throw new Error(data.error || data.message || 'Failed to fetch discussions');
       }
 
-      setComments(data.data.discussions);
+      if (data.success && data.data.discussions) {
+        setComments(data.data.discussions);
+      } else {
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid response format from server');
+      }
     } catch (err) {
       setError(err.message);
       console.error('Error fetching discussions:', err);
@@ -100,15 +116,19 @@ const DiscussionPanel = ({ materialId }) => {
 
   const handleLike = async (commentId) => {
     try {
-      const response = await fetch(`${API_URL}/api/discussions/like/discussion/${commentId}`, {
+      const response = await fetch(`${API_URL}/api/discussions/discussion/${commentId}/like`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         credentials: 'include'
       });
 
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to toggle like');
+        throw new Error(data.error || data.message || 'Failed to toggle like');
       }
 
       // Update the comments list with the new like status

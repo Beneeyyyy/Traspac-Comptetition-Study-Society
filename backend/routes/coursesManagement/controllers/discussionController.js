@@ -416,7 +416,7 @@ const discussionController = {
   toggleLike: async (req, res) => {
     try {
       const { type, id } = req.params; // type: 'discussion' or 'reply'
-      const userId = req.user.id; // dari middleware auth
+      const userId = req.user.id;
 
       const where = {
         userId,
@@ -424,7 +424,12 @@ const discussionController = {
       };
 
       // Check if like exists
-      const existingLike = await prisma.like.findFirst({ where });
+      const existingLike = await prisma.like.findFirst({
+        where: {
+          userId,
+          ...(type === 'discussion' ? { discussionId: parseInt(id) } : { replyId: parseInt(id) })
+        }
+      });
 
       if (existingLike) {
         // Unlike
@@ -449,6 +454,35 @@ const discussionController = {
       }
     } catch (error) {
       console.error('Error in toggleLike:', error);
+      
+      // Handle unique constraint violation
+      if (error.code === 'P2002') {
+        // If duplicate, treat it as unlike
+        try {
+          const existingLike = await prisma.like.findFirst({
+            where: {
+              userId: req.user.id,
+              ...(req.params.type === 'discussion' 
+                ? { discussionId: parseInt(req.params.id) } 
+                : { replyId: parseInt(req.params.id) })
+            }
+          });
+
+          if (existingLike) {
+            await prisma.like.delete({
+              where: { id: existingLike.id }
+            });
+
+            return res.json({
+              success: true,
+              message: `${req.params.type} unliked successfully`
+            });
+          }
+        } catch (retryError) {
+          console.error('Error in retry:', retryError);
+        }
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to toggle like',
