@@ -1,60 +1,57 @@
-import React, { useState, lazy, Suspense, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import CommentForm from './discussion/CommentForm';
+import CommentItem from './discussion/CommentItem';
 import { FiMessageSquare } from 'react-icons/fi';
-
-// Optimize lazy loading with prefetch
-const CommentForm = lazy(() => import(
-  /* webpackChunkName: "comment-form" */
-  /* webpackPrefetch: true */
-  './discussion/CommentForm'
-));
-
-const CommentItem = lazy(() => import(
-  /* webpackChunkName: "comment-item" */
-  /* webpackPrefetch: true */
-  './discussion/CommentItem'
-));
+import { useAuth } from '../../../../../../../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const DiscussionPanel = ({ materialId }) => {
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { user: currentUser, loading } = useAuth();
+  const [discussions, setDiscussions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState(''); // '', 'resolved', or 'unresolved'
+  const [newDiscussion, setNewDiscussion] = useState('');
+  const [filter, setFilter] = useState('');
 
-  // Fetch discussions
+  // Debug log untuk currentUser dan auth state
+  console.log('DiscussionPanel state:', {
+    currentUser,
+    loading,
+    isLoading,
+    discussionsCount: discussions.length,
+    error
+  });
+
+  if (loading) {
+    return (
+      <div className="bg-black/[0.02] border border-white/[0.05] rounded-xl p-8">
+        <div className="animate-pulse space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-white/[0.02] rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const fetchDiscussions = async () => {
     try {
       setIsLoading(true);
       setError(null);
-
-      // Log request details
-      console.log('Fetching discussions from:', `${API_URL}/api/discussions/material/${materialId}?filter=${filter}`);
-      
-      const response = await fetch(`${API_URL}/api/discussions/material/${materialId}?filter=${filter}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        },
+      const response = await fetch(`${API_URL}/api/discussions/material/${materialId}${filter ? `?filter=${filter}` : ''}`, {
         credentials: 'include'
       });
-
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
-      
+
       if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to fetch discussions');
+        throw new Error(data.error || 'Failed to fetch discussions');
       }
 
-      if (data.success && data.data.discussions) {
-        setComments(data.data.discussions);
-      } else {
-        console.error('Invalid response format:', data);
-        throw new Error('Invalid response format from server');
-      }
+      // Debug log untuk discussions
+      console.log('Fetched discussions:', data.data.discussions);
+
+      setDiscussions(data.data.discussions);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching discussions:', err);
@@ -63,92 +60,129 @@ const DiscussionPanel = ({ materialId }) => {
     }
   };
 
-  // Initial fetch and refetch when filter changes
   useEffect(() => {
-    if (materialId) {
-      fetchDiscussions();
-    }
+    fetchDiscussions();
   }, [materialId, filter]);
 
-  const handleSubmitComment = async (e) => {
+  const handleSubmitDiscussion = async (e) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
+    if (!newDiscussion.trim()) return;
 
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Log request details
-      console.log('Sending request to:', `${API_URL}/api/discussions/material/${materialId}`);
-      console.log('Request body:', { content: newComment.trim() });
 
       const response = await fetch(`${API_URL}/api/discussions/material/${materialId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
-        body: JSON.stringify({ content: newComment.trim() }),
+        body: JSON.stringify({ content: newDiscussion.trim() }),
         credentials: 'include'
       });
 
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
-      
+
       if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to create discussion');
+        throw new Error(data.error || 'Failed to add discussion');
       }
 
-      // Add new comment to the list and clear input
-      setComments([data.data, ...comments]);
-      setNewComment('');
-      
-      // Refresh the discussions list
-      fetchDiscussions();
+      // Fetch the complete discussion data with replies
+      const discussionResponse = await fetch(`${API_URL}/api/discussions/${data.data.id}`, {
+        credentials: 'include'
+      });
+      const discussionData = await discussionResponse.json();
+
+      if (!discussionResponse.ok) {
+        throw new Error(discussionData.error || 'Failed to fetch discussion details');
+      }
+
+      setDiscussions([discussionData.data, ...discussions]);
+      setNewDiscussion('');
     } catch (err) {
       setError(err.message);
-      console.error('Error creating discussion:', err);
+      console.error('Error adding discussion:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLike = async (commentId) => {
+  const handleLike = async (discussionId) => {
     try {
-      const response = await fetch(`${API_URL}/api/discussions/discussion/${commentId}/like`, {
+      const response = await fetch(`${API_URL}/api/discussions/discussion/${discussionId}/like`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
         credentials: 'include'
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to toggle like');
+        throw new Error(data.error || 'Failed to toggle like');
       }
 
-      // Update the comments list with the new like status
-      setComments(comments.map(comment => {
-        if (comment.id === commentId) {
-          return {
-            ...comment,
-            _count: {
-              ...comment._count,
-              likes: comment.isLiked ? comment._count.likes - 1 : comment._count.likes + 1
-            },
-            isLiked: !comment.isLiked
-          };
-        }
-        return comment;
-      }));
+      // Fetch updated discussion to get fresh data
+      const discussionResponse = await fetch(`${API_URL}/api/discussions/${discussionId}`, {
+        credentials: 'include'
+      });
+      const discussionData = await discussionResponse.json();
+
+      if (!discussionResponse.ok) {
+        throw new Error(discussionData.error || 'Failed to fetch updated discussion');
+      }
+
+      setDiscussions(discussions.map(discussion => 
+        discussion.id === discussionId ? discussionData.data : discussion
+      ));
     } catch (err) {
       console.error('Error toggling like:', err);
     }
   };
+
+  const handleResolve = async (discussionId, replyId) => {
+    try {
+      console.log('DiscussionPanel handleResolve:', {
+        discussionId,
+        replyId,
+        currentUser
+      });
+
+      const response = await fetch(`${API_URL}/api/discussions/${discussionId}/resolve/${replyId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pointAmount: 10 }),
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resolve discussion');
+      }
+
+      console.log('Discussion resolved successfully:', data);
+      // Refresh discussions list
+      fetchDiscussions();
+    } catch (err) {
+      console.error('Error resolving discussion:', err);
+    }
+  };
+
+  if (isLoading && discussions.length === 0) {
+    return (
+      <div className="bg-black/[0.02] border border-white/[0.05] rounded-xl p-8">
+        <div className="animate-pulse space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-white/[0.02] rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-black/[0.02] border border-white/[0.05] rounded-xl p-8">
@@ -172,13 +206,7 @@ const DiscussionPanel = ({ materialId }) => {
             <option value="resolved">Terjawab</option>
             <option value="unresolved">Belum Terjawab</option>
           </select>
-          <span className="text-white/60 text-sm">{comments.length} komentar</span>
-          <button 
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="px-4 py-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.05] text-white/60 border border-white/[0.05] text-sm"
-          >
-            {isExpanded ? 'Tutup' : 'Perluas'}
-          </button>
+          <span className="text-white/60 text-sm">{discussions.length} diskusi</span>
         </div>
       </div>
 
@@ -188,45 +216,32 @@ const DiscussionPanel = ({ materialId }) => {
         </div>
       )}
 
-      <Suspense fallback={
-        <div className="animate-pulse h-32 bg-white/[0.02] rounded-lg mb-8" />
-      }>
-        <CommentForm 
-          onSubmit={handleSubmitComment}
-          newComment={newComment}
-          setNewComment={setNewComment}
-        />
-      </Suspense>
+      {/* Discussion Form */}
+      <CommentForm
+        onSubmit={handleSubmitDiscussion}
+        newComment={newDiscussion}
+        setNewComment={setNewDiscussion}
+      />
 
-      <div className="space-y-6">
-        {isLoading ? (
-          <div className="animate-pulse space-y-4">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="h-40 bg-white/[0.02] rounded-lg" />
-            ))}
+      {/* Discussions List */}
+      <div className="mt-6 space-y-6">
+        {discussions.map(discussion => (
+          <CommentItem
+            key={discussion.id}
+            comment={discussion}
+            onLike={handleLike}
+            onResolve={handleResolve}
+            currentUser={currentUser}
+          />
+        ))}
+        {discussions.length === 0 && !isLoading && (
+          <div className="text-center py-8">
+            <p className="text-white/40">Belum ada diskusi. Mulai diskusi pertama!</p>
           </div>
-        ) : (
-          <Suspense fallback={
-            <div className="animate-pulse space-y-4">
-              {[...Array(2)].map((_, i) => (
-                <div key={i} className="h-40 bg-white/[0.02] rounded-lg" />
-              ))}
-            </div>
-          }>
-            {comments.map((comment) => (
-              <CommentItem 
-                key={comment.id}
-                comment={comment}
-                onLike={handleLike}
-              />
-            ))}
-          </Suspense>
         )}
       </div>
     </div>
   );
 };
 
-// Use memo to prevent unnecessary re-renders
-export default React.memo(DiscussionPanel); 
-// Use memo to prevent unnecessary re-renders
+export default DiscussionPanel; 

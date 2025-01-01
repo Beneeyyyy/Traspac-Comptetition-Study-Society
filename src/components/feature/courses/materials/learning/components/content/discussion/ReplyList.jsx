@@ -1,47 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { FiHeart, FiCheck } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiHeart, FiCheck, FiMessageSquare } from 'react-icons/fi';
+import CommentForm from './CommentForm';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const ReplyList = ({ 
   discussionId, 
   onResolve, 
-  isResolvingComment,
-  pointAmount,
+  isResolvingComment, 
+  pointAmount, 
   setPointAmount,
-  canResolve
+  canResolve,
+  replies,
+  currentUser
 }) => {
-  const [replies, setReplies] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [showReplyFormFor, setShowReplyFormFor] = useState(null);
+  const [showChildrenFor, setShowChildrenFor] = useState(new Set());
   const [newReply, setNewReply] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch replies
-  const fetchReplies = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await fetch(`${API_URL}/api/discussions/${discussionId}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch replies');
-      }
-
-      setReplies(data.data.replies);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching replies:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchReplies();
-  }, [discussionId]);
+  // Debug logs
+  console.log('ReplyList props:', {
+    discussionId,
+    canResolve,
+    currentUser,
+    replies
+  });
 
   const handleSubmitReply = async (e) => {
     e.preventDefault();
@@ -56,7 +42,10 @@ const ReplyList = ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content: newReply.trim() }),
+        body: JSON.stringify({ 
+          content: newReply.trim(),
+          parentId: replyingTo 
+        }),
         credentials: 'include'
       });
 
@@ -66,14 +55,14 @@ const ReplyList = ({
         throw new Error(data.error || 'Failed to add reply');
       }
 
-      // Add default _count if it doesn't exist
-      const replyWithCount = {
-        ...data.data,
-        _count: data.data._count || { likes: 0, children: 0 }
-      };
+      // Update parent component's replies
+      if (typeof onResolve === 'function') {
+        onResolve(data.data.id);
+      }
 
-      setReplies([...replies, replyWithCount]);
       setNewReply('');
+      setReplyingTo(null);
+      setShowReplyFormFor(null);
     } catch (err) {
       setError(err.message);
       console.error('Error adding reply:', err);
@@ -88,7 +77,6 @@ const ReplyList = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
         credentials: 'include'
       });
@@ -96,127 +84,189 @@ const ReplyList = ({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to toggle like');
+        throw new Error(data.error || 'Failed to toggle like');
       }
 
-      setReplies(replies.map(reply => {
-        if (reply.id === replyId) {
-          return {
-            ...reply,
-            _count: {
-              ...reply._count,
-              likes: reply.isLiked ? reply._count.likes - 1 : reply._count.likes + 1
-            },
-            isLiked: !reply.isLiked
-          };
-        }
-        return reply;
-      }));
+      // Refresh the discussion to get updated likes
+      const discussionResponse = await fetch(`${API_URL}/api/discussions/${discussionId}`, {
+        credentials: 'include'
+      });
+      const discussionData = await discussionResponse.json();
+
+      if (!discussionResponse.ok) {
+        throw new Error(discussionData.error || 'Failed to fetch updated discussion');
+      }
+
+      // Update the parent component's replies state
+      if (typeof onResolve === 'function') {
+        onResolve(discussionData.data.replies || []);
+      }
     } catch (err) {
+      setError(err.message);
       console.error('Error toggling like:', err);
     }
   };
 
-  if (isLoading) {
+  const handleResolve = async (replyId) => {
+    try {
+      if (typeof onResolve === 'function') {
+        await onResolve(parseInt(replyId, 10));
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Error resolving reply:', err);
+    }
+  };
+
+  const toggleShowChildren = (replyId) => {
+    const newSet = new Set(showChildrenFor);
+    if (newSet.has(replyId)) {
+      newSet.delete(replyId);
+    } else {
+      newSet.add(replyId);
+    }
+    setShowChildrenFor(newSet);
+  };
+
+  const renderReply = (reply, depth = 0) => {
+    // Debug log for each reply
+    console.log('Rendering reply:', {
+      replyId: reply.id,
+      canResolve,
+      currentUser,
+      isResolved: reply.isResolved,
+      replyUserId: reply.userId,
+      replyUser: reply.user
+    });
+
+    if (!reply.user) {
+      console.error('Reply user information missing:', reply);
+      return null;
+    }
+
     return (
-      <div className="ml-14 space-y-4">
-        <div className="animate-pulse space-y-4">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="h-24 bg-white/[0.02] rounded-lg" />
-          ))}
+      <div 
+        key={reply.id} 
+        className={`flex gap-4 ${depth > 0 ? 'mt-4' : ''} ${
+          reply.isResolved ? 'bg-green-500/10 p-4 rounded-lg border border-green-500/20' : ''
+        }`}
+        style={{ 
+          marginLeft: depth > 0 ? `${depth * 2}rem` : '0',
+          borderLeft: depth > 0 ? '2px solid rgba(255, 255, 255, 0.05)' : 'none',
+          paddingLeft: depth > 0 ? '1rem' : '0'
+        }}
+      >
+        <img 
+          src={reply.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user.name)}&background=0D8ABC&color=fff`}
+          alt={reply.user.name}
+          className="w-10 h-10 rounded-full bg-white/[0.02] border border-white/[0.05] flex-shrink-0 object-cover"
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-medium text-white">{reply.user.name}</span>
+            {reply.user.role === 'teacher' && (
+              <span className="px-2 py-0.5 rounded-full bg-white/[0.02] text-white/80 text-xs border border-white/[0.05]">
+                Guru
+              </span>
+            )}
+            <span className="px-2 py-0.5 rounded-full bg-white/[0.02] text-white/40 text-xs">
+              {reply.user.rank}
+            </span>
+            <span className="text-white/40 text-sm">{new Date(reply.createdAt).toLocaleString('id-ID')}</span>
+          </div>
+          <div className={`rounded-lg p-4 mb-3 ${reply.isResolved ? 'bg-green-500/10' : 'bg-white/[0.02]'}`}>
+            <p className="text-white/80 leading-relaxed">{reply.content}</p>
+            {reply.isResolved && (
+              <div className="mt-3 flex items-center gap-2 text-green-400">
+                <FiCheck className="w-5 h-5" />
+                <span className="text-sm font-medium">Jawaban Terpilih</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => handleLike(reply.id)}
+              className={`flex items-center gap-1.5 ${reply.isLiked ? 'text-white' : 'text-white/40 hover:text-white/60'}`}
+            >
+              <FiHeart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
+              <span className="text-sm">{reply._count?.likes || 0}</span>
+            </button>
+
+            {/* View/Hide Replies Button */}
+            {reply._count?.children > 0 && (
+              <button 
+                onClick={() => toggleShowChildren(reply.id)}
+                className={`flex items-center gap-1.5 ${showChildrenFor.has(reply.id) ? 'text-white' : 'text-white/40 hover:text-white/60'}`}
+              >
+                <FiMessageSquare className="w-4 h-4" />
+                <span className="text-sm">{reply._count?.children} {showChildrenFor.has(reply.id) ? 'Sembunyikan Balasan' : 'Lihat Balasan'}</span>
+              </button>
+            )}
+
+            {/* Reply Button */}
+            {!showReplyFormFor && !reply.isResolved && (
+              <button 
+                onClick={() => {
+                  setReplyingTo(reply.id);
+                  setShowReplyFormFor(reply.id);
+                }}
+                className="flex items-center gap-1.5 text-white/40 hover:text-white/60"
+              >
+                <FiMessageSquare className="w-4 h-4" />
+                <span className="text-sm">Balas</span>
+              </button>
+            )}
+
+            {/* Resolve Button */}
+            {canResolve && !reply.isResolved && reply.userId !== currentUser?.id && (
+              <button
+                onClick={() => handleResolve(reply.id)}
+                disabled={isResolvingComment}
+                className="flex items-center gap-1.5 text-green-400 hover:text-green-300 disabled:opacity-50"
+              >
+                <FiCheck className="w-4 h-4" />
+                <span className="text-sm">Tandai Sebagai Jawaban</span>
+              </button>
+            )}
+          </div>
+
+          {/* Nested Reply Form */}
+          {showReplyFormFor === reply.id && (
+            <div className="mt-4">
+              <CommentForm
+                onSubmit={handleSubmitReply}
+                newComment={newReply}
+                setNewComment={setNewReply}
+                placeholder={`Balas ke ${reply.user.name}...`}
+                submitLabel="Kirim Balasan"
+                isLoading={isLoading}
+                onCancel={() => {
+                  setReplyingTo(null);
+                  setShowReplyFormFor(null);
+                  setNewReply('');
+                }}
+              />
+            </div>
+          )}
+
+          {/* Show nested replies if toggled */}
+          <div className={showChildrenFor.has(reply.id) ? 'mt-4 space-y-4' : ''}>
+            {showChildrenFor.has(reply.id) && reply.children?.map(childReply => renderReply(childReply, depth + 1))}
+          </div>
         </div>
       </div>
     );
-  }
+  };
 
   return (
-    <div className="ml-14 space-y-4">
+    <div className="space-y-4">
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-lg">
           {error}
         </div>
       )}
 
-      {/* Reply Form */}
-      <form onSubmit={handleSubmitReply} className="space-y-3">
-        <textarea
-          value={newReply}
-          onChange={(e) => setNewReply(e.target.value)}
-          placeholder="Tulis balasan..."
-          className="w-full px-4 py-3 bg-white/[0.02] border border-white/[0.05] rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-white/10 resize-none"
-          rows="3"
-        />
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="px-4 py-2 bg-white/[0.05] hover:bg-white/[0.08] text-white rounded-lg text-sm"
-          >
-            Kirim Balasan
-          </button>
-        </div>
-      </form>
-
-      {/* Replies List */}
-      {replies.map((reply) => (
-        <div key={reply.id} className="flex gap-4">
-          <img 
-            src={reply.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user.name)}`}
-            alt={reply.user.name}
-            className="w-8 h-8 rounded-full bg-white/[0.02] border border-white/[0.05] flex-shrink-0 object-cover"
-          />
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-medium text-white">{reply.user.name}</span>
-              {reply.user.role === 'teacher' && (
-                <span className="px-2 py-0.5 rounded-full bg-white/[0.02] text-white/80 text-xs border border-white/[0.05]">
-                  Guru
-                </span>
-              )}
-              <span className="px-2 py-0.5 rounded-full bg-white/[0.02] text-white/40 text-xs">
-                {reply.user.rank}
-              </span>
-              <span className="text-white/40 text-sm">
-                {new Date(reply.createdAt).toLocaleString('id-ID')}
-              </span>
-            </div>
-            <div className="bg-white/[0.02] rounded-lg p-4 mb-3">
-              <p className="text-white/80 leading-relaxed">{reply.content}</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => handleLike(reply.id)}
-                className={`flex items-center gap-1.5 ${reply.isLiked ? 'text-white' : 'text-white/40 hover:text-white/60'}`}
-              >
-                <FiHeart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
-                <span className="text-sm">{(reply._count?.likes || 0)}</span>
-              </button>
-
-              {/* Resolve Button */}
-              {canResolve && !reply.isResolved && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="10"
-                    max="50"
-                    value={pointAmount}
-                    onChange={(e) => setPointAmount(Math.min(50, Math.max(10, parseInt(e.target.value) || 10)))}
-                    className="w-16 px-2 py-1 bg-white/[0.02] border border-white/[0.05] rounded text-white text-sm"
-                  />
-                  <button
-                    onClick={() => onResolve(reply.id)}
-                    disabled={isResolvingComment}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg text-sm"
-                  >
-                    <FiCheck className="w-4 h-4" />
-                    <span>Tandai Sebagai Jawaban</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ))}
+      {replies.map(reply => renderReply(reply))}
     </div>
   );
 };

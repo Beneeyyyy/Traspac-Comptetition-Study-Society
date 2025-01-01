@@ -1,43 +1,158 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiHeart, FiMessageSquare, FiShare2, FiCheck } from 'react-icons/fi';
 import ReplyList from './ReplyList';
+import CommentForm from './CommentForm';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-const CommentItem = ({ comment, onLike }) => {
+const CommentItem = ({ comment, onLike, onResolve, currentUser }) => {
   const [showReplies, setShowReplies] = useState(false);
+  const [showReplyForm, setShowReplyForm] = useState(false);
   const [isResolvingComment, setIsResolvingComment] = useState(false);
   const [pointAmount, setPointAmount] = useState(10);
   const [error, setError] = useState(null);
+  const [newReply, setNewReply] = useState('');
+  const [replies, setReplies] = useState(comment.replies || []);
+
+  // Debug logs
+  console.log('CommentItem props:', {
+    commentId: comment.id,
+    userId: comment.userId,
+    currentUserId: currentUser?.id,
+    isResolved: comment.isResolved,
+    canResolve: currentUser?.id === comment.userId && !comment.isResolved,
+    showReplies,
+    initialReplies: comment.replies
+  });
+
+  // Initialize replies with comment.replies when the comment changes
+  useEffect(() => {
+    if (comment.replies) {
+      setReplies(comment.replies);
+    }
+  }, [comment.replies]);
+
+  // Fetch replies when showReplies is toggled to true
+  useEffect(() => {
+    if (showReplies) {
+      handleFetchReplies();
+    }
+  }, [showReplies]);
+
+  const handleFetchReplies = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/discussions/${comment.id}`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch discussion details');
+      }
+
+      if (data.data.replies) {
+        console.log('Fetched replies:', data.data.replies);
+        setReplies(data.data.replies);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching replies:', err);
+    }
+  };
 
   const handleResolveComment = async (replyId) => {
     try {
+      console.log('Resolving comment:', {
+        commentId: comment.id,
+        replyId,
+        currentUser
+      });
+
       setIsResolvingComment(true);
       setError(null);
 
-      const response = await fetch(`${API_URL}/api/discussions/${comment.id}/resolve/${replyId}`, {
-        method: 'PUT',
+      await onResolve(comment.id, replyId);
+
+      // Refresh the discussion to get updated replies
+      const response = await fetch(`${API_URL}/api/discussions/${comment.id}`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch updated discussion');
+      }
+
+      console.log('Updated discussion data:', data.data);
+      setReplies(data.data.replies || []);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error resolving reply:', err);
+    } finally {
+      setIsResolvingComment(false);
+    }
+  };
+
+  const handleSubmitReply = async (e) => {
+    e.preventDefault();
+    if (!newReply.trim()) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/discussions/${comment.id}/reply`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        body: JSON.stringify({ pointAmount }),
+        body: JSON.stringify({ content: newReply.trim() }),
         credentials: 'include'
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to resolve discussion');
+        throw new Error(data.error || 'Failed to add reply');
       }
 
-      // Refresh the discussion (this should be handled by the parent component)
-      window.location.reload();
+      // Fetch updated discussion to get fresh replies
+      const discussionResponse = await fetch(`${API_URL}/api/discussions/${comment.id}`, {
+        credentials: 'include'
+      });
+      const discussionData = await discussionResponse.json();
+
+      if (!discussionResponse.ok) {
+        throw new Error(discussionData.error || 'Failed to fetch updated discussion');
+      }
+
+      setReplies(discussionData.data.replies || []);
+      setNewReply('');
+      setShowReplyForm(false);
     } catch (err) {
       setError(err.message);
-      console.error('Error resolving discussion:', err);
-    } finally {
-      setIsResolvingComment(false);
+      console.error('Error adding reply:', err);
     }
+  };
+
+  // Fetch replies when showReplies is toggled to true
+  const handleToggleReplies = async () => {
+    if (!showReplies) {
+      try {
+        const response = await fetch(`${API_URL}/api/discussions/${comment.id}`, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch discussion details');
+        }
+
+        setReplies(data.data.replies || []);
+      } catch (err) {
+        setError(err.message);
+        console.error('Error fetching replies:', err);
+      }
+    }
+    setShowReplies(!showReplies);
   };
 
   return (
@@ -73,12 +188,21 @@ const CommentItem = ({ comment, onLike }) => {
               <span className="text-sm">{comment._count.likes}</span>
             </button>
             <button 
-              onClick={() => setShowReplies(!showReplies)}
-              className="flex items-center gap-1.5 text-white/40 hover:text-white/60"
+              onClick={handleToggleReplies}
+              className={`flex items-center gap-1.5 ${showReplies ? 'text-white' : 'text-white/40 hover:text-white/60'}`}
             >
               <FiMessageSquare className="w-4 h-4" />
-              <span className="text-sm">{comment._count.replies} Balasan</span>
+              <span className="text-sm">{comment._count.replies} {showReplies ? 'Sembunyikan Balasan' : 'Lihat Balasan'}</span>
             </button>
+            {!showReplyForm && showReplies && (
+              <button 
+                onClick={() => setShowReplyForm(true)}
+                className="flex items-center gap-1.5 text-white/40 hover:text-white/60"
+              >
+                <FiMessageSquare className="w-4 h-4" />
+                <span className="text-sm">Balas</span>
+              </button>
+            )}
             <button className="flex items-center gap-1.5 text-white/40 hover:text-white/60">
               <FiShare2 className="w-4 h-4" />
               <span className="text-sm">Bagikan</span>
@@ -104,16 +228,31 @@ const CommentItem = ({ comment, onLike }) => {
         </div>
       </div>
 
-      {/* Replies */}
-      {showReplies && comment._count.replies > 0 && (
-        <ReplyList 
-          discussionId={comment.id}
-          onResolve={handleResolveComment}
-          isResolvingComment={isResolvingComment}
-          pointAmount={pointAmount}
-          setPointAmount={setPointAmount}
-          canResolve={!comment.isResolved && comment.userId === comment.user.id}
-        />
+      {/* Reply Form and Replies */}
+      {showReplies && (
+        <div className="ml-14 space-y-4">
+          {/* Reply Form */}
+          {showReplyForm && (
+            <CommentForm
+              onSubmit={handleSubmitReply}
+              newComment={newReply}
+              setNewComment={setNewReply}
+              onCancel={() => setShowReplyForm(false)}
+            />
+          )}
+
+          {/* Replies List */}
+          <ReplyList 
+            discussionId={comment.id}
+            onResolve={handleResolveComment}
+            isResolvingComment={isResolvingComment}
+            pointAmount={pointAmount}
+            setPointAmount={setPointAmount}
+            canResolve={currentUser?.id === comment.userId && !comment.isResolved}
+            replies={replies}
+            currentUser={currentUser}
+          />
+        </div>
       )}
     </div>
   );

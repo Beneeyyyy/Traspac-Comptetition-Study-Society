@@ -227,12 +227,12 @@ const TheoryStep = ({ material }) => {
                   </button>
                 </div>
               </div>
-
-              {/* Discussion Panel */}
-              <div className="max-w-4xl mx-auto">
-                <DiscussionPanel materialId={material?.id} />
-              </div>
             </Suspense>
+
+            {/* Discussion Panel */}
+            <div className="max-w-4xl mx-auto">
+              <DiscussionPanel materialId={material?.id} />
+            </div>
           </div>
         </main>
       </div>

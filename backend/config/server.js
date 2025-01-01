@@ -7,7 +7,7 @@ const cookieParser = require('cookie-parser')
 
 // Import routes
 const authRoutes = require('../routes/usersManagement/routes/authRoutes');
-const userRoutes = require('../routes/usersManagement/routes/userRoutes');
+
 const categoryRoutes = require('../routes/coursesManagement/routes/categoryRoutes');
 const subcategoryRoutes = require('../routes/coursesManagement/routes/subcategoryRoutes');
 const materialRoutes = require('../routes/coursesManagement/routes/materialRoutes');
@@ -45,18 +45,38 @@ prisma.$connect()
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : ['http://localhost:5173', 'http://127.0.0.1:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With', 'Cookie']
+  allowedHeaders: [
+    'Content-Type', 
+    'Accept', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Origin',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Credentials'
+  ],
+  exposedHeaders: ['Set-Cookie'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }))
-app.use(cookieParser(process.env.JWT_SECRET))
+
+// Enable pre-flight requests for all routes
+app.options('*', cors())
+
+// Parse cookies before routes
+app.use(cookieParser())
+
+// Parse JSON bodies
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subcategoryRoutes);
 app.use('/api/materials', materialRoutes);

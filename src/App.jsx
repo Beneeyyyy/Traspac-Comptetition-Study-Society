@@ -17,10 +17,11 @@ import MaterialManagement from './pages/admin/MaterialManagement'
 import Navbar from './components/layouts/Navbar'
 import Leaderboard from './components/feature/leaderboard/Leaderboard'
 import { CommunityProvider } from './components/feature/community/context/CommunityContext'
+import { AuthProvider } from './context/AuthContext'
 import Profile from './components/feature/profile/Profile'
 import Login from './components/feature/auth/Login'
 import Signup from './components/feature/auth/Signup'
-import TestDiscussion from './components/feature/courses/materials/learning/components/content/discussion/TestDiscussion'
+
 
 function AppContent() {
   const location = useLocation()
@@ -64,7 +65,7 @@ function AppContent() {
           <Route path="/admin/materials" element={<MaterialManagement />} />
           
           {/* Test Routes */}
-          <Route path="/test-discussion" element={<TestDiscussion />} />
+        
           
           {/* Catch-all route */}
           <Route path="*" element={<div>404 - Page Not Found</div>} />
@@ -77,11 +78,13 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <CommunityProvider>
-        <MotionConfig reducedMotion="user">
-          <AppContent />
-        </MotionConfig>
-      </CommunityProvider>
+      <AuthProvider>
+        <CommunityProvider>
+          <MotionConfig reducedMotion="user">
+            <AppContent />
+          </MotionConfig>
+        </CommunityProvider>
+      </AuthProvider>
     </Router>
   )
 }

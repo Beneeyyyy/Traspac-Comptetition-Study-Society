@@ -131,20 +131,37 @@ const discussionController = {
     }
   },
 
-  // Get single discussion with replies
+  // Get single discussion
   getDiscussion: async (req, res) => {
     try {
       const { id } = req.params;
+      const userId = req.user?.id;
 
       const discussion = await prisma.discussion.findUnique({
-        where: { id: parseInt(id) },
+        where: {
+          id: parseInt(id)
+        },
         include: {
           user: {
             select: {
               id: true,
               name: true,
               image: true,
-              rank: true
+              rank: true,
+              role: true
+            }
+          },
+          resolvedReply: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                  rank: true,
+                  role: true
+                }
+              }
             }
           },
           replies: {
@@ -154,7 +171,32 @@ const discussionController = {
                   id: true,
                   name: true,
                   image: true,
-                  rank: true
+                  rank: true,
+                  role: true
+                }
+              },
+              children: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      image: true,
+                      rank: true,
+                      role: true
+                    }
+                  },
+                  _count: {
+                    select: {
+                      likes: true,
+                      children: true
+                    }
+                  },
+                  likes: userId ? {
+                    where: {
+                      userId
+                    }
+                  } : false
                 }
               },
               _count: {
@@ -162,28 +204,25 @@ const discussionController = {
                   likes: true,
                   children: true
                 }
-              }
-            },
-            orderBy: {
-              createdAt: 'asc'
-            }
-          },
-          resolvedReply: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true
+              },
+              likes: userId ? {
+                where: {
+                  userId
                 }
-              }
+              } : false
             }
           },
           _count: {
             select: {
-              likes: true
+              likes: true,
+              replies: true
             }
-          }
+          },
+          likes: userId ? {
+            where: {
+              userId
+            }
+          } : false
         }
       });
 
@@ -194,9 +233,32 @@ const discussionController = {
         });
       }
 
+      // Add isLiked field
+      const discussionWithLikes = {
+        ...discussion,
+        isLiked: discussion.likes?.length > 0,
+        replies: discussion.replies.map(reply => ({
+          ...reply,
+          isLiked: reply.likes?.length > 0,
+          children: reply.children.map(child => ({
+            ...child,
+            isLiked: child.likes?.length > 0
+          }))
+        }))
+      };
+
+      // Remove likes array
+      delete discussionWithLikes.likes;
+      discussionWithLikes.replies.forEach(reply => {
+        delete reply.likes;
+        reply.children.forEach(child => {
+          delete child.likes;
+        });
+      });
+
       res.json({
         success: true,
-        data: discussion
+        data: discussionWithLikes
       });
     } catch (error) {
       console.error('Error in getDiscussion:', error);
@@ -211,13 +273,26 @@ const discussionController = {
   // Add reply to discussion
   addReply: async (req, res) => {
     try {
+      console.log('=== ADD REPLY START ===');
+      console.log('Request headers:', req.headers);
+      console.log('Request body:', req.body);
+      console.log('Request user:', req.user);
+      console.log('Request params:', req.params);
+      
       const { discussionId } = req.params;
       const { content, parentId } = req.body;
-      const userId = req.user.id; // dari middleware auth
+      const userId = req.user.id;
+
+      if (!content || content.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          error: 'Content is required'
+        });
+      }
 
       const reply = await prisma.reply.create({
         data: {
-          content,
+          content: content.trim(),
           userId,
           discussionId: parseInt(discussionId),
           parentId: parentId ? parseInt(parentId) : null
@@ -228,11 +303,15 @@ const discussionController = {
               id: true,
               name: true,
               image: true,
-              rank: true
+              rank: true,
+              role: true
             }
           }
         }
       });
+
+      console.log('Reply created:', reply);
+      console.log('=== ADD REPLY END ===');
 
       res.json({
         success: true,
@@ -240,7 +319,12 @@ const discussionController = {
         message: 'Reply added successfully'
       });
     } catch (error) {
-      console.error('Error in addReply:', error);
+      console.error('=== ADD REPLY ERROR ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('=== END ERROR ===');
+      
       res.status(500).json({
         success: false,
         error: 'Failed to add reply',
@@ -254,49 +338,50 @@ const discussionController = {
     try {
       const { discussionId, replyId } = req.params;
       const { pointAmount } = req.body;
-      const userId = req.user.id;
 
       // Validate point amount
       if (!pointAmount || pointAmount < 10 || pointAmount > 50) {
         return res.status(400).json({
-          success: false,
           error: 'Point amount must be between 10 and 50'
         });
       }
 
-      // Get discussion
+      // Check if discussion exists and user is the creator
       const discussion = await prisma.discussion.findUnique({
-        where: { id: parseInt(discussionId) },
+        where: {
+          id: parseInt(discussionId)
+        },
         include: {
+          user: true,
           resolvedReply: true
         }
       });
 
-      // Validations
       if (!discussion) {
         return res.status(404).json({
-          success: false,
           error: 'Discussion not found'
         });
       }
 
-      if (discussion.userId !== userId) {
+      // Check if user is the discussion creator
+      if (discussion.userId !== req.user.id) {
         return res.status(403).json({
-          success: false,
-          error: 'Only discussion creator can mark as resolved'
+          error: 'Only the discussion creator can resolve the discussion'
         });
       }
 
+      // Check if discussion is already resolved
       if (discussion.isResolved) {
         return res.status(400).json({
-          success: false,
           error: 'Discussion is already resolved'
         });
       }
 
       // Get reply
       const reply = await prisma.reply.findUnique({
-        where: { id: parseInt(replyId) },
+        where: {
+          id: parseInt(replyId)
+        },
         include: {
           user: true
         }
@@ -304,110 +389,84 @@ const discussionController = {
 
       if (!reply) {
         return res.status(404).json({
-          success: false,
           error: 'Reply not found'
         });
       }
 
+      // Check if reply belongs to this discussion
       if (reply.discussionId !== parseInt(discussionId)) {
         return res.status(400).json({
-          success: false,
           error: 'Reply does not belong to this discussion'
         });
       }
 
-      // Start transaction
-      const result = await prisma.$transaction(async (prisma) => {
-        // Update discussion
-        const updatedDiscussion = await prisma.discussion.update({
-          where: { id: parseInt(discussionId) },
+      // Update discussion and add points to reply creator
+      const [updatedDiscussion, _] = await prisma.$transaction([
+        prisma.discussion.update({
+          where: {
+            id: parseInt(discussionId)
+          },
           data: {
             isResolved: true,
-            resolvedReplyId: parseInt(replyId),
-            pointAwarded: pointAmount
+            resolvedReplyId: parseInt(replyId)
           },
           include: {
+            user: true,
             resolvedReply: {
               include: {
-                user: {
+                user: true
+              }
+            },
+            replies: {
+              include: {
+                user: true,
+                children: {
+                  include: {
+                    user: true,
+                    _count: {
+                      select: {
+                        likes: true,
+                        children: true
+                      }
+                    }
+                  }
+                },
+                _count: {
                   select: {
-                    id: true,
-                    name: true,
-                    image: true,
-                    rank: true
+                    likes: true,
+                    children: true
                   }
                 }
               }
             },
-            user: {
+            _count: {
               select: {
-                id: true,
-                name: true,
-                image: true,
-                rank: true
+                likes: true,
+                replies: true
               }
             }
           }
-        });
-
-        // Update reply
-        await prisma.reply.update({
-          where: { id: parseInt(replyId) },
+        }),
+        prisma.user.update({
+          where: {
+            id: reply.userId
+          },
           data: {
-            isResolved: true,
-            pointReceived: pointAmount
-          }
-        });
-
-        // Add points to user who answered
-        await prisma.user.update({
-          where: { id: reply.userId },
-          data: {
-            totalPoints: {
+            points: {
               increment: pointAmount
             }
           }
-        });
-
-        // Create point record
-        await prisma.point.create({
-          data: {
-            userId: reply.userId,
-            value: pointAmount,
-            materialId: discussion.materialId,
-            categoryId: 1, // Get from material
-            subcategoryId: 1 // Get from material
-          }
-        });
-
-        // Create notification for user who answered
-        await prisma.notification.create({
-          data: {
-            userId: reply.userId,
-            type: 'DISCUSSION_RESOLVED',
-            message: `Your answer was marked as correct! You received ${pointAmount} points.`,
-            data: {
-              discussionId: parseInt(discussionId),
-              replyId: parseInt(replyId),
-              pointAmount
-            }
-          }
-        });
-
-        return updatedDiscussion;
-      });
+        })
+      ]);
 
       res.json({
-        success: true,
-        data: result,
-        message: 'Discussion marked as resolved'
+        message: 'Discussion resolved successfully',
+        data: updatedDiscussion
       });
     } catch (error) {
-      console.error('Error in resolveDiscussion:', error);
+      console.error('Error resolving discussion:', error);
       res.status(500).json({
-        success: false,
-        error: 'Failed to resolve discussion',
-        message: error.message
+        error: 'Failed to resolve discussion'
       });
     }
   },
