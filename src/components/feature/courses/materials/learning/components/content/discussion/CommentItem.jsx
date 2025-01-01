@@ -22,7 +22,8 @@ const CommentItem = ({ comment, onLike, onResolve, currentUser }) => {
     isResolved: comment.isResolved,
     canResolve: currentUser?.id === comment.userId && !comment.isResolved,
     showReplies,
-    initialReplies: comment.replies
+    initialReplies: comment.replies,
+    isLiked: comment.isLiked
   });
 
   // Initialize replies with comment.replies when the comment changes
@@ -147,6 +148,17 @@ const CommentItem = ({ comment, onLike, onResolve, currentUser }) => {
     setShowReplies(!showReplies);
   };
 
+  const handleLike = async () => {
+    try {
+      // Call parent's onLike
+      if (typeof onLike === 'function') {
+        await onLike(comment.id);
+      }
+    } catch (err) {
+      console.error('Error toggling like:', err);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-4">
@@ -173,7 +185,7 @@ const CommentItem = ({ comment, onLike, onResolve, currentUser }) => {
           </div>
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => onLike(comment.id)}
+              onClick={handleLike}
               className={`flex items-center gap-1.5 ${comment.isLiked ? 'text-white' : 'text-white/40 hover:text-white/60'}`}
             >
               <FiHeart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />

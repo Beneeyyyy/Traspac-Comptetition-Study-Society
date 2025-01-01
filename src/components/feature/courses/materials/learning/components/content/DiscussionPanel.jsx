@@ -143,21 +143,27 @@ const DiscussionPanel = ({ materialId }) => {
         throw new Error(data.error || 'Failed to toggle like');
       }
 
-      // Fetch updated discussion to get fresh data
-      const discussionResponse = await fetch(`${API_URL}/api/discussions/${discussionId}`, {
-        credentials: 'include'
-      });
-      const discussionData = await discussionResponse.json();
+      // Update only the like status of the main discussion without affecting replies
+      setDiscussions(prevDiscussions => 
+        prevDiscussions.map(discussion => {
+          if (discussion.id === discussionId) {
+            return {
+              ...discussion,
+              isLiked: !discussion.isLiked,
+              _count: {
+                ...discussion._count,
+                likes: discussion.isLiked ? discussion._count.likes - 1 : discussion._count.likes + 1
+              }
+            };
+          }
+          return discussion;
+        })
+      );
 
-      if (!discussionResponse.ok) {
-        throw new Error(discussionData.error || 'Failed to fetch updated discussion');
-      }
-
-      setDiscussions(discussions.map(discussion => 
-        discussion.id === discussionId ? discussionData.data : discussion
-      ));
+      return data.data;
     } catch (err) {
       console.error('Error toggling like:', err);
+      throw err;
     }
   };
 

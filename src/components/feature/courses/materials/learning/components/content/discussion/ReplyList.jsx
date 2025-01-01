@@ -21,10 +21,25 @@ const ReplyList = ({
   const [newReply, setNewReply] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [replies, setReplies] = useState(initialReplies || []);
+  const [likedReplies, setLikedReplies] = useState(new Map(
+    initialReplies?.map(reply => [reply.id, reply.isLiked]) || []
+  ));
+  const [likeCounts, setLikeCounts] = useState(new Map(
+    initialReplies?.map(reply => [reply.id, reply._count?.likes || 0]) || []
+  ));
 
-  // Update replies when initialReplies changes
+  // Update replies when initialReplies changes, but preserve like states
   useEffect(() => {
-    setReplies(initialReplies || []);
+    if (initialReplies) {
+      setReplies(initialReplies.map(reply => ({
+        ...reply,
+        isLiked: likedReplies.get(reply.id) ?? reply.isLiked,
+        _count: {
+          ...reply._count,
+          likes: likeCounts.get(reply.id) ?? reply._count?.likes ?? 0
+        }
+      })));
+    }
   }, [initialReplies]);
 
   // Debug logs
@@ -93,19 +108,24 @@ const ReplyList = ({
         throw new Error(data.error || 'Failed to toggle like');
       }
 
-      // Update only the specific reply's like status
+      // Update local like state
+      const newIsLiked = !likedReplies.get(replyId);
+      const newLikeCount = likeCounts.get(replyId) + (newIsLiked ? 1 : -1);
+
+      setLikedReplies(new Map(likedReplies.set(replyId, newIsLiked)));
+      setLikeCounts(new Map(likeCounts.set(replyId, newLikeCount)));
+
+      // Update replies with new like state
       setReplies(prevReplies => 
         prevReplies.map(reply => {
           if (reply.id === replyId) {
             return {
               ...reply,
-              isLiked: !reply.isLiked,
+              isLiked: newIsLiked,
               _count: {
                 ...reply._count,
-                likes: reply.isLiked ? (reply._count?.likes || 0) - 1 : (reply._count?.likes || 0) + 1
-              },
-              // Maintain the discussionId object to keep the resolved state
-              discussionId: reply.discussionId
+                likes: newLikeCount
+              }
             };
           }
           return reply;
