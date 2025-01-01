@@ -13,6 +13,8 @@ const subcategoryRoutes = require('../routes/coursesManagement/routes/subcategor
 const materialRoutes = require('../routes/coursesManagement/routes/materialRoutes');
 const pointRoutes = require('../routes/leaderBoard/pointRoutes');
 const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoolRoutes');
+const progressRoutes = require('../routes/progress/progressRoutes');
+const notificationRoutes = require('../routes/progress/routes/notificationRoutes');
 
 
 
@@ -59,6 +61,8 @@ app.use('/api/subcategories', subcategoryRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/points', pointRoutes);
 app.use('/api/schools', schoolRoutes);
+app.use('/api/progress', progressRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Global error handling
 app.use((err, req, res, next) => {
