@@ -65,29 +65,81 @@ const CommentItem = ({ comment, onLike, onResolve, currentUser }) => {
       console.log('Resolving comment:', {
         commentId: comment.id,
         replyId,
-        currentUser
+        currentUser,
+        discussionUserId: comment.userId,
+        isCreator: currentUser?.id === comment.userId,
+        isResolved: comment.isResolved
       });
+
+      if (currentUser?.id !== comment.userId) {
+        throw new Error('Only the discussion creator can resolve the discussion');
+      }
+
+      if (comment.isResolved) {
+        // If already resolved, just update the UI to show it
+        setReplies(prevReplies => 
+          prevReplies.map(reply => ({
+            ...reply,
+            isResolved: reply.id === parseInt(replyId)
+          }))
+        );
+        return;
+      }
 
       setIsResolvingComment(true);
       setError(null);
 
-      await onResolve(comment.id, replyId);
+      // Immediately update the UI
+      setReplies(prevReplies => 
+        prevReplies.map(reply => ({
+          ...reply,
+          isResolved: reply.id === parseInt(replyId)
+        }))
+      );
 
-      // Refresh the discussion to get updated replies
-      const response = await fetch(`${API_URL}/api/discussions/${comment.id}`, {
+      const response = await fetch(`${API_URL}/api/discussions/${comment.id}/resolve/${replyId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ pointAmount: 10 }),
         credentials: 'include'
       });
+
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch updated discussion');
+        if (data.error === 'Discussion is already resolved') {
+          // If already resolved, keep the UI state
+          return;
+        }
+        throw new Error(data.error || data.message || 'Failed to resolve discussion');
       }
 
-      console.log('Updated discussion data:', data.data);
-      setReplies(data.data.replies || []);
+      console.log('Discussion resolved successfully:', data);
+
+      // Update with server data if available
+      if (data.data.replies) {
+        setReplies(data.data.replies);
+      }
+
+      // Call the parent's onResolve callback if provided
+      if (typeof onResolve === 'function') {
+        onResolve(comment.id, replyId);
+      }
     } catch (err) {
-      setError(err.message);
       console.error('Error resolving reply:', err);
+      setError(err.message);
+      // Don't revert the UI state if it's already resolved
+      if (err.message !== 'Discussion is already resolved') {
+        setReplies(prevReplies => 
+          prevReplies.map(reply => ({
+            ...reply,
+            isResolved: false
+          }))
+        );
+      }
     } finally {
       setIsResolvingComment(false);
     }

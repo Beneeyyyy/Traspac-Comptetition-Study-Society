@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiHeart, FiCheck, FiMessageSquare } from 'react-icons/fi';
 import CommentForm from './CommentForm';
 
@@ -11,7 +11,7 @@ const ReplyList = ({
   pointAmount, 
   setPointAmount,
   canResolve,
-  replies,
+  replies: initialReplies,
   currentUser
 }) => {
   const [error, setError] = useState(null);
@@ -20,6 +20,12 @@ const ReplyList = ({
   const [showChildrenFor, setShowChildrenFor] = useState(new Set());
   const [newReply, setNewReply] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [replies, setReplies] = useState(initialReplies || []);
+
+  // Update replies when initialReplies changes
+  useEffect(() => {
+    setReplies(initialReplies || []);
+  }, [initialReplies]);
 
   // Debug logs
   console.log('ReplyList props:', {
@@ -109,10 +115,39 @@ const ReplyList = ({
 
   const handleResolve = async (replyId) => {
     try {
+      console.log('Resolving reply:', {
+        discussionId,
+        replyId,
+        currentUser
+      });
+
+      // Immediately mark the reply as resolved in the UI
+      const updatedReplies = replies.map(reply => ({
+        ...reply,
+        isResolved: reply.id === parseInt(replyId)
+      }));
+      setReplies(updatedReplies);
+
       if (typeof onResolve === 'function') {
-        await onResolve(parseInt(replyId, 10));
+        try {
+          await onResolve(parseInt(replyId, 10));
+        } catch (err) {
+          // If the error is "already resolved", keep the UI state
+          if (err.message === 'Discussion is already resolved') {
+            return;
+          }
+          throw err;
+        }
       }
     } catch (err) {
+      // Only revert UI if it's not an "already resolved" error
+      if (err.message !== 'Discussion is already resolved') {
+        const updatedReplies = replies.map(reply => ({
+          ...reply,
+          isResolved: false
+        }));
+        setReplies(updatedReplies);
+      }
       setError(err.message);
       console.error('Error resolving reply:', err);
     }
@@ -144,6 +179,9 @@ const ReplyList = ({
       return null;
     }
 
+    // Check if any reply in the discussion is already resolved
+    const hasResolvedReply = replies.some(r => r.isResolved);
+
     return (
       <div 
         key={reply.id} 
@@ -174,7 +212,7 @@ const ReplyList = ({
             </span>
             <span className="text-white/40 text-sm">{new Date(reply.createdAt).toLocaleString('id-ID')}</span>
           </div>
-          <div className={`rounded-lg p-4 mb-3 ${reply.isResolved ? 'bg-green-500/10' : 'bg-white/[0.02]'}`}>
+          <div className={`rounded-lg p-4 mb-3 ${reply.isResolved ? 'bg-green-500/10 border border-green-500/20' : 'bg-white/[0.02]'}`}>
             <p className="text-white/80 leading-relaxed">{reply.content}</p>
             {reply.isResolved && (
               <div className="mt-3 flex items-center gap-2 text-green-400">
@@ -217,8 +255,8 @@ const ReplyList = ({
               </button>
             )}
 
-            {/* Resolve Button */}
-            {canResolve && !reply.isResolved && reply.userId !== currentUser?.id && (
+            {/* Resolve Button - only show if can resolve and no reply is resolved yet */}
+            {canResolve && !hasResolvedReply && !reply.isResolved && reply.userId !== currentUser?.id && (
               <button
                 onClick={() => handleResolve(reply.id)}
                 disabled={isResolvingComment}

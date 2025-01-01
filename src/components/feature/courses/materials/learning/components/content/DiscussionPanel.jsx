@@ -7,7 +7,8 @@ import { useAuth } from '../../../../../../../context/AuthContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const DiscussionPanel = ({ materialId }) => {
-  const { user: currentUser, loading } = useAuth();
+  const auth = useAuth();
+  const { user: currentUser, loading } = auth || { user: null, loading: true };
   const [discussions, setDiscussions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -30,6 +31,16 @@ const DiscussionPanel = ({ materialId }) => {
           {[...Array(3)].map((_, i) => (
             <div key={i} className="h-32 bg-white/[0.02] rounded-lg" />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="bg-black/[0.02] border border-white/[0.05] rounded-xl p-8">
+        <div className="text-center py-8">
+          <p className="text-white/40">Please log in to participate in discussions.</p>
         </div>
       </div>
     );

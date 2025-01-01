@@ -336,8 +336,17 @@ const discussionController = {
   // Mark reply as resolved
   resolveDiscussion: async (req, res) => {
     try {
+      console.log('=== RESOLVE DISCUSSION START ===');
       const { discussionId, replyId } = req.params;
       const { pointAmount } = req.body;
+      const userId = parseInt(req.user.id);
+
+      console.log('Request data:', {
+        discussionId: parseInt(discussionId),
+        replyId: parseInt(replyId),
+        pointAmount,
+        userId
+      });
 
       // Validate point amount
       if (!pointAmount || pointAmount < 10 || pointAmount > 50) {
@@ -357,6 +366,13 @@ const discussionController = {
         }
       });
 
+      console.log('Found discussion:', {
+        id: discussion?.id,
+        userId: discussion?.userId,
+        requestUserId: userId,
+        isCreator: discussion?.userId === userId
+      });
+
       if (!discussion) {
         return res.status(404).json({
           error: 'Discussion not found'
@@ -364,7 +380,12 @@ const discussionController = {
       }
 
       // Check if user is the discussion creator
-      if (discussion.userId !== req.user.id) {
+      if (parseInt(discussion.userId) !== userId) {
+        console.log('Permission denied:', {
+          discussionUserId: parseInt(discussion.userId),
+          requestUserId: userId,
+          isMatch: parseInt(discussion.userId) === userId
+        });
         return res.status(403).json({
           error: 'Only the discussion creator can resolve the discussion'
         });
@@ -386,6 +407,8 @@ const discussionController = {
           user: true
         }
       });
+
+      console.log('Found reply:', reply);
 
       if (!reply) {
         return res.status(404).json({
@@ -452,21 +475,29 @@ const discussionController = {
             id: reply.userId
           },
           data: {
-            points: {
+            totalPoints: {
               increment: pointAmount
             }
           }
         })
       ]);
 
+      console.log('Updated discussion:', updatedDiscussion);
+      console.log('=== RESOLVE DISCUSSION END ===');
+
       res.json({
         message: 'Discussion resolved successfully',
         data: updatedDiscussion
       });
     } catch (error) {
-      console.error('Error resolving discussion:', error);
+      console.error('=== RESOLVE DISCUSSION ERROR ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('=== END ERROR ===');
       res.status(500).json({
-        error: 'Failed to resolve discussion'
+        error: 'Failed to resolve discussion',
+        message: error.message
       });
     }
   },
