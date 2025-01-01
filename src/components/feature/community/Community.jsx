@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import Navbar from '../../layouts/Navbar'
 import Footer from '../../layouts/Footer'
 import HeroSection from '../../layouts/HeroSection'
 import ForumSection from './components/ForumSection'
@@ -37,8 +36,6 @@ const Community = () => {
   return (
     <CommunityProvider>
       <div className="min-h-screen bg-black text-white flex flex-col">
-        <Navbar />
-        
         <main className="flex-1">
           {/* Background Effects */}
           <div className="fixed top-0 left-0 right-0 h-screen pointer-events-none">

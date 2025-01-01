@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FiBook, FiUsers, FiArrowLeft } from 'react-icons/fi'
-import Navbar from '../../../layouts/Navbar'
 import Footer from '../../../layouts/Footer'
 import SubCategoryCard from './components/SubCategoryCard'
 import LoadingSkeleton from './components/LoadingSkeleton'
@@ -62,8 +61,6 @@ const SubCategoryPage = () => {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <Navbar />
-      
       {/* Main Content */}
       <main className="relative flex-1">
         {/* Top Gradient */}

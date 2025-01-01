@@ -110,7 +110,7 @@ async function main() {
     }
   });
 
-  // Create Database Category
+  // Create Daataabase Category
   const databaseCategory = await prisma.category.create({
     data: {
       name: "Database",

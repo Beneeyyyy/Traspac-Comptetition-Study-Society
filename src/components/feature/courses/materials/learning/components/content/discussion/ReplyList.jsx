@@ -1,3 +1,4 @@
+import React from 'react';
 import { FiHeart } from 'react-icons/fi';
 
 const ReplyList = ({ replies, onLike }) => {

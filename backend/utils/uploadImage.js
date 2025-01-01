@@ -2,7 +2,7 @@ const cloudinary = require('../config/cloudinary');
 
 const uploadImage = async (base64Image) => {
   try {
-    // Jika tidak ada gambar, return null
+    // Jika tidak ada gsambar, return null
     if (!base64Image) {
       console.log('No image provided');
       return null;

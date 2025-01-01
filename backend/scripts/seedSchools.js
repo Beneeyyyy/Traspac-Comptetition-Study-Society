@@ -296,7 +296,7 @@ async function seedSchools() {
     await prisma.school.deleteMany();
     console.log('Deleted existing schools');
 
-    // Create new schools
+    // Create news schools
     for (const school of sampleSchools) {
       await prisma.school.create({
         data: school

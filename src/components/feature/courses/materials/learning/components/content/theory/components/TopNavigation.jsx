@@ -10,7 +10,7 @@ function TopNavigation({ section, onBack, onClose, show = true }) {
     `}>
       <div className="max-w-[1920px] mx-auto px-6 py-10 h-full flex items-center">
         <div className="flex items-center justify-between w-full">
-          {/* Back Button & Title */}
+          {/* Back Buctton & Title */}
           <div className="flex items-center gap-4">
             <button
               onClick={onBack}

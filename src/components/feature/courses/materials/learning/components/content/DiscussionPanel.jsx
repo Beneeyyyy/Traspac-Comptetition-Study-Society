@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, memo } from 'react';
+import React, { useState, lazy, Suspense, memo } from 'react';
 import { FiMessageSquare } from 'react-icons/fi';
 
 // Optimize lazy loading with prefetch

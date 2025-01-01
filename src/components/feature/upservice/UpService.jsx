@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { FiUsers, FiBook, FiMonitor, FiCode, FiMessageSquare } from 'react-icons/fi'
-import Navbar from '../../layouts/Navbar'
 import Footer from '../../layouts/Footer'
 import ServiceCard from './components/ServiceCard'
 import CreateServiceModal from './components/CreateServiceModal'
@@ -156,8 +155,6 @@ const UpService = () => {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <Navbar />
-      
       <main className="flex-1 relative">
         {/* Static Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">

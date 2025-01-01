@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
-import Navbar from '../../layouts/Navbar'
 import Footer from '../../layouts/Footer'
 import ProfileHeader from './components/ProfileHeader'
 import TabNavigation from './components/TabNavigation'
@@ -70,8 +69,6 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Navbar />
-      
       <main className="pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4">
           <ProfileHeader userData={userData} />

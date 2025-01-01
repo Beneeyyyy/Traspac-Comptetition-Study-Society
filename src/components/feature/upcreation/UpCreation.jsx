@@ -1,6 +1,5 @@
 import { useState, Suspense, lazy, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import Navbar from '../../layouts/Navbar'
 import Footer from '../../layouts/Footer'
 import SearchBar from './components/SearchBar'
 import CategoryFilter from './components/CategoryFilter'
@@ -55,8 +54,6 @@ const UpCreation = () => {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <Navbar />
-      
       <main className="flex-1 pt-24 pb-12 relative">
         {/* Abstract Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">

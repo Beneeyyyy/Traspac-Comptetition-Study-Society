@@ -9,7 +9,7 @@ const {
   deleteMaterial
 } = require('../controllers/materialController');
 
-// Material routes
+// Material rsoutes
 router.get('/', getAllMaterials);
 router.get('/:id', getMaterialById);
 router.get('/subcategory/:subcategoryId', getMaterialsBySubcategoryId);

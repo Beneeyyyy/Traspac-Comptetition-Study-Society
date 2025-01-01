@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { RiQuestionLine, RiCheckLine, RiCloseLine } from 'react-icons/ri';
 import { motion } from 'framer-motion';
 
@@ -15,7 +15,7 @@ export function QuickQuiz({ quiz }) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Heaxder */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
           <RiQuestionLine className="w-5 h-5 text-blue-400" />

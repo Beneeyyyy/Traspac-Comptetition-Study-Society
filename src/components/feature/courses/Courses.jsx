@@ -1,6 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useRef } from 'react'
 import { motion } from 'framer-motion'
-import Navbar from '../../layouts/Navbar'
 import Footer from '../../layouts/Footer'
 import HeroSection from '../../layouts/HeroSection'
 import { FiBook, FiUsers, FiBarChart } from 'react-icons/fi'
@@ -107,8 +106,6 @@ export default function Courses() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Navbar />
-      
       <main className="relative">
         {/* Background Gradient */}
         <div className="fixed top-0 inset-x-0 h-screen pointer-events-none">

@@ -159,7 +159,7 @@ const getMaterialsBySubcategoryId = async (req, res) => {
   }
 };
 
-// Create material
+// Create matearial
 const createMaterial = async (req, res) => {
   try {
     const { title, content, image, point_value, subcategoryId } = req.body;

@@ -1,6 +1,6 @@
 const cloudinary = require('cloudinary').v2;
 
-// Validate environment variables
+// Validate environament variables
 const requiredEnvVars = [
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',

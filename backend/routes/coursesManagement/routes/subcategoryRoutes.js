@@ -9,7 +9,7 @@ const {
   deleteSubcategory
 } = require('../controllers/subcategoryController');
 
-// Subcategory routes
+// Subcastegory routes
 router.get('/', getAllSubcategories);
 router.get('/:id', getSubcategoryById);
 router.get('/category/:categoryId', getSubcategoriesByCategoryId);

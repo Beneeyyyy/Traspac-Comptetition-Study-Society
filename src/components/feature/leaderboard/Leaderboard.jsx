@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import Navbar from '../../layouts/Navbar'
 import { motion } from 'framer-motion'
 import CategorySelection from './components/CategorySelection'
 import ScopeSelection from './components/ScopeSelection'
@@ -183,8 +182,6 @@ function Leaderboard() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-white">
-      <Navbar />
-      
       <main className="pt- pb-12">
         {/* Hero Section */}
         <LeaderboardHero />

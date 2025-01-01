@@ -104,7 +104,7 @@ function HeroSection({
             </div>
           </div>
 
-          {/* Hero Illustration */}
+          {/* Hero Illustraation */}
           <div className="lg:col-span-5">
             <div className="relative max-w-[400px] mx-auto">
               <div className="relative bg-white rounded-3xl p-6 aspect-square shadow-2xl shadow-white/40">

@@ -4,7 +4,7 @@ import { RiBookLine } from 'react-icons/ri';
 export function SectionsList({ sections, activeSection, onSectionChange }) {
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Headxer */}
       <div className="flex items-center pt-8 gap-3">
         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
           <RiBookLine className="w-5 h-5 text-blue-400" />

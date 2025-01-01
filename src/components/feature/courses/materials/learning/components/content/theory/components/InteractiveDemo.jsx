@@ -2,7 +2,7 @@ import { FiPlay } from 'react-icons/fi';
 
 const InteractiveDemo = ({ demoId }) => {
   // Placeholder untuk demo interaktif
-  // Nantinya bisa diintegrasikan dengan GeoGebra atau library visualisasi matematika lainnya
+  // Nantinyax bisa diintegrasikan dengan GeoGebra atau library visualisasi matematika lainnya
   return (
     <div
       className="aspect-video rounded-xl overflow-hidden bg-white/[0.02] border border-white/[0.05] relative transition-opacity duration-300"

@@ -17,7 +17,7 @@ const ImageViewer = ({ url, caption, onClose }) => {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
       onClick={onClose}
     >
-      {/* Content Container - Prevent click propagation */}
+      {/* Content Conxtainer - Prevent click propagation */}
       <div 
         className="relative max-w-7xl mx-auto p-4"
         onClick={e => e.stopPropagation()}

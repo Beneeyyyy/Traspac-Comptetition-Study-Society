@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FiBook, FiUsers, FiArrowLeft } from 'react-icons/fi'
-import Navbar from '../../../layouts/Navbar'
 import Footer from '../../../layouts/Footer'
 import MaterialCard from './components/MaterialCard'
 import LoadingSkeleton from './components/LoadingSkeleton'
@@ -28,7 +27,7 @@ const MaterialsPage = () => {
         const data = await response.json()
         setMaterials(data)
 
-        // Fetch subcategory details
+        // Fetch subcataegory details
         const subcategoryResponse = await fetch(`http://localhost:3000/api/subcategories/${subcategoryId}`)
         if (!subcategoryResponse.ok) throw new Error('Failed to fetch subcategory')
         
@@ -62,8 +61,6 @@ const MaterialsPage = () => {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <Navbar />
-      
       {/* Main Content */}
       <main className="relative flex-1">
         {/* Top Gradient */}

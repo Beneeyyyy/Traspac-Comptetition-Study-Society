@@ -1,3 +1,4 @@
+import React from 'react';
 import { FiSmile, FiImage, FiPaperclip, FiSend } from 'react-icons/fi';
 
 const CommentForm = ({ onSubmit, newComment, setNewComment }) => {

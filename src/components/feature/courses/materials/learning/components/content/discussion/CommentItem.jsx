@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { FiHeart, FiMessageSquare, FiShare2 } from 'react-icons/fi';
 import ReplyList from './ReplyList';
 

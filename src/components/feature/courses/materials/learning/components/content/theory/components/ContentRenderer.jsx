@@ -35,7 +35,7 @@ export function ContentRenderer({ section }) {
         </div>
       )}
       
-      {/* Media Content */}
+      {/* Media Csontent */}
       {section.media && (
         <div className="mt-12 max-w-5xl mx-auto">
           {section.media.type === 'image' && (

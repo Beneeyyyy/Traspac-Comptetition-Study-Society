@@ -16,7 +16,7 @@ const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoo
 
 
 
-// Test Cloudinary connection
+// Test Cloudinary conneaction
 const cloudinary = require('./cloudinary')
 cloudinary.api.ping((error, result) => {
   if (error) {

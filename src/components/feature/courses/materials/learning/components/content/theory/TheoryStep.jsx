@@ -317,7 +317,7 @@ const TheoryStep = ({ material }) => {
                   </div>
                   <div className="space-y-3">
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                      Selamat datang di pembelajaran Segitiga!
+                      Selamat datang di pembelajaran {material.title}!
                     </h2>
                     <p className="text-white/60 max-w-2xl">
                       Mari kita mulai petualangan belajar yang menyenangkan. Setiap langkah membawamu lebih dekat ke penguasaan materi!
@@ -355,7 +355,7 @@ const TheoryStep = ({ material }) => {
                     </div>
                   </div>
 
-                  {/* Content */}
+                  {/* Contecnt */}
                   <ContentRenderer section={currentSection} />
 
                   {/* Section Objectives */}

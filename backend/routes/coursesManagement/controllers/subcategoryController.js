@@ -26,7 +26,7 @@ const getAllSubcategories = async (req, res) => {
   }
 };
 
-// Get subcategory by ID
+// Get subcatasegory by ID
 const getSubcategoryById = async (req, res) => {
   try {
     const { id } = req.params;
