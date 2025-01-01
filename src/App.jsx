@@ -20,6 +20,7 @@ import { CommunityProvider } from './components/feature/community/context/Commun
 import Profile from './components/feature/profile/Profile'
 import Login from './components/feature/auth/Login'
 import Signup from './components/feature/auth/Signup'
+import TestDiscussion from './components/feature/courses/materials/learning/components/content/discussion/TestDiscussion'
 
 function AppContent() {
   const location = useLocation()
@@ -64,6 +65,8 @@ function AppContent() {
           
           {/* Catch-all route */}
           <Route path="*" element={<div>404 - Page Not Found</div>} />
+
+          <Route path="/test-discussion/:materialId" element={<TestDiscussion />} />
         </Routes>
       </div>
     </div>

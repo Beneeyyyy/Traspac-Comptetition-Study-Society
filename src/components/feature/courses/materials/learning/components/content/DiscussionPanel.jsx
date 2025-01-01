@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense, memo } from 'react';
+import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { FiMessageSquare } from 'react-icons/fi';
 
 // Optimize lazy loading with prefetch
@@ -14,81 +14,120 @@ const CommentItem = lazy(() => import(
   './discussion/CommentItem'
 ));
 
-const DiscussionPanel = ({ materialId }) => {
-  const [comments, setComments] = useState([
-    {
-      id: 1,
-      user: {
-        name: 'Sarah',
-        avatar: '/avatars/sarah.jpg',
-        role: 'student',
-        badge: 'Active Learner'
-      },
-      content: 'Saya masih bingung tentang teorema Pythagoras, bisa tolong jelaskan lebih detail?',
-      likes: 5,
-      isLiked: false,
-      replies: [
-        {
-          id: 2,
-          user: {
-            name: 'Mr. John',
-            avatar: '/avatars/john.jpg',
-            role: 'teacher',
-            badge: 'Math Expert'
-          },
-          content: 'Teorema Pythagoras menyatakan bahwa dalam segitiga siku-siku, kuadrat sisi miring sama dengan jumlah kuadrat kedua sisi lainnya. Jadi, a² + b² = c², dimana c adalah sisi miring.',
-          likes: 8,
-          isLiked: false,
-          attachments: [
-            {
-              type: 'image',
-              url: '/materials/pythagoras.jpg',
-              caption: 'Ilustrasi Teorema Pythagoras'
-            }
-          ]
-        }
-      ],
-      timestamp: '2 jam yang lalu'
-    }
-  ]);
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const DiscussionPanel = ({ materialId }) => {
+  const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState(''); // '', 'resolved', or 'unresolved'
 
-  const handleSubmitComment = (e) => {
+  // Fetch discussions
+  const fetchDiscussions = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch(`${API_URL}/api/discussions/material/${materialId}?filter=${filter}`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch discussions');
+      }
+
+      setComments(data.data.discussions);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching discussions:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial fetch and refetch when filter changes
+  useEffect(() => {
+    if (materialId) {
+      fetchDiscussions();
+    }
+  }, [materialId, filter]);
+
+  const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    const newCommentObj = {
-      id: comments.length + 1,
-      user: {
-        name: 'Anda',
-        avatar: '/avatars/default.jpg',
-        role: 'student',
-        badge: 'New Learner'
-      },
-      content: newComment,
-      likes: 0,
-      isLiked: false,
-      replies: [],
-      timestamp: 'Baru saja'
-    };
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Log request details
+      console.log('Sending request to:', `${API_URL}/api/discussions/material/${materialId}`);
+      console.log('Request body:', { content: newComment.trim() });
 
-    setComments([newCommentObj, ...comments]);
-    setNewComment('');
+      const response = await fetch(`${API_URL}/api/discussions/material/${materialId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ content: newComment.trim() }),
+        credentials: 'include'
+      });
+
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to create discussion');
+      }
+
+      // Add new comment to the list and clear input
+      setComments([data.data, ...comments]);
+      setNewComment('');
+      
+      // Refresh the discussions list
+      fetchDiscussions();
+    } catch (err) {
+      setError(err.message);
+      console.error('Error creating discussion:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleLike = (commentId) => {
-    setComments(comments.map(comment => {
-      if (comment.id === commentId) {
-        return {
-          ...comment,
-          likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
-          isLiked: !comment.isLiked
-        };
+  const handleLike = async (commentId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/discussions/like/discussion/${commentId}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to toggle like');
       }
-      return comment;
-    }));
+
+      // Update the comments list with the new like status
+      setComments(comments.map(comment => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            _count: {
+              ...comment._count,
+              likes: comment.isLiked ? comment._count.likes - 1 : comment._count.likes + 1
+            },
+            isLiked: !comment.isLiked
+          };
+        }
+        return comment;
+      }));
+    } catch (err) {
+      console.error('Error toggling like:', err);
+    }
   };
 
   return (
@@ -104,6 +143,15 @@ const DiscussionPanel = ({ materialId }) => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="bg-white/[0.02] border border-white/[0.05] text-white/60 rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">Semua</option>
+            <option value="resolved">Terjawab</option>
+            <option value="unresolved">Belum Terjawab</option>
+          </select>
           <span className="text-white/60 text-sm">{comments.length} komentar</span>
           <button 
             onClick={() => setIsExpanded(!isExpanded)}
@@ -113,6 +161,12 @@ const DiscussionPanel = ({ materialId }) => {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
 
       <Suspense fallback={
         <div className="animate-pulse h-32 bg-white/[0.02] rounded-lg mb-8" />
@@ -125,25 +179,34 @@ const DiscussionPanel = ({ materialId }) => {
       </Suspense>
 
       <div className="space-y-6">
-        <Suspense fallback={
+        {isLoading ? (
           <div className="animate-pulse space-y-4">
             {[...Array(2)].map((_, i) => (
               <div key={i} className="h-40 bg-white/[0.02] rounded-lg" />
             ))}
           </div>
-        }>
-          {comments.map((comment) => (
-            <CommentItem 
-              key={comment.id}
-              comment={comment}
-              onLike={handleLike}
-            />
-          ))}
-        </Suspense>
+        ) : (
+          <Suspense fallback={
+            <div className="animate-pulse space-y-4">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="h-40 bg-white/[0.02] rounded-lg" />
+              ))}
+            </div>
+          }>
+            {comments.map((comment) => (
+              <CommentItem 
+                key={comment.id}
+                comment={comment}
+                onLike={handleLike}
+              />
+            ))}
+          </Suspense>
+        )}
       </div>
     </div>
   );
 };
 
 // Use memo to prevent unnecessary re-renders
-export default memo(DiscussionPanel); 
+export default React.memo(DiscussionPanel); 
+// Use memo to prevent unnecessary re-renders
