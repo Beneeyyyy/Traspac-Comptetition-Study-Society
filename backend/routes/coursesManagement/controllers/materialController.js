@@ -57,14 +57,7 @@ const getMaterialById = async (req, res) => {
             category: true
           }
         },
-        stages: {
-          include: {
-            contents: true
-          },
-          orderBy: {
-            order: 'asc'
-          }
-        }
+        stages: true
       }
     });
     
@@ -73,29 +66,38 @@ const getMaterialById = async (req, res) => {
       return res.status(404).json({ error: 'Materi tidak ditemukan' });
     }
 
-    // Transform stages but keep their original contents
+    // Transform material data
     const transformedMaterial = {
       id: material.id,
       title: material.title,
       level: "Level 1 - Fundamental",
       category: material.subcategory.category.name,
-      description: material.description,
-      total_xp: material.xp_reward,
+      description: material.description || "",
+      total_xp: material.xp_reward || 0,
       total_stages: material.stages.length,
-      estimated_time: material.estimated_time || "90 Menit",
+      estimated_time: `${material.estimated_time || 90} Menit`,
       stages: material.stages.map((stage, index) => ({
         id: stage.id,
         title: stage.title,
-        description: stage.description,
+        description: "", // Stage doesn't have description in schema
         status: index === 0 ? "current" : "locked",
-        xp_reward: stage.xp_reward || 25 + (index * 10),
+        xp_reward: 25 + (index * 10), // Default XP reward
         color: ["blue", "purple", "emerald", "yellow"][index % 4],
         time: `${15 + (index * 5)}-${20 + (index * 5)} menit`,
         opacity: index > 0 ? `opacity-${40 - (index * 10)}` : "",
         order: stage.order,
-        contents: stage.contents // This will now have the actual contents from database
+        contents: stage.contents // This is already JSON from database
       })),
-      glossary: material.glossary ? material.glossary.map(item => [item.term, item.definition]) : []
+      // Ensure glossary is always an array of arrays
+      glossary: Array.isArray(material.glossary) 
+        ? material.glossary.map(item => {
+            if (Array.isArray(item)) return item;
+            if (typeof item === 'object' && item.term && item.definition) {
+              return [item.term, item.definition];
+            }
+            return ['', '']; // fallback
+          })
+        : []
     };
 
     console.log('Transformed Material:', JSON.stringify(transformedMaterial, null, 2));

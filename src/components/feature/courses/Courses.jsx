@@ -1,5 +1,6 @@
-import { useState, useEffect, Suspense, lazy, useRef } from 'react'
-import { motion } from 'framer-motion'
+import React, { useState, useEffect, Suspense, lazy, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ErrorBoundary } from 'react-error-boundary'
 import Footer from '../../layouts/Footer'
 import HeroSection from '../../layouts/HeroSection'
 import { FiBook, FiUsers, FiBarChart } from 'react-icons/fi'
@@ -9,7 +10,43 @@ import iconCourse1 from '../../../assets/images/courses/iconCourse1.svg'
 const CategorySection = lazy(() => import('./contentSection/CategorySection'))
 const ActivityChart = lazy(() => import('./contentSection/ActivityChart'))
 
-export default function Courses() {
+const fadeVariant = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+  exit: { opacity: 0 }
+};
+
+const slideUpVariant = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 }
+};
+
+const LoadingFallback = ({ message }) => (
+  <div className="mt-20 flex items-center justify-center">
+    <div className="space-y-4 text-center">
+      <div className="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto"/>
+      <div className="text-white/50">{message}</div>
+    </div>
+  </div>
+);
+
+const ErrorFallback = ({ error }) => (
+  <div className="mt-20 flex items-center justify-center">
+    <div className="space-y-4 text-center">
+      <div className="text-red-400">Something went wrong:</div>
+      <div className="text-sm text-white/60">{error.message}</div>
+      <button 
+        onClick={() => window.location.reload()}
+        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+      >
+        Try again
+      </button>
+    </div>
+  </div>
+);
+
+const Courses = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [categories, setCategories] = useState([])
   const [activeFilter, setActiveFilter] = useState('all')
@@ -114,63 +151,63 @@ export default function Courses() {
 
         {/* Hero Section */}
         <div ref={heroRef} className="min-h-screen relative">
-          {visibleSection === 'hero' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <HeroSection 
-                type="courses"
-                icon={iconCourse1}
-                stats={courseStats}
-                activeFilter={activeFilter}
-                setActiveFilter={setActiveFilter}
-                showFilters={true}
-              />
-              <Suspense fallback={
-                <div className="mt-20 flex items-center justify-center">
-                  <div className="space-y-4 text-center">
-                    <div className="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto"/>
-                    <div className="text-white/50">Loading activity chart...</div>
-                  </div>
-                </div>
-              }>
-                <ActivityChart />
-              </Suspense>
-            </motion.div>
-          )}
+          <AnimatePresence mode="wait">
+            {visibleSection === 'hero' && (
+              <motion.div
+                key="hero"
+                variants={fadeVariant}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                transition={{ duration: 0.3 }}
+              >
+                <HeroSection 
+                  type="courses"
+                  icon={iconCourse1}
+                  stats={courseStats}
+                  activeFilter={activeFilter}
+                  setActiveFilter={setActiveFilter}
+                  showFilters={true}
+                />
+                <Suspense fallback={<LoadingFallback message="Loading activity chart..." />}>
+                  <ErrorBoundary FallbackComponent={ErrorFallback}>
+                    <ActivityChart />
+                  </ErrorBoundary>
+                </Suspense>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Category Section */}
         <div ref={categoryRef} className="min-h-screen relative">
-          {visibleSection === 'category' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Suspense fallback={
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="space-y-4 text-center">
-                    <div className="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto"/>
-                    <div className="text-white/50">Loading categories...</div>
-                  </div>
-                </div>
-              }>
-                <CategorySection 
-                  categories={categories}
-                  isLoading={isLoading}
-                />
-              </Suspense>
-            </motion.div>
-          )}
+          <AnimatePresence mode="wait">
+            {visibleSection === 'category' && (
+              <motion.div
+                key="category"
+                variants={slideUpVariant}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                transition={{ duration: 0.3 }}
+              >
+                <Suspense fallback={<LoadingFallback message="Loading categories..." />}>
+                  <ErrorBoundary FallbackComponent={ErrorFallback}>
+                    <CategorySection 
+                      categories={categories}
+                      isLoading={isLoading}
+                    />
+                  </ErrorBoundary>
+                </Suspense>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
       
       <Footer />
     </div>
   )
-} 
+}
+
+export default Courses 

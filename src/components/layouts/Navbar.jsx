@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 
-export default function Navbar() {
+const Navbar = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState(null)
@@ -104,12 +104,9 @@ export default function Navbar() {
                 className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-white/20 transition-all"
               >
                 <img 
-                  src={user?.image}
-                  alt={`${user?.name}'s profile`}
+                  src={user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=0D8ABC&color=fff`}
+                  alt={`${user?.name || 'User'}'s profile`}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=0D8ABC&color=fff`;
-                  }}
                 />
               </button>
             ) : (
@@ -171,3 +168,5 @@ export default function Navbar() {
     </nav>
   )
 }
+
+export default Navbar

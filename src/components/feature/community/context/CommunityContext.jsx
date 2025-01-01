@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer } from 'react'
+import React, { createContext, useContext, useReducer, useMemo } from 'react'
 
 const CommunityContext = createContext()
 
@@ -71,7 +71,7 @@ const initialStudyGroups = [
 ]
 
 const initialState = {
-  communities: [],
+  communities: initialStudyGroups,
   currentUser: {
     name: 'You',
     image: 'https://ui-avatars.com/api/?name=You&background=6366F1&color=fff',
@@ -104,54 +104,48 @@ const communityReducer = (state, action) => {
             : group
         )
       }
+    case 'ADD_QUESTION':
+    case 'ADD_ANSWER':
+    case 'ADD_COMMENT':
+    case 'UPDATE_VOTE':
     case 'ENROLL_IN_MATERIAL':
-      return {
-        ...state,
-        communities: state.communities.map(group =>
-          group.id === action.payload.groupId
-            ? {
-                ...group,
-                materials: group.materials.map(material =>
-                  material.id === action.payload.materialId
-                    ? { ...material, isEnrolled: true }
-                    : material
-                )
-              }
-            : group
-        )
-      }
     case 'UNENROLL_FROM_MATERIAL':
-      return {
-        ...state,
-        communities: state.communities.map(group =>
-          group.id === action.payload.groupId
-            ? {
-                ...group,
-                materials: group.materials.map(material =>
-                  material.id === action.payload.materialId
-                    ? { ...material, isEnrolled: false }
-                    : material
-                )
-              }
-            : group
-        )
-      }
+      return state
     default:
       return state
   }
 }
 
 export const CommunityProvider = ({ children }) => {
-  const [state, dispatch] = React.useReducer(communityReducer, initialState)
+  const [state, dispatch] = useReducer(communityReducer, initialState)
 
-  const value = React.useMemo(() => {
-    return {
-      state,
-      dispatch,
-      addQuestion: (question) => {
-        dispatch({ 
-          type: 'ADD_QUESTION', 
-          payload: {
+  const value = useMemo(() => ({
+    state,
+    dispatch,
+    addQuestion: (question) => {
+      dispatch({ 
+        type: 'ADD_QUESTION', 
+        payload: {
+          id: Date.now(),
+          user: {
+            name: 'You',
+            avatar: '/avatars/default.png',
+            badge: 'Member'
+          },
+          votes: 0,
+          answers: [],
+          views: 0,
+          timeAgo: 'Baru saja',
+          ...question
+        }
+      })
+    },
+    addAnswer: (questionId, answer) => {
+      dispatch({
+        type: 'ADD_ANSWER',
+        payload: {
+          questionId,
+          answer: {
             id: Date.now(),
             user: {
               name: 'You',
@@ -159,94 +153,73 @@ export const CommunityProvider = ({ children }) => {
               badge: 'Member'
             },
             votes: 0,
-            answers: [],
-            views: 0,
+            comments: [],
             timeAgo: 'Baru saja',
-            ...question
+            ...answer
           }
-        })
-      },
-      addAnswer: (questionId, answer) => {
-        dispatch({
-          type: 'ADD_ANSWER',
-          payload: {
-            questionId,
-            answer: {
-              id: Date.now(),
-              user: {
-                name: 'You',
-                avatar: '/avatars/default.png',
-                badge: 'Member'
-              },
-              votes: 0,
-              comments: [],
-              timeAgo: 'Baru saja',
-              ...answer
-            }
-          }
-        })
-      },
-      addComment: (questionId, answerId, comment, parentId = null) => {
-        dispatch({
-          type: 'ADD_COMMENT',
-          payload: {
-            questionId,
-            answerId,
-            comment: {
-              id: Date.now(),
-              user: {
-                name: 'You',
-                avatar: '/avatars/default.png',
-                badge: 'Member'
-              },
-              parentId,
-              timeAgo: 'Baru saja',
-              ...comment
-            }
-          }
-        })
-      },
-      updateVote: (type, id, value) => {
-        dispatch({
-          type: 'UPDATE_VOTE',
-          payload: { type, id, value }
-        })
-      },
-      createStudyGroup: (groupData) => {
-        dispatch({
-          type: 'CREATE_STUDY_GROUP',
-          payload: {
+        }
+      })
+    },
+    addComment: (questionId, answerId, comment, parentId = null) => {
+      dispatch({
+        type: 'ADD_COMMENT',
+        payload: {
+          questionId,
+          answerId,
+          comment: {
             id: Date.now(),
-            ...groupData
+            user: {
+              name: 'You',
+              avatar: '/avatars/default.png',
+              badge: 'Member'
+            },
+            parentId,
+            timeAgo: 'Baru saja',
+            ...comment
           }
-        })
-      },
-      joinStudyGroup: (groupId) => {
-        dispatch({
-          type: 'JOIN_STUDY_GROUP',
-          payload: { groupId }
-        })
-      },
-      leaveStudyGroup: (groupId) => {
-        dispatch({
-          type: 'LEAVE_STUDY_GROUP',
-          payload: { groupId }
-        })
-      },
-      enrollInMaterial: (groupId, materialId) => {
-        dispatch({
-          type: 'ENROLL_IN_MATERIAL',
-          payload: { groupId, materialId }
-        })
-      },
-      unenrollFromMaterial: (groupId, materialId) => {
-        dispatch({
-          type: 'UNENROLL_FROM_MATERIAL',
-          payload: { groupId, materialId }
-        })
-      }
+        }
+      })
+    },
+    updateVote: (type, id, value) => {
+      dispatch({
+        type: 'UPDATE_VOTE',
+        payload: { type, id, value }
+      })
+    },
+    createStudyGroup: (groupData) => {
+      dispatch({
+        type: 'CREATE_STUDY_GROUP',
+        payload: {
+          id: Date.now(),
+          ...groupData
+        }
+      })
+    },
+    joinStudyGroup: (groupId) => {
+      dispatch({
+        type: 'JOIN_STUDY_GROUP',
+        payload: { groupId }
+      })
+    },
+    leaveStudyGroup: (groupId) => {
+      dispatch({
+        type: 'LEAVE_STUDY_GROUP',
+        payload: { groupId }
+      })
+    },
+    enrollInMaterial: (groupId, materialId) => {
+      dispatch({
+        type: 'ENROLL_IN_MATERIAL',
+        payload: { groupId, materialId }
+      })
+    },
+    unenrollFromMaterial: (groupId, materialId) => {
+      dispatch({
+        type: 'UNENROLL_FROM_MATERIAL',
+        payload: { groupId, materialId }
+      })
     }
-  }, [state])
+  }), [state])
 
   return (
     <CommunityContext.Provider value={value}>
@@ -255,4 +228,4 @@ export const CommunityProvider = ({ children }) => {
   )
 }
 
-export default CommunityContext 
+export default CommunityProvider 

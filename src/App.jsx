@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
-import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
+import { AnimatePresence, MotionConfig } from 'framer-motion'
 import LandingPage from './components/feature/LandingPage/LandingPage'
 import Courses from './components/feature/courses/Courses'
 import SubcategoryPage from './components/feature/courses/subcategory/subCategory'
@@ -21,7 +21,6 @@ import Profile from './components/feature/profile/Profile'
 import Login from './components/feature/auth/Login'
 import Signup from './components/feature/auth/Signup'
 
-
 function AppContent() {
   const location = useLocation()
   const isAuthPage = ['/login', '/signup'].includes(location.pathname)
@@ -29,52 +28,44 @@ function AppContent() {
   return (
     <div className="min-h-screen">
       {!isAuthPage && <Navbar />}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname.split('/')[1]}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Routes location={location}>
-            <Route path="/" element={<LandingPage />} />
-            
-            {/* Auth Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            
-            <Route path='/dashboard' element={<LandingPage />} />
-            <Route path="/courses" element={<Courses />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/profile" element={<Profile />} />
-            
-            {/* Learning Flow Routes */}
-            <Route path="/courses/:categoryId/subcategory" element={<SubcategoryPage />} />
-            <Route path="/courses/:categoryId/subcategory/:subcategoryId/materials" element={<MaterialsPage />} />
-            <Route path="/courses/:categoryId/subcategory/:subcategoryId/learn/:materialId/*" element={<LearningPage />} />
-            
-            {/* Community Routes */}
-            <Route path="/community" element={<CommunityPage />} />
-            <Route path="/community/explore" element={<CommunityPage />} />
-            <Route path="/community/squad/:squadId" element={<SquadDetail />} />
+      <div className="relative">
+        <Routes location={location}>
+          <Route path="/" element={<LandingPage />} />
+          
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          
+          <Route path='/dashboard' element={<LandingPage />} />
+          <Route path="/courses" element={<Courses />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/profile" element={<Profile />} />
+          
+          {/* Learning Flow Routes */}
+          <Route path="/courses/:categoryId/subcategory" element={<SubcategoryPage />} />
+          <Route path="/courses/:categoryId/subcategory/:subcategoryId/materials" element={<MaterialsPage />} />
+          <Route path="/courses/:categoryId/subcategory/:subcategoryId/learn/:materialId/*" element={<LearningPage />} />
+          
+          {/* Community Routes */}
+          <Route path="/community" element={<CommunityPage />} />
+          <Route path="/community/explore" element={<CommunityPage />} />
+          <Route path="/community/squad/:squadId" element={<SquadDetail />} />
 
-            {/* Other Routes */}
-            <Route path="/upcreation" element={<UpCreation />} />
-            <Route path="/upservice" element={<UpService />} />
+          {/* Other Routes */}
+          <Route path="/upcreation" element={<UpCreation />} />
+          <Route path="/upservice" element={<UpService />} />
 
-            {/* Admin */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<UserManagement />} />
-            <Route path="/admin/categories" element={<CategoryManagement />} />
-            <Route path="/admin/subcategories" element={<SubcategoryManagement />} />
-            <Route path="/admin/materials" element={<MaterialManagement />} />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<div>404 - Page Not Found</div>} />
-          </Routes>
-        </motion.div>
-      </AnimatePresence>
+          {/* Admin */}
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/admin/categories" element={<CategoryManagement />} />
+          <Route path="/admin/subcategories" element={<SubcategoryManagement />} />
+          <Route path="/admin/materials" element={<MaterialManagement />} />
+          
+          {/* Catch-all route */}
+          <Route path="*" element={<div>404 - Page Not Found</div>} />
+        </Routes>
+      </div>
     </div>
   )
 }
@@ -82,11 +73,11 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <MotionConfig reducedMotion="user">
-        <CommunityProvider>
+      <CommunityProvider>
+        <MotionConfig reducedMotion="user">
           <AppContent />
-        </CommunityProvider>
-      </MotionConfig>
+        </MotionConfig>
+      </CommunityProvider>
     </Router>
   )
 }

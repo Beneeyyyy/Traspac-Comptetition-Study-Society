@@ -7,16 +7,24 @@ const GlossaryItem = lazy(() => import('./introduction/GlossaryItem'));
 const IntroductionStep = ({ material, onComplete }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const glossaryItems = useMemo(() => material?.glossary || [], [material]);
+  // Ensure glossary is always an array of arrays
+  const glossaryItems = useMemo(() => {
+    if (!Array.isArray(material?.glossary)) return [];
+    return material.glossary.filter(item => Array.isArray(item) && item.length === 2);
+  }, [material]);
 
-  const stages = useMemo(() => material?.stages || [], [material]);
+  // Ensure stages is always an array
+  const stages = useMemo(() => {
+    if (!Array.isArray(material?.stages)) return [];
+    return material.stages;
+  }, [material]);
 
-  const filteredGlossary = useMemo(() => 
-    glossaryItems.filter(([term]) => 
+  const filteredGlossary = useMemo(() => {
+    if (searchTerm.trim() === '') return glossaryItems;
+    return glossaryItems.filter(([term]) => 
       term.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-    [glossaryItems, searchTerm]
-  );
+    );
+  }, [glossaryItems, searchTerm]);
 
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
@@ -73,7 +81,7 @@ const IntroductionStep = ({ material, onComplete }) => {
               <Suspense fallback={null}>
                 {stages.map((stage) => (
                   <StageCard 
-                    key={stage.title} 
+                    key={stage.id} 
                     stage={stage} 
                     onComplete={onComplete}
                   />
@@ -114,9 +122,9 @@ const IntroductionStep = ({ material, onComplete }) => {
             <div className="p-8 max-h-[calc(100vh-20rem)] overflow-y-auto custom-scrollbar">
               <div className="space-y-6">
                 <Suspense fallback={null}>
-                  {filteredGlossary.map(([term, def]) => (
+                  {filteredGlossary.map(([term, def], index) => (
                     <GlossaryItem 
-                      key={term} 
+                      key={`${term}-${index}`} 
                       term={term} 
                       def={def}
                     />

@@ -10,7 +10,7 @@ const StatItem = ({ icon: Icon, value, label, iconClass, bgClass }) => (
     </div>
     <div>
       <div className="font-medium text-white">{value}</div>
-      <div className="text-xs">{label}</div>
+      <div className="text-xs text-white/60">{label}</div>
     </div>
   </div>
 )
@@ -63,7 +63,7 @@ const CategoryFooter = () => (
 )
 
 // Main Category Cards Component
-export const CategoryCards = ({ categories }) => {
+const CategoryCards = ({ categories, onSelect }) => {
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -71,6 +71,14 @@ export const CategoryCards = ({ categories }) => {
     const loadTime = performance.now()
     console.log(`⏱️ Load time: ${Math.round(loadTime)}ms`)
   }, [])
+
+  if (!categories || categories.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-white/60">No categories available</p>
+      </div>
+    )
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -80,6 +88,7 @@ export const CategoryCards = ({ categories }) => {
           onClick={() => {
             console.log('Navigating to subcategory with ID:', category.id)
             navigate(`/courses/${category.id}/subcategory`)
+            if (onSelect) onSelect(category)
           }}
           className="group bg-gradient-to-br from-white/[0.03] to-white/[0.01] hover:from-blue-500/10 hover:to-purple-500/5 border border-white/10 hover:border-blue-500/30 rounded-2xl p-8 cursor-pointer transition-all duration-300"
         >

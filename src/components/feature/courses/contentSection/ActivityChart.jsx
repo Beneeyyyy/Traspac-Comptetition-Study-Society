@@ -1,5 +1,19 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { FiZap, FiAward, FiTarget } from 'react-icons/fi'
+
+const fadeInVariant = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: "easeOut"
+    }
+  }
+};
 
 const ActivityChart = () => {
   const [selectedWeek, setSelectedWeek] = useState('This Week')
@@ -40,11 +54,19 @@ const ActivityChart = () => {
   ]
 
   return (
-    <section className="mt-20">
+    <motion.section 
+      className="mt-20"
+      initial="hidden"
+      animate="visible"
+      variants={fadeInVariant}
+    >
       <div className="container max-w-screen-2xl mx-auto px-6 lg:px-12">
         <div className="grid lg:grid-cols-12 gap-4">
           {/* Activity Chart */}
-          <div className="lg:col-span-7">
+          <motion.div 
+            className="lg:col-span-7"
+            variants={fadeInVariant}
+          >
             <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
@@ -153,10 +175,13 @@ const ActivityChart = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Quick Stats */}
-          <div className="lg:col-span-5">
+          <motion.div 
+            className="lg:col-span-5"
+            variants={fadeInVariant}
+          >
             <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
@@ -166,8 +191,10 @@ const ActivityChart = () => {
               </div>
               <div className="space-y-3">
                 {STATS.map((stat, index) => (
-                  <div
+                  <motion.div
                     key={index}
+                    variants={fadeInVariant}
+                    custom={index}
                     className="group flex items-center gap-4 p-2.5 rounded-xl hover:bg-white/[0.02] transition-all duration-300"
                   >
                     <div className={`w-9 h-9 rounded-xl ${stat.bgColor} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300`}>
@@ -177,14 +204,14 @@ const ActivityChart = () => {
                       <div className="text-[11px] text-white/50 mb-0.5">{stat.label}</div>
                       <div className={`text-sm font-medium truncate ${stat.color}`}>{stat.value}</div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
-    </section>
+    </motion.section>
   )
 }
 
