@@ -93,20 +93,24 @@ const ReplyList = ({
         throw new Error(data.error || 'Failed to toggle like');
       }
 
-      // Refresh the discussion to get updated likes
-      const discussionResponse = await fetch(`${API_URL}/api/discussions/${discussionId}`, {
-        credentials: 'include'
-      });
-      const discussionData = await discussionResponse.json();
-
-      if (!discussionResponse.ok) {
-        throw new Error(discussionData.error || 'Failed to fetch updated discussion');
-      }
-
-      // Update the parent component's replies state
-      if (typeof onResolve === 'function') {
-        onResolve(discussionData.data.replies || []);
-      }
+      // Update only the specific reply's like status
+      setReplies(prevReplies => 
+        prevReplies.map(reply => {
+          if (reply.id === replyId) {
+            return {
+              ...reply,
+              isLiked: !reply.isLiked,
+              _count: {
+                ...reply._count,
+                likes: reply.isLiked ? (reply._count?.likes || 0) - 1 : (reply._count?.likes || 0) + 1
+              },
+              // Maintain the discussionId object to keep the resolved state
+              discussionId: reply.discussionId
+            };
+          }
+          return reply;
+        })
+      );
     } catch (err) {
       setError(err.message);
       console.error('Error toggling like:', err);
@@ -161,7 +165,8 @@ const ReplyList = ({
       currentUser,
       isResolved: reply.isResolved,
       replyUserId: reply.userId,
-      replyUser: reply.user
+      replyUser: reply.user,
+      resolvedReplyId: reply.discussionId?.resolvedReplyId
     });
 
     if (!reply.user) {
@@ -170,7 +175,7 @@ const ReplyList = ({
     }
 
     // Check if this reply is the resolved one
-    const isResolvedReply = reply.discussionId && reply.id === reply.discussionId.resolvedReplyId;
+    const isResolvedReply = reply.discussionId?.resolvedReplyId === reply.id;
 
     return (
       <div 
