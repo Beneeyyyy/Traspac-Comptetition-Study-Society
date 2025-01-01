@@ -75,73 +75,13 @@ const CommentItem = ({ comment, onLike, onResolve, currentUser }) => {
         throw new Error('Only the discussion creator can resolve the discussion');
       }
 
-      if (comment.isResolved) {
-        // If already resolved, just update the UI to show it
-        setReplies(prevReplies => 
-          prevReplies.map(reply => ({
-            ...reply,
-            isResolved: reply.id === parseInt(replyId)
-          }))
-        );
-        return;
-      }
-
-      setIsResolvingComment(true);
-      setError(null);
-
-      // Immediately update the UI
-      setReplies(prevReplies => 
-        prevReplies.map(reply => ({
-          ...reply,
-          isResolved: reply.id === parseInt(replyId)
-        }))
-      );
-
-      const response = await fetch(`${API_URL}/api/discussions/${comment.id}/resolve/${replyId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ pointAmount: 10 }),
-        credentials: 'include'
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.error === 'Discussion is already resolved') {
-          // If already resolved, keep the UI state
-          return;
-        }
-        throw new Error(data.error || data.message || 'Failed to resolve discussion');
-      }
-
-      console.log('Discussion resolved successfully:', data);
-
-      // Update with server data if available
-      if (data.data.replies) {
-        setReplies(data.data.replies);
-      }
-
       // Call the parent's onResolve callback if provided
       if (typeof onResolve === 'function') {
-        onResolve(comment.id, replyId);
+        await onResolve(comment.id, replyId);
       }
     } catch (err) {
       console.error('Error resolving reply:', err);
       setError(err.message);
-      // Don't revert the UI state if it's already resolved
-      if (err.message !== 'Discussion is already resolved') {
-        setReplies(prevReplies => 
-          prevReplies.map(reply => ({
-            ...reply,
-            isResolved: false
-          }))
-        );
-      }
-    } finally {
-      setIsResolvingComment(false);
     }
   };
 
@@ -301,7 +241,13 @@ const CommentItem = ({ comment, onLike, onResolve, currentUser }) => {
             pointAmount={pointAmount}
             setPointAmount={setPointAmount}
             canResolve={currentUser?.id === comment.userId && !comment.isResolved}
-            replies={replies}
+            replies={replies.map(reply => ({
+              ...reply,
+              discussionId: {
+                ...comment,
+                resolvedReplyId: comment.resolvedReplyId
+              }
+            }))}
             currentUser={currentUser}
           />
         </div>

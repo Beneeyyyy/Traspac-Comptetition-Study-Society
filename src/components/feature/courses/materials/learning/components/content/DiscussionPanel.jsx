@@ -62,7 +62,16 @@ const DiscussionPanel = ({ materialId }) => {
       // Debug log untuk discussions
       console.log('Fetched discussions:', data.data.discussions);
 
-      setDiscussions(data.data.discussions);
+      // Ensure resolved state is properly set for all discussions and their replies
+      const discussionsWithResolvedState = data.data.discussions.map(discussion => ({
+        ...discussion,
+        replies: discussion.replies?.map(reply => ({
+          ...reply,
+          isResolved: reply.id === discussion.resolvedReplyId || reply.isResolved
+        }))
+      }));
+
+      setDiscussions(discussionsWithResolvedState);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching discussions:', err);
@@ -160,6 +169,30 @@ const DiscussionPanel = ({ materialId }) => {
         currentUser
       });
 
+      // Find the discussion
+      const discussion = discussions.find(d => d.id === discussionId);
+      if (!discussion) {
+        throw new Error('Discussion not found');
+      }
+
+      // Immediately update the UI to show resolved state
+      setDiscussions(prevDiscussions => 
+        prevDiscussions.map(discussion => {
+          if (discussion.id === discussionId) {
+            return {
+              ...discussion,
+              isResolved: true,
+              resolvedReplyId: replyId,
+              replies: discussion.replies?.map(reply => ({
+                ...reply,
+                isResolved: reply.id === replyId
+              }))
+            };
+          }
+          return discussion;
+        })
+      );
+
       const response = await fetch(`${API_URL}/api/discussions/${discussionId}/resolve/${replyId}`, {
         method: 'PUT',
         headers: {
@@ -172,14 +205,50 @@ const DiscussionPanel = ({ materialId }) => {
       const data = await response.json();
 
       if (!response.ok) {
+        // If already resolved, keep the UI state
+        if (data.error?.includes('already resolved')) {
+          return;
+        }
         throw new Error(data.error || 'Failed to resolve discussion');
       }
 
       console.log('Discussion resolved successfully:', data);
-      // Refresh discussions list
-      fetchDiscussions();
+      
+      // Update with server data
+      if (data.data) {
+        setDiscussions(prevDiscussions => 
+          prevDiscussions.map(discussion => 
+            discussion.id === discussionId ? {
+              ...data.data,
+              replies: data.data.replies?.map(reply => ({
+                ...reply,
+                isResolved: reply.id === replyId || reply.isResolved
+              }))
+            } : discussion
+          )
+        );
+      }
     } catch (err) {
       console.error('Error resolving discussion:', err);
+      // Only revert UI if it's not an "already resolved" error
+      if (!err.message?.includes('already resolved')) {
+        setDiscussions(prevDiscussions => 
+          prevDiscussions.map(discussion => {
+            if (discussion.id === discussionId) {
+              return {
+                ...discussion,
+                isResolved: false,
+                resolvedReplyId: null,
+                replies: discussion.replies?.map(reply => ({
+                  ...reply,
+                  isResolved: false
+                }))
+              };
+            }
+            return discussion;
+          })
+        );
+      }
     }
   };
 

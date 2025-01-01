@@ -122,34 +122,24 @@ const ReplyList = ({
       });
 
       // Immediately mark the reply as resolved in the UI
-      const updatedReplies = replies.map(reply => ({
+      setReplies(prevReplies => prevReplies.map(reply => ({
         ...reply,
         isResolved: reply.id === parseInt(replyId)
-      }));
-      setReplies(updatedReplies);
+      })));
 
       if (typeof onResolve === 'function') {
-        try {
-          await onResolve(parseInt(replyId, 10));
-        } catch (err) {
-          // If the error is "already resolved", keep the UI state
-          if (err.message === 'Discussion is already resolved') {
-            return;
-          }
-          throw err;
-        }
+        await onResolve(discussionId, parseInt(replyId, 10));
       }
     } catch (err) {
+      console.error('Error resolving reply:', err);
+      
       // Only revert UI if it's not an "already resolved" error
-      if (err.message !== 'Discussion is already resolved') {
-        const updatedReplies = replies.map(reply => ({
+      if (!err.message?.includes('already resolved')) {
+        setReplies(prevReplies => prevReplies.map(reply => ({
           ...reply,
           isResolved: false
-        }));
-        setReplies(updatedReplies);
+        })));
       }
-      setError(err.message);
-      console.error('Error resolving reply:', err);
     }
   };
 
@@ -179,14 +169,14 @@ const ReplyList = ({
       return null;
     }
 
-    // Check if any reply in the discussion is already resolved
-    const hasResolvedReply = replies.some(r => r.isResolved);
+    // Check if this reply is the resolved one
+    const isResolvedReply = reply.discussionId && reply.id === reply.discussionId.resolvedReplyId;
 
     return (
       <div 
         key={reply.id} 
         className={`flex gap-4 ${depth > 0 ? 'mt-4' : ''} ${
-          reply.isResolved ? 'bg-green-500/10 p-4 rounded-lg border border-green-500/20' : ''
+          isResolvedReply ? 'bg-green-500/10 rounded-lg border border-green-500/20 p-4' : ''
         }`}
         style={{ 
           marginLeft: depth > 0 ? `${depth * 2}rem` : '0',
@@ -212,9 +202,9 @@ const ReplyList = ({
             </span>
             <span className="text-white/40 text-sm">{new Date(reply.createdAt).toLocaleString('id-ID')}</span>
           </div>
-          <div className={`rounded-lg p-4 mb-3 ${reply.isResolved ? 'bg-green-500/10 border border-green-500/20' : 'bg-white/[0.02]'}`}>
+          <div className={`rounded-lg p-4 ${isResolvedReply ? 'bg-green-500/10 border border-green-500/20' : 'bg-white/[0.02]'}`}>
             <p className="text-white/80 leading-relaxed">{reply.content}</p>
-            {reply.isResolved && (
+            {isResolvedReply && (
               <div className="mt-3 flex items-center gap-2 text-green-400">
                 <FiCheck className="w-5 h-5" />
                 <span className="text-sm font-medium">Jawaban Terpilih</span>
@@ -242,7 +232,7 @@ const ReplyList = ({
             )}
 
             {/* Reply Button */}
-            {!showReplyFormFor && !reply.isResolved && (
+            {!showReplyFormFor && !isResolvedReply && (
               <button 
                 onClick={() => {
                   setReplyingTo(reply.id);
@@ -255,8 +245,8 @@ const ReplyList = ({
               </button>
             )}
 
-            {/* Resolve Button - only show if can resolve and no reply is resolved yet */}
-            {canResolve && !hasResolvedReply && !reply.isResolved && reply.userId !== currentUser?.id && (
+            {/* Resolve Button - only show if can resolve and this reply is not resolved */}
+            {canResolve && !isResolvedReply && reply.userId !== currentUser?.id && (
               <button
                 onClick={() => handleResolve(reply.id)}
                 disabled={isResolvingComment}
