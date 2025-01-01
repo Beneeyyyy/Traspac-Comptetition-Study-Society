@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Signup = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -20,6 +21,7 @@ const Signup = () => {
   const [filteredSchools, setFilteredSchools] = useState([]);
   const [searchSchool, setSearchSchool] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [isCustomSchool, setIsCustomSchool] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
@@ -125,8 +127,10 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+      setError('Passwords do not match!');
       return;
     }
 
@@ -167,11 +171,11 @@ const Signup = () => {
       }
 
       // Redirect to dashboard on success
-      window.location.href = '/dashboard';
+      navigate('/dashboard');
       
     } catch (error) {
       console.error('Detailed signup error:', error);
-      alert(error.message || 'Failed to create account. Please try again.');
+      setError(error.message || 'Failed to create account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -187,12 +191,18 @@ const Signup = () => {
           className="w-40 mx-auto mb-3"
         />
         <h2 className="text-xl font-medium text-gray-300">
-          Thank you for join our study society
+          Thank you for joining our study society
         </h2>
       </div>
 
       {/* Form Container */}
       <div className="w-full max-w-md bg-black/30 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 shadow-2xl">
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+        
         <form className="space-y-4" onSubmit={handleSubmit}>
           {/* Profile Picture */}
           <div className="flex items-center space-x-4 mb-6">

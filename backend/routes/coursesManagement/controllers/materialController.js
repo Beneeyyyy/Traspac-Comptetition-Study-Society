@@ -58,6 +58,9 @@ const getMaterialById = async (req, res) => {
           }
         },
         stages: {
+          include: {
+            contents: true
+          },
           orderBy: {
             order: 'asc'
           }
@@ -70,37 +73,7 @@ const getMaterialById = async (req, res) => {
       return res.status(404).json({ error: 'Materi tidak ditemukan' });
     }
 
-    // Transform stages into learning steps
-    const learningSteps = material.stages.map((stage, index) => ({
-      id: stage.id,
-      title: stage.title,
-      description: stage.description,
-      status: index === 0 ? "current" : "locked",
-      xp_reward: stage.xp_reward || 25 + (index * 10),
-      color: ["blue", "purple", "emerald", "yellow"][index % 4],
-      time: `${15 + (index * 5)}-${20 + (index * 5)} menit`,
-      opacity: index > 0 ? `opacity-${40 - (index * 10)}` : "",
-      order: stage.order,
-      contents: [
-        {
-          type: "text",
-          content: "JavaScript adalah bahasa pemrograman yang sangat populer untuk pengembangan web. Mari mulai dengan memahami apa itu JavaScript dan mengapa kita menggunakannya.",
-          order: 1
-        },
-        {
-          type: "image",
-          content: "https://example.com/js-ecosystem.jpg",
-          caption: "Ekosistem JavaScript",
-          order: 2
-        },
-        {
-          type: "text",
-          content: "JavaScript memungkinkan kita membuat website yang interaktif dan dinamis.",
-          order: 3
-        }
-      ]
-    }));
-
+    // Transform stages but keep their original contents
     const transformedMaterial = {
       id: material.id,
       title: material.title,
@@ -110,10 +83,22 @@ const getMaterialById = async (req, res) => {
       total_xp: material.xp_reward,
       total_stages: material.stages.length,
       estimated_time: material.estimated_time || "90 Menit",
-      stages: learningSteps,
+      stages: material.stages.map((stage, index) => ({
+        id: stage.id,
+        title: stage.title,
+        description: stage.description,
+        status: index === 0 ? "current" : "locked",
+        xp_reward: stage.xp_reward || 25 + (index * 10),
+        color: ["blue", "purple", "emerald", "yellow"][index % 4],
+        time: `${15 + (index * 5)}-${20 + (index * 5)} menit`,
+        opacity: index > 0 ? `opacity-${40 - (index * 10)}` : "",
+        order: stage.order,
+        contents: stage.contents // This will now have the actual contents from database
+      })),
       glossary: material.glossary ? material.glossary.map(item => [item.term, item.definition]) : []
     };
 
+    console.log('Transformed Material:', JSON.stringify(transformedMaterial, null, 2));
     res.json(transformedMaterial);
   } catch (error) {
     console.error('Error fetching material:', error);

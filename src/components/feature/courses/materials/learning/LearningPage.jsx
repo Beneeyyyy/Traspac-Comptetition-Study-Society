@@ -47,15 +47,33 @@ const LearningPage = () => {
     const fetchMaterial = async () => {
       try {
         setIsLoading(true);
-        // Replace with your actual API endpoint
+        
+        // Fetch material data
         const response = await fetch(`http://localhost:3000/api/materials/${materialId}`, {
           credentials: 'include'
         });
-        if (!response.ok) throw new Error('Failed to fetch material');
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            // If unauthorized, redirect to login
+            navigate('/login', { 
+              state: { 
+                from: location.pathname,
+                message: 'Please login to access the learning materials' 
+              } 
+            });
+            return;
+          }
+          
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch material');
+        }
+        
         const data = await response.json();
+        console.log('Fetched material data:', data);
         setMaterial(data);
       } catch (error) {
-        console.error('Error fetching material:', error);
+        console.error('Error:', error);
       } finally {
         setIsLoading(false);
       }
@@ -64,7 +82,7 @@ const LearningPage = () => {
     if (materialId) {
       fetchMaterial();
     }
-  }, [materialId]);
+  }, [materialId, navigate, location.pathname]);
 
   // Control body overflow when sidebar is open
   useEffect(() => {

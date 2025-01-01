@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -7,7 +7,9 @@ const Login = () => {
     password: ''
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Check auth status when component mounts
   useEffect(() => {
@@ -18,11 +20,10 @@ const Login = () => {
         });
         
         if (response.ok) {
-          // If already authenticated, redirect to dashboard
-          navigate('/dashboard');
+          // If already authenticated, redirect to dashboard or previous location
+          const from = location.state?.from || '/dashboard';
+          navigate(from);
         }
-        // If not authenticated (401), we just stay on login page
-        // No need to handle this as an error
       } catch (error) {
         // Only log actual errors (network issues, server down, etc)
         if (!error.response || error.response.status !== 401) {
@@ -32,7 +33,7 @@ const Login = () => {
     };
 
     checkAuth();
-  }, [navigate]);
+  }, [navigate, location.state]);
 
   const handleChange = (e) => {
     setFormData({
@@ -44,6 +45,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
     try {
       console.log('Attempting login with:', formData);
@@ -85,8 +87,10 @@ const Login = () => {
       console.log('Auth check data:', authData);
 
       if (authCheck.ok) {
-        console.log('Auth check successful, redirecting to dashboard...');
-        navigate('/dashboard');
+        console.log('Auth check successful, redirecting...');
+        // Redirect to the page they came from or dashboard
+        const from = location.state?.from || '/dashboard';
+        navigate(from);
       } else {
         console.error('Auth check failed:', authData);
         throw new Error(authData.message || 'Failed to verify authentication');
@@ -94,7 +98,7 @@ const Login = () => {
       
     } catch (error) {
       console.error('Login error:', error);
-      alert(error.message || 'Failed to login. Please check your credentials.');
+      setError(error.message || 'Failed to login. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -112,10 +116,19 @@ const Login = () => {
         <h2 className="text-xl font-medium text-gray-300">
           Welcome back to study society
         </h2>
+        {location.state?.message && (
+          <p className="mt-2 text-sm text-indigo-400">{location.state.message}</p>
+        )}
       </div>
 
       {/* Form Container */}
       <div className="w-full max-w-md bg-black/30 backdrop-blur-sm p-6 rounded-2xl border border-gray-800/50 shadow-2xl">
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+        
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-1 text-gray-300">

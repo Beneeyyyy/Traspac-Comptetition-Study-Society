@@ -50,51 +50,89 @@ async function main() {
                         contents: [
                           {
                             type: "text",
-                            content: "JavaScript adalah bahasa pemrograman yang sangat populer untuk pengembangan web. Mari mulai dengan memahami apa itu JavaScript dan mengapa kita menggunakannya.",
+                            content: `JavaScript adalah bahasa pemrograman yang telah mengubah wajah pengembangan web modern. Diciptakan oleh Brendan Eich pada tahun 1995, JavaScript awalnya dirancang sebagai bahasa sederhana untuk membuat website menjadi lebih interaktif.
+
+Mari kita pelajari konsep dasarnya:
+
+1. Variables dan Data Types
+   - var, let, const untuk deklarasi variabel
+   - String, Number, Boolean sebagai tipe data dasar
+   - Object dan Array untuk struktur data kompleks
+
+2. Functions dan Scope
+   - Function declaration dan expression
+   - Parameter dan return value
+   - Global scope vs local scope`,
                             order: 1
                           },
                           {
                             type: "image",
                             content: "https://example.com/js-ecosystem.jpg",
-                            caption: "Ekosistem JavaScript",
+                            caption: "Ekosistem JavaScript Modern",
                             order: 2
                           },
                           {
                             type: "text",
-                            content: "JavaScript memungkinkan kita membuat website yang interaktif dan dinamis.",
+                            content: `<img src="https://example.com/js-concepts.jpg" alt="Konsep Dasar JavaScript">
+
+Di atas adalah visualisasi dari konsep-konsep dasar dalam JavaScript. Mari kita bahas satu per satu:
+
+1. Variables (Variabel)
+   - Tempat untuk menyimpan data
+   - Bisa diubah nilainya (kecuali const)
+   - Memiliki scope tertentu
+
+2. Data Types (Tipe Data)
+   - String: untuk teks
+   - Number: untuk angka
+   - Boolean: true/false
+   - Object: untuk data kompleks
+   - Array: untuk kumpulan data
+
+3. Control Flow
+   - if/else untuk percabangan
+   - loops untuk pengulangan
+   - switch untuk multiple conditions`,
                             order: 3
                           }
                         ]
                       },
                       {
-                        title: "2. Praktik Dasar",
+                        title: "2. Praktik Dasar JavaScript",
                         order: 2,
                         contents: [
                           {
                             type: "text",
-                            content: "Mari mulai menulis kode JavaScript pertama kita!",
+                            content: `<img src="https://example.com/js-practice.jpg" alt="Praktik JavaScript">
+
+Mari kita praktikkan konsep-konsep yang sudah dipelajari. Dalam gambar di atas, kita bisa melihat beberapa contoh kode JavaScript dasar dan penggunaannya dalam situasi nyata.
+
+1. Deklarasi Variabel
+   - Gunakan let untuk variabel yang bisa berubah
+   - Gunakan const untuk nilai tetap
+   - Berikan nama yang deskriptif
+
+2. Penggunaan Function
+   - Buat function yang reusable
+   - Satu function untuk satu tugas
+   - Gunakan parameter bila perlu`,
                             order: 1
                           },
                           {
                             type: "code",
-                            content: "let name = 'John';\nconst age = 25;\nconsole.log('Nama:', name);",
+                            content: `// Contoh Penggunaan Variabel
+let counter = 0;
+const MAX_VALUE = 100;
+
+// Contoh Function
+function increment() {
+  if (counter < MAX_VALUE) {
+    counter++;
+    return counter;
+  }
+  return 'Maksimum tercapai';
+}`,
                             language: "javascript",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "3. Eksplorasi dan Latihan",
-                        order: 3,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Saatnya berlatih dengan beberapa tantangan sederhana!",
-                            order: 1
-                          },
-                          {
-                            type: "exercise",
-                            content: "Buatlah program untuk menghitung luas persegi",
                             order: 2
                           }
                         ]
@@ -143,14 +181,48 @@ async function main() {
                         contents: [
                           {
                             type: "text",
-                            content: "Database adalah sistem untuk menyimpan dan mengelola data secara terstruktur",
+                            content: `<img src="https://example.com/database-structure.jpg" alt="Struktur Database Relasional">
+
+Database adalah sistem yang digunakan untuk menyimpan dan mengelola data secara terstruktur. Dalam gambar di atas, kita bisa melihat struktur dasar dari sebuah database relasional yang terdiri dari beberapa komponen penting:
+
+1. Tables (Tabel)
+   - Merupakan kumpulan data yang tersusun dalam baris dan kolom
+   - Setiap tabel mewakili satu entitas (misalnya: Users, Products, Orders)
+   - Tabel-tabel ini saling terhubung membentuk relasi
+
+2. Columns (Kolom)
+   - Setiap kolom mewakili satu atribut atau field dari data
+   - Memiliki tipe data tertentu (string, number, date, dll)
+   - Contoh: dalam tabel Users, kolomnya bisa berupa id, name, email, dll
+
+3. Rows (Baris)
+   - Setiap baris mewakili satu record atau entry data
+   - Berisi nilai untuk setiap kolom yang ada
+   - Misalnya: satu baris dalam tabel Users berisi data lengkap satu pengguna
+
+4. Relationships (Relasi)
+   - Hubungan antar tabel ditunjukkan dengan garis penghubung
+   - Ada beberapa jenis relasi: one-to-one, one-to-many, many-to-many
+   - Relasi dibuat menggunakan foreign keys
+
+5. Primary Keys
+   - Kolom unik yang mengidentifikasi setiap record
+   - Biasanya berupa ID yang auto-increment
+   - Memastikan tidak ada duplikasi data
+
+6. Foreign Keys
+   - Kolom yang mereferensi primary key dari tabel lain
+   - Membentuk relasi antar tabel
+   - Menjaga integritas data
+
+Dengan struktur yang terorganisir seperti ini, database relasional memungkinkan kita untuk:
+- Menyimpan data secara efisien dan terstruktur
+- Menghindari redundansi data
+- Menjaga konsistensi data
+- Melakukan query data dengan mudah
+- Mengelola relasi antar data dengan baik
+- Memastikan integritas data terjaga`,
                             order: 1
-                          },
-                          {
-                            type: "image",
-                            content: "https://example.com/database-structure.jpg",
-                            caption: "Struktur Database Relasional",
-                            order: 2
                           }
                         ]
                       },

@@ -1,26 +1,48 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { RiLightbulbLine, RiNumber1, RiNumber2, RiNumber3 } from 'react-icons/ri';
+import { RiLightbulbLine, RiNumber1, RiNumber2, RiNumber3, RiArrowLeftLine, RiArrowRightLine } from 'react-icons/ri';
 
 const ContentRenderer = ({ contents = [], currentStage }) => {
+  const [currentContentIndex, setCurrentContentIndex] = useState(0);
+
   // Ensure contents is an array and has items
   if (!Array.isArray(contents) || !contents.length || !contents[0]) return null;
 
-  const renderContent = (content, index) => {
-    if (!content) return null;
+  // Sort contents by order
+  const sortedContents = contents
+    .filter(content => content)
+    .sort((a, b) => (a?.order || 0) - (b?.order || 0));
 
-    // Show stage and order info only for the first content
-    const showStageInfo = index === 0;
+  const currentContent = sortedContents[currentContentIndex];
+  const isFirstContent = currentContentIndex === 0;
+  const isLastContent = currentContentIndex === sortedContents.length - 1;
+
+  const handlePrevContent = () => {
+    if (!isFirstContent) {
+      setCurrentContentIndex(prev => prev - 1);
+    }
+  };
+
+  const handleNextContent = () => {
+    if (!isLastContent) {
+      setCurrentContentIndex(prev => prev + 1);
+    }
+  };
+
+  const renderContent = (content) => {
+    if (!content) return null;
 
     return (
       <motion.div
+        key={content.order}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: index * 0.1 }}
+        transition={{ duration: 0.5 }}
+        className="min-h-[60vh]"
       >
-        {showStageInfo && currentStage && (
+        {currentStage && (
           <div className="flex items-center gap-3 mb-6">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
               {currentStage.order === 1 ? (
@@ -33,7 +55,7 @@ const ContentRenderer = ({ contents = [], currentStage }) => {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-white">Stage {currentStage.order}</h2>
-              <p className="text-sm text-white/60">Order {content.order}</p>
+              <p className="text-sm text-white/60">Content {content.order} of {sortedContents.length}</p>
             </div>
           </div>
         )}
@@ -116,14 +138,40 @@ const ContentRenderer = ({ contents = [], currentStage }) => {
 
   return (
     <div className="space-y-8">
-      {contents
-        .filter(content => content) // Filter out null/undefined contents
-        .sort((a, b) => (a?.order || 0) - (b?.order || 0))
-        .map((content, index) => (
-          <div key={index}>
-            {renderContent(content, index)}
-          </div>
-        ))}
+      {renderContent(currentContent)}
+      
+      {/* Navigation Buttons */}
+      <div className="flex justify-between items-center mt-8 pt-4 border-t border-white/10">
+        <button
+          onClick={handlePrevContent}
+          disabled={isFirstContent}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+            isFirstContent
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-white/5 active:bg-white/10'
+          }`}
+        >
+          <RiArrowLeftLine className="w-5 h-5" />
+          <span>Previous</span>
+        </button>
+        
+        <div className="text-sm text-white/60">
+          {currentContentIndex + 1} / {sortedContents.length}
+        </div>
+        
+        <button
+          onClick={handleNextContent}
+          disabled={isLastContent}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+            isLastContent
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-white/5 active:bg-white/10'
+          }`}
+        >
+          <span>Next</span>
+          <RiArrowRightLine className="w-5 h-5" />
+        </button>
+      </div>
     </div>
   );
 };
