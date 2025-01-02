@@ -166,7 +166,7 @@ const CommentItem = ({
     console.log('=== handleLike END ===');
   };
 
-  const handleResolve = async (discussionId, replyId) => {
+  const handleResolve = async (discussionId, replyId, pointAmount) => {
     // Update local state immediately
     const resolvedReply = replies.find(reply => reply.id === replyId);
     
@@ -174,7 +174,8 @@ const CommentItem = ({
     setReplies(prevReplies =>
       prevReplies.map(reply => ({
         ...reply,
-        isResolved: reply.id === replyId
+        isResolved: reply.id === replyId,
+        pointReceived: reply.id === replyId ? pointAmount : reply.pointReceived
       }))
     );
 
@@ -182,7 +183,8 @@ const CommentItem = ({
     if (resolvedReply) {
       const updatedResolvedReply = {
         ...resolvedReply,
-        isResolved: true
+        isResolved: true,
+        pointReceived: pointAmount
       };
       setResolvedReplyData(updatedResolvedReply);
       comment.resolvedReplyId = replyId;
@@ -191,7 +193,7 @@ const CommentItem = ({
     
     // Call parent's onResolve if provided
     if (onResolve) {
-      await onResolve(discussionId, replyId);
+      await onResolve(discussionId, replyId, pointAmount);
     }
   };
 

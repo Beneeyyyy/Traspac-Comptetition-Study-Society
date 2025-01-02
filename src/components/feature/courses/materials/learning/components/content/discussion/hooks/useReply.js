@@ -106,11 +106,63 @@ export const useReply = (discussionId, initialReplies = []) => {
     console.log('=== handleLike END ===');
   };
 
+  const handleResolve = async (discussionId, replyId, pointAmount) => {
+    console.log('=== handleResolve START ===');
+    console.log('Resolving reply:', { discussionId, replyId, pointAmount });
+    
+    try {
+      const response = await fetch(`${API_URL}/api/discussions/${discussionId}/resolve/${replyId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ pointAmount })
+      });
+
+      console.log('Response status:', response.status);
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Invalid response type:', contentType);
+        throw new Error('Invalid response type from server');
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to mark as solution');
+      }
+
+      if (data.success || data.data) {
+        console.log('Reply marked as solution successfully');
+        // Update all replies to reflect the change
+        setReplies(prevReplies =>
+          prevReplies.map(reply => ({
+            ...reply,
+            isResolved: reply.id === replyId,
+            pointReceived: reply.id === replyId ? pointAmount : reply.pointReceived,
+            resolvedAt: reply.id === replyId ? new Date().toISOString() : null
+          }))
+        );
+        return data.data;
+      }
+    } catch (err) {
+      console.error('Error marking as solution:', err);
+      setError(err.message || 'Failed to mark as solution');
+      throw err;
+    }
+    console.log('=== handleResolve END ===');
+  };
+
   return {
     replies,
     setReplies,
     handleSubmitReply,
     handleLike,
+    handleResolve,
     error
   };
 };

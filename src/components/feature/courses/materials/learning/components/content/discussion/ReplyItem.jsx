@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiHeart, FiCheck, FiCornerDownRight, FiMessageSquare } from 'react-icons/fi';
+import { FiHeart, FiCheck, FiCornerDownRight, FiMessageSquare, FiAward } from 'react-icons/fi';
 import CommentForm from './CommentForm';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -21,6 +21,9 @@ const ReplyItem = ({
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPointSelect, setShowPointSelect] = useState(false);
+  const [selectedPoints, setSelectedPoints] = useState(10);
+  const [pointError, setPointError] = useState('');
 
   // Get child replies for this reply
   const childReplies = allReplies.filter(r => r.parentId === reply.id);
@@ -28,13 +31,24 @@ const ReplyItem = ({
   // Check if this reply is resolved
   const isResolved = reply.isResolved || comment?.resolvedReplyId === reply.id;
 
+  const handlePointChange = (e) => {
+    const value = Number(e.target.value);
+    setSelectedPoints(value);
+    
+    if (value < 10 || value > 50) {
+      setPointError('Points must be between 10-50');
+    } else {
+      setPointError('');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!replyText.trim() || isSubmitting) return;
 
     try {
       setIsSubmitting(true);
-      const newReply = await onSubmitReply(replyText, reply.id); // Pass parentId
+      const newReply = await onSubmitReply(replyText, reply.id);
       
       if (newReply) {
         setReplies(prevReplies => [...prevReplies, newReply]);
@@ -50,9 +64,22 @@ const ReplyItem = ({
 
   const handleResolve = async () => {
     try {
-      await onResolve(discussionId, reply.id);
+      if (!showPointSelect) {
+        setShowPointSelect(true);
+        return;
+      }
+      
+      if (selectedPoints < 10 || selectedPoints > 50) {
+        setPointError('Points must be between 10-50');
+        return;
+      }
+      
+      await onResolve(discussionId, reply.id, selectedPoints);
+      setShowPointSelect(false);
+      setPointError('');
     } catch (err) {
       console.error('Error marking as solution:', err);
+      setShowPointSelect(false);
     }
   };
 
@@ -73,18 +100,60 @@ const ReplyItem = ({
         {level === 0 && isCreator && 
          reply.userId !== currentUser?.id && 
          !resolvedReply && (
-          <button
-            onClick={handleResolve}
-            className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-white/40 hover:text-green-500 transition-colors bg-white/[0.02] hover:bg-white/[0.05] rounded-lg border border-white/[0.05]"
-          >
-            <FiCheck className="w-4 h-4" />
-            <span className="text-sm">Mark as Solution</span>
-          </button>
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            {showPointSelect ? (
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={selectedPoints}
+                    onChange={handlePointChange}
+                    min="10"
+                    max="50"
+                    className="w-20 px-2 py-1.5 bg-white/[0.02] border border-white/[0.05] rounded-lg text-white/80 text-sm focus:outline-none focus:border-green-500/40"
+                    placeholder="10-50"
+                  />
+                  <button
+                    onClick={handleResolve}
+                    disabled={!!pointError}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-white/40 hover:text-green-500 transition-colors bg-white/[0.02] hover:bg-white/[0.05] rounded-lg border border-white/[0.05] ${
+                      pointError ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <FiCheck className="w-4 h-4" />
+                    <span className="text-sm">Confirm</span>
+                  </button>
+                </div>
+                <div className="text-xs text-white/60">
+                  Enter points (10-50)
+                </div>
+                {pointError && (
+                  <div className="text-xs text-red-500">
+                    {pointError}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={handleResolve}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-white/40 hover:text-green-500 transition-colors bg-white/[0.02] hover:bg-white/[0.05] rounded-lg border border-white/[0.05]"
+              >
+                <FiCheck className="w-4 h-4" />
+                <span className="text-sm">Mark as Solution</span>
+              </button>
+            )}
+          </div>
         )}
         {isResolved && (
           <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 text-green-500 bg-green-500/10 rounded-lg border border-green-500/30">
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
             <span className="text-sm font-medium">Solution</span>
+            {reply.pointReceived && (
+              <div className="flex items-center gap-1 ml-2 text-sm">
+                <FiAward className="w-4 h-4" />
+                <span>+{reply.pointReceived}</span>
+              </div>
+            )}
           </div>
         )}
 
