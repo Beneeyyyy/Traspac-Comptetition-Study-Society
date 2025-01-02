@@ -6,14 +6,10 @@ export const useReply = (discussionId, initialReplies = []) => {
   const [replies, setReplies] = useState(initialReplies);
   const [error, setError] = useState(null);
 
-  console.log('=== useReply hook initialized ===');
-  console.log('Discussion ID:', discussionId);
-  console.log('Initial replies:', initialReplies);
-
-  const handleSubmitReply = async (content) => {
+  const handleSubmitReply = async (content, parentId = null) => {
     console.log('=== handleSubmitReply START ===');
-    console.log('Submitting reply:', { discussionId, content });
-    console.log('API URL:', `${API_URL}/api/discussions/${discussionId}/reply`);
+    console.log('Content:', content);
+    console.log('Parent ID:', parentId);
     
     try {
       const response = await fetch(`${API_URL}/api/discussions/${discussionId}/reply`, {
@@ -23,12 +19,14 @@ export const useReply = (discussionId, initialReplies = []) => {
           'Accept': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ content: content.trim() })
+        body: JSON.stringify({ 
+          content: content.trim(),
+          parentId: parentId ? parseInt(parentId) : null
+        })
       });
 
       console.log('Response status:', response.status);
       
-      // Check if response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         console.error('Invalid response type:', contentType);
@@ -43,36 +41,33 @@ export const useReply = (discussionId, initialReplies = []) => {
       }
 
       if (data.success && data.data) {
-        console.log('Reply submitted successfully:', data.data);
+        console.log('Reply submitted successfully');
         return data.data;
       }
-      
-      throw new Error('Invalid response format');
     } catch (err) {
-      console.error('Error in handleSubmitReply:', err);
+      console.error('Error submitting reply:', err);
       setError(err.message || 'Failed to submit reply');
-      return null;
+      throw err;
     }
+    console.log('=== handleSubmitReply END ===');
   };
 
   const handleLike = async (replyId) => {
     console.log('=== handleLike START ===');
-    console.log('Liking reply:', { discussionId, replyId });
-    console.log('API URL:', `${API_URL}/api/discussions/reply/${replyId}/like`);
+    console.log('Reply ID:', replyId);
     
     try {
-      const response = await fetch(`${API_URL}/api/discussions/reply/${replyId}/like`, {
+      const response = await fetch(`${API_URL}/api/replies/${replyId}/like`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
       });
 
       console.log('Response status:', response.status);
       
-      // Check if response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         console.error('Invalid response type:', contentType);
@@ -83,30 +78,32 @@ export const useReply = (discussionId, initialReplies = []) => {
       console.log('Response data:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to toggle like');
+        throw new Error(data.error || 'Failed to like reply');
       }
 
       if (data.success) {
-        console.log('Like toggled successfully');
+        console.log('Reply liked/unliked successfully');
         setReplies(prevReplies =>
-          prevReplies.map(reply =>
-            reply.id === replyId
-              ? {
-                  ...reply,
-                  isLiked: data.data.isLiked,
-                  _count: {
-                    ...reply._count,
-                    likes: data.data.likesCount
-                  }
+          prevReplies.map(reply => {
+            if (reply.id === replyId) {
+              return {
+                ...reply,
+                isLiked: data.data.isLiked,
+                _count: {
+                  ...reply._count,
+                  likes: data.data.likesCount
                 }
-              : reply
-          )
+              };
+            }
+            return reply;
+          })
         );
       }
     } catch (err) {
-      console.error('Error in handleLike:', err);
-      setError(err.message || 'Failed to toggle like');
+      console.error('Error liking reply:', err);
+      setError(err.message || 'Failed to like reply');
     }
+    console.log('=== handleLike END ===');
   };
 
   return {
