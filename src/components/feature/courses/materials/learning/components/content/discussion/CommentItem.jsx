@@ -81,6 +81,11 @@ const CommentItem = ({
     console.log('Discussion ID:', commentId);
     console.log('API URL:', `${API_URL}/api/discussions/${commentId}`);
     
+    if (showReplies) {
+      setShowReplies(false);
+      return;
+    }
+    
     try {
       const response = await fetch(`${API_URL}/api/discussions/${commentId}`, {
         credentials: 'include',
@@ -155,10 +160,23 @@ const CommentItem = ({
     console.log('=== handleLike END ===');
   };
 
+  const handleResolve = async (discussionId, replyId) => {
+    // Update local state immediately
+    setReplies(prevReplies =>
+      prevReplies.map(reply => ({
+        ...reply,
+        isResolved: reply.id === replyId
+      }))
+    );
+    
+    // Call parent's onResolve if provided
+    if (onResolve) {
+      await onResolve(discussionId, replyId);
+    }
+  };
+
   return (
-    <div className={`bg-white/[0.02] border border-white/[0.05] rounded-xl overflow-hidden ${
-      isResolved ? 'border-green-500/20' : ''
-    }`}>
+    <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl overflow-hidden">
       {/* Discussion Header */}
       <div className="p-6">
         <div className="flex items-start gap-4">
@@ -229,24 +247,37 @@ const CommentItem = ({
               
               <button 
                 onClick={handleToggleReplies}
-                className="flex items-center gap-2 text-white/40 hover:text-white transition-colors"
+                className={`flex items-center gap-2 transition-colors ${
+                  showReplies 
+                    ? 'text-blue-500 hover:text-blue-400' 
+                    : 'text-white/40 hover:text-white'
+                } px-3 py-1.5 rounded-lg hover:bg-white/[0.02] border border-transparent ${
+                  showReplies ? 'bg-blue-500/5 border-blue-500/20' : ''
+                }`}
               >
-                <FiMessageSquare className="w-5 h-5" />
+                <FiMessageSquare className={`w-5 h-5 ${showReplies ? 'stroke-2' : ''}`} />
                 <span className="text-sm font-medium">
-                  {replyCount} {replyCount === 1 ? 'Answer' : 'Answers'}
+                  {showReplies ? (
+                    'Close Replies'
+                  ) : (
+                    <>
+                      {replyCount} {replyCount === 1 ? 'Answer' : 'Answers'}
+                      {replyCount > 0 && <span className="sr-only"> - Click to view</span>}
+                    </>
+                  )}
                 </span>
               </button>
 
               <button 
                 onClick={handleShowReplyForm}
-                className="flex items-center gap-2 text-white/40 hover:text-white transition-colors"
+                className={`flex items-center gap-2 transition-colors text-white/40 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/[0.02] border border-transparent`}
               >
                 <FiSend className="w-5 h-5" />
                 <span className="text-sm font-medium">Answer</span>
               </button>
 
               {comment.resolvedReplyId && comment.resolvedReply && comment.resolvedReply.user && (
-                <div className="flex items-center gap-2 text-green-500">
+                <div className="flex items-center gap-2 text-green-500 ml-auto">
                   <span className="w-2 h-2 rounded-full bg-green-500"></span>
                   <span className="text-sm font-medium">
                     Solved by {comment.resolvedReply.user.name}
@@ -266,9 +297,10 @@ const CommentItem = ({
             replies={replies}
             currentUser={{ id: currentUserId }}
             isCreator={userId === currentUserId}
-            onResolve={onResolve}
+            onResolve={handleResolve}
             showForm={showReplyForm}
             onCancelReply={handleCancelReply}
+            comment={comment}
           />
         </div>
       )}

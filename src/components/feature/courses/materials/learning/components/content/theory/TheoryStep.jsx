@@ -1,17 +1,16 @@
-import { useState, Suspense, useEffect, useRef } from 'react';
+import { useState, Suspense, useEffect, useRef, lazy } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiMenu } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
 
-import {
-  TopNavigation,
-  ContentSkeleton,
-  SectionsList,
-  ContentRenderer,
-  QuickTips,
-  QuickQuiz
-} from './components';
-import DiscussionPanel from '../DiscussionPanel';
+// Lazy load components
+const TopNavigation = lazy(() => import('./components/TopNavigation'));
+const ContentSkeleton = lazy(() => import('./components/ContentSkeleton'));
+const SectionsList = lazy(() => import('./components/SectionsList'));
+const ContentRenderer = lazy(() => import('./components/ContentRenderer'));
+const QuickTips = lazy(() => import('./components/QuickTips'));
+const QuickQuiz = lazy(() => import('./components/QuickQuiz'));
+const DiscussionPanel = lazy(() => import('../DiscussionPanel'));
 
 const TheoryStep = ({ material }) => {
   const [activeSection, setActiveSection] = useState(0);
