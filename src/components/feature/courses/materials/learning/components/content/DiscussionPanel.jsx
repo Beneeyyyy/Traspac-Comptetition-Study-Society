@@ -303,6 +303,7 @@ const DiscussionPanel = ({ materialId }) => {
               likeCount={discussion._count?.likes || 0}
               onResolve={handleResolve}
               onLike={handleLike}
+              comment={discussion}
             />
           ))
         ) : (

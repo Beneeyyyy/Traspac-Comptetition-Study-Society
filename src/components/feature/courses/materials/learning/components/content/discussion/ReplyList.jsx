@@ -1,155 +1,256 @@
-import React, { useState } from 'react';
-import { FiHeart, FiCheck, FiMessageSquare } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiHeart, FiCheck, FiCornerDownRight, FiX } from 'react-icons/fi';
 import CommentForm from './CommentForm';
 import { useReply } from './hooks/useReply';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-const ReplyList = ({ discussionId, replies: initialReplies, onResolve, currentUser, isCreator, discussion }) => {
-  const [showReplyFormFor, setShowReplyFormFor] = useState(null);
-  const [newReply, setNewReply] = useState('');
-  
-  const { replies, handleLike, error } = useReply(discussionId, initialReplies);
+const ReplyList = ({ discussionId, replies: initialReplies, currentUser, isCreator, onResolve, showForm = false, onCancelReply }) => {
+  const [replyText, setReplyText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    replies,
+    setReplies,
+    handleSubmitReply,
+    handleLike,
+    error
+  } = useReply(discussionId, initialReplies);
 
-  // Cek apakah diskusi sudah memiliki jawaban yang ditandai
-  const hasResolvedAnswer = discussion?.isResolved || replies?.some(reply => reply.isResolved);
+  // Update replies when initialReplies changes
+  useEffect(() => {
+    console.log('=== ReplyList useEffect START ===');
+    console.log('Initial replies:', initialReplies);
+    console.log('Discussion ID:', discussionId);
+    
+    if (initialReplies && Array.isArray(initialReplies)) {
+      console.log('Setting replies from initialReplies');
+      setReplies(initialReplies);
+    } else {
+      console.log('No valid initialReplies, setting empty array');
+      setReplies([]);
+    }
+    console.log('=== ReplyList useEffect END ===');
+  }, [initialReplies, setReplies]);
 
-  // Fungsi untuk mengecek apakah reply ini adalah jawaban yang ditandai
-  const isResolvedAnswer = (reply) => {
-    return reply.isResolved || discussion?.resolvedReplyId === reply.id;
-  };
+  // Check if any reply is marked as resolved
+  const resolvedReply = replies.find(reply => reply.isResolved);
 
-  const handleSubmitReply = async (e, parentReplyId) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newReply.trim()) return;
+    console.log('=== handleSubmit START ===');
+    console.log('Reply text:', replyText);
+    
+    if (!replyText.trim() || isSubmitting) {
+      console.log('Invalid reply text or already submitting');
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_URL}/api/discussions/${discussionId}/reply`, {
+      setIsSubmitting(true);
+      console.log('Submitting reply to discussion:', discussionId);
+      const newReply = await handleSubmitReply(replyText);
+      console.log('New reply:', newReply);
+      
+      if (newReply) {
+        console.log('Adding new reply to list');
+        setReplies(prevReplies => {
+          console.log('Previous replies:', prevReplies);
+          const updatedReplies = [newReply, ...prevReplies];
+          console.log('Updated replies:', updatedReplies);
+          return updatedReplies;
+        });
+        setReplyText('');
+        onCancelReply();
+      }
+    } catch (err) {
+      console.error('Error submitting reply:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+    console.log('=== handleSubmit END ===');
+  };
+
+  const handleResolve = async (discussionId, replyId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/discussions/${discussionId}/resolve/${replyId}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
-          content: newReply.trim(),
-          parentId: parentReplyId 
-        }),
-        credentials: 'include'
+        credentials: 'include',
+        body: JSON.stringify({ pointAmount: 10 }) // Default point amount
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add reply');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to mark as solution');
       }
 
-      setNewReply('');
-      setShowReplyFormFor(null);
-      // Optionally refresh the discussion to show new reply
+      const data = await response.json();
+      if (data.success && onResolve) {
+        onResolve(discussionId, replyId);
+      }
     } catch (err) {
-      console.error('Error adding reply:', err);
+      console.error('Error marking as solution:', err);
     }
   };
 
-  // Debug log untuk melihat status
-  console.log('ReplyList status:', {
-    discussionId,
-    discussionResolved: discussion?.isResolved,
-    hasResolvedAnswer,
-    repliesCount: replies?.length,
-    resolvedReplies: replies?.filter(r => r.isResolved)
-  });
-
-  if (error) {
-    console.error('Reply error:', error);
-  }
-
   return (
-    <div className="mt-4 space-y-4 pl-4 border-l border-white/10">
-      {replies?.map((reply) => {
-        const isAnswered = isResolvedAnswer(reply);
-        
-        return (
-          <div key={reply.id} 
-            className={`relative rounded-lg p-4 ${
-              isAnswered 
-                ? 'bg-green-500/5 border border-green-500/20' 
-                : 'bg-white/[0.01]'
-            }`}
+    <div className="divide-y divide-white/[0.05]">
+      {/* Total Replies Count */}
+      <div className="p-4 flex items-center justify-between bg-white/[0.01]">
+        <span className="text-sm text-white/60">
+          {replies.length} {replies.length === 1 ? 'Answer' : 'Answers'}
+        </span>
+        {showForm && (
+          <button
+            onClick={onCancelReply}
+            className="text-white/40 hover:text-white/60 transition-colors"
           >
-            {/* Resolve button - hanya tampil jika belum ada jawaban yang ditandai */}
-            {isCreator && 
-             reply.userId !== currentUser?.id && 
-             !hasResolvedAnswer && (
-              <button
-                onClick={() => onResolve(reply.id)}
-                className="absolute top-2 right-2 flex items-center gap-2 text-green-400 hover:text-green-300 text-sm bg-green-500/5 hover:bg-green-500/10 px-2 py-1 rounded-lg transition-colors"
-              >
-                <FiCheck className="w-4 h-4" />
-                <span>Tandai Sebagai Jawaban</span>
-              </button>
-            )}
+            <FiX className="w-5 h-5" />
+          </button>
+        )}
+      </div>
 
-            {/* Status jawaban terpilih - terlihat oleh semua user */}
-            {isAnswered && (
-              <div className="absolute top-2 right-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
-                <FiCheck className="w-4 h-4 text-green-400" />
-                <span className="text-green-400 text-sm font-medium">Jawaban Terpilih</span>
-              </div>
-            )}
+      {/* Reply Form - Only show when showForm is true */}
+      {showForm && (
+        <div className="p-6">
+          <div className="flex gap-4">
+            <div className="flex-shrink-0 w-8 flex justify-center">
+              <FiCornerDownRight className="w-5 h-5 text-white/20" />
+            </div>
+            <div className="flex-1">
+              <CommentForm
+                onSubmit={handleSubmit}
+                newComment={replyText}
+                setNewComment={setReplyText}
+                placeholder="Write your answer..."
+                submitLabel="Submit Answer"
+                isLoading={isSubmitting}
+                onCancel={onCancelReply}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                  <span className="text-white/60 text-sm font-medium">
-                    {reply.user?.name?.charAt(0)?.toUpperCase() || '?'}
-                  </span>
+      {/* Replies List */}
+      <div className="divide-y divide-white/[0.05]">
+        {replies.map(reply => (
+          <div key={reply.id} className="relative">
+            {/* Thread line */}
+            <div className="absolute left-10 top-0 bottom-0 w-px bg-white/[0.05]"></div>
+            
+            <div className={`p-6 ${reply.isResolved ? 'bg-green-500/[0.02]' : ''}`}>
+              {/* Solution Button or Status - Positioned at top right */}
+              {isCreator && 
+               reply.userId !== currentUser?.id && 
+               !resolvedReply && 
+               !reply.isResolved && (
+                <button
+                  onClick={() => handleResolve(discussionId, reply.id)}
+                  className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-white/40 hover:text-green-500 transition-colors bg-white/[0.02] hover:bg-white/[0.05] rounded-lg border border-white/[0.05]"
+                >
+                  <FiCheck className="w-4 h-4" />
+                  <span className="text-sm">Mark as Solution</span>
+                </button>
+              )}
+              {reply.isResolved && (
+                <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 text-green-500 bg-green-500/5 rounded-lg border border-green-500/20">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  <span className="text-sm font-medium">Solution</span>
                 </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-white text-sm">
-                    {reply.user?.name || 'Anonymous'}
-                  </span>
-                  <span className="text-white/40 text-xs">•</span>
-                  <span className="text-white/40 text-xs">
-                    {new Date(reply.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-white/80 text-sm mb-2">{reply.content}</p>
+              )}
 
-                {/* Like and Reply buttons */}
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => handleLike(reply.id)}
-                    className={`flex items-center gap-1.5 ${reply.isLiked ? 'text-white' : 'text-white/40 hover:text-white/60'}`}
-                  >
-                    <FiHeart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
-                    <span className="text-sm">{reply._count?.likes || 0}</span>
-                  </button>
-                  
-                  <button 
-                    onClick={() => setShowReplyFormFor(reply.id)}
-                    className="flex items-center gap-1.5 text-white/40 hover:text-white/60"
-                  >
-                    <FiMessageSquare className="w-4 h-4" />
-                    <span className="text-sm">Balas</span>
-                  </button>
-                </div>
-
-                {/* Reply Form */}
-                {showReplyFormFor === reply.id && (
-                  <div className="mt-4">
-                    <CommentForm
-                      onSubmit={(e) => handleSubmitReply(e, reply.id)}
-                      newComment={newReply}
-                      setNewComment={setNewReply}
-                      onCancel={() => setShowReplyFormFor(null)}
+              <div className="flex gap-4">
+                {/* Reply indicator and avatar */}
+                <div className="flex-shrink-0 flex items-start gap-3">
+                  <FiCornerDownRight className="w-5 h-5 text-white/20 mt-1.5" />
+                  <div className="relative">
+                    <img
+                      src={reply.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user.name)}`}
+                      alt={reply.user.name}
+                      className="w-8 h-8 rounded-full bg-white/[0.02] border-2 border-white/[0.05] flex-shrink-0 object-cover"
                     />
+                    {reply.user.role === 'teacher' && (
+                      <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full w-3 h-3 border-2 border-black/90 flex items-center justify-center">
+                        <span className="text-[6px] text-white">✓</span>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+
+                {/* Reply Content */}
+                <div className="flex-1 min-w-0">
+                  {/* User Info */}
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h4 className="font-medium text-white truncate">
+                      {reply.user.name}
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      {reply.user.role === 'teacher' && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-xs border border-blue-500/20">
+                          Guru
+                        </span>
+                      )}
+                      <span className="px-1.5 py-0.5 rounded-full bg-white/[0.02] text-white/40 text-xs border border-white/[0.05]">
+                        {reply.user.rank}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Timestamp */}
+                  <div className="text-xs text-white/40 mb-2">
+                    {new Date(reply.createdAt).toLocaleString('id-ID', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+
+                  {/* Content */}
+                  <div className="text-white/80 leading-relaxed mb-3">
+                    {reply.content}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => handleLike(reply.id)}
+                      className={`flex items-center gap-1.5 transition-colors ${
+                        reply.isLiked 
+                          ? 'text-white' 
+                          : 'text-white/40 hover:text-white'
+                      }`}
+                    >
+                      <FiHeart className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`} />
+                      <span className="text-sm">
+                        {reply._count?.likes > 0 ? reply._count.likes : 'Like'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        );
-      })}
+        ))}
+
+        {/* No Replies Message */}
+        {replies.length === 0 && (
+          <div className="p-6 text-center">
+            <p className="text-white/40">Belum ada jawaban untuk diskusi ini.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border-t border-red-500/20">
+          <p className="text-sm text-red-500">{error}</p>
+        </div>
+      )}
     </div>
   );
 };
