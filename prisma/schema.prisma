@@ -163,6 +163,19 @@ model StudyHistory {
   createdAt DateTime @default(now())
 }
 
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  type        String   // e.g., "XP_EARNED", "ACHIEVEMENT_UNLOCKED"
+  message     String
+  data        Json?    // Additional data in JSON format
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
 model MaterialProgress {
   id          Int      @id @default(autoincrement())
   userId      Int
@@ -172,6 +185,11 @@ model MaterialProgress {
   progress    Float    @default(0)
   completed   Boolean  @default(false)
   lastAccessed DateTime @default(now())
+  stageProgress String @default("{}")  // Store as JSON string
+  completedStages Int[] @default([])   // Array of completed stage indices
+  activeStage Int @default(0)          // Current active stage
+
+  @@unique([userId, materialId])
 }
 
 // Discussion System Models

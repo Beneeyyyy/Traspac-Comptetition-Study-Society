@@ -1,16 +1,39 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { RiLightbulbLine, RiArrowLeftLine, RiArrowRightLine } from 'react-icons/ri';
 import DOMPurify from 'dompurify';
 
-const ContentRenderer = ({ contents = [], currentStage, onNextStage, currentContentIndex, onContentChange }) => {
+const ContentRenderer = ({ 
+  contents = [], 
+  currentStage, 
+  onNextStage, 
+  currentContentIndex, 
+  onContentChange,
+  savedContentIndex,
+  onProgressUpdate 
+}) => {
   if (!Array.isArray(contents) || !contents.length || !contents[0]) return null;
 
   const sortedContents = contents
     .filter(content => content)
     .sort((a, b) => (a?.order || 0) - (b?.order || 0));
+
+  // Restore saved content index if available
+  useEffect(() => {
+    if (savedContentIndex !== undefined && savedContentIndex !== currentContentIndex) {
+      onContentChange(savedContentIndex);
+    }
+  }, [savedContentIndex]);
+
+  // Update progress when content changes
+  useEffect(() => {
+    if (onProgressUpdate) {
+      const progress = ((currentContentIndex + 1) / sortedContents.length) * 100;
+      onProgressUpdate(progress);
+    }
+  }, [currentContentIndex, sortedContents.length]);
 
   const currentContent = sortedContents[currentContentIndex];
   const isFirstContent = currentContentIndex === 0;

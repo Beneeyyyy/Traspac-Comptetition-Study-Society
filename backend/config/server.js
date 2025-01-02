@@ -14,6 +14,7 @@ const materialRoutes = require('../routes/coursesManagement/routes/materialRoute
 const pointRoutes = require('../routes/leaderBoard/pointRoutes');
 const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoolRoutes');
 const progressRoutes = require('../routes/progress/progressRoutes');
+const stageProgressRoutes = require('../routes/progress/stageProgressRoutes');
 const notificationRoutes = require('../routes/progress/routes/notificationRoutes');
 const discussionRoutes = require('../routes/coursesManagement/routes/discussionRoutes');
 
@@ -83,6 +84,7 @@ app.use('/api/materials', materialRoutes);
 app.use('/api/points', pointRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/stage-progress', stageProgressRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/discussions', discussionRoutes);
 

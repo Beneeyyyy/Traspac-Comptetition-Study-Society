@@ -8,81 +8,111 @@ const progressController = {
   getMaterialProgress: async (req, res) => {
     try {
       const { userId, materialId } = req.params;
-      console.log(`Fetching progress for user ${userId} and material ${materialId}`);
-      
-      const progress = await prisma.materialProgress.findUnique({
-        where: {
-          userId_materialId: {
-            userId: parseInt(userId),
-            materialId: parseInt(materialId)
-          }
-        },
-        include: {
-          material: {
+      console.log('📥 Get Progress Request:', { userId, materialId });
+
+      const parsedUserId = parseInt(userId);
+      const parsedMaterialId = parseInt(materialId);
+
+      // Get material first to validate it exists
+      const material = await prisma.material.findUnique({
+        where: { id: parsedMaterialId },
+        select: {
+          id: true,
+          title: true,
+          xp_reward: true,
+          stages: {
             select: {
-              title: true,
-              xp_reward: true,
-              estimated_time: true,
-              stages: {
-                select: {
-                  id: true,
-                  title: true,
-                  order: true,
-                  contents: true
-                }
-              }
+              id: true,
+              title: true
             }
           }
         }
       });
 
-      // If no progress found, create new one
-      if (!progress) {
-        console.log('No progress found, creating initial progress');
-        const newProgress = await prisma.materialProgress.create({
-          data: {
-            userId: parseInt(userId),
-            materialId: parseInt(materialId),
-            progress: 0,
-            completed: false,
-            lastAccessed: new Date()
-          },
-          include: {
-            material: {
-              select: {
-                title: true,
-                xp_reward: true,
-                estimated_time: true,
-                stages: {
-                  select: {
-                    id: true,
-                    title: true,
-                    order: true,
-                    contents: true
-                  }
-                }
-              }
-            }
-          }
-        });
-
-        return res.json({
-          success: true,
-          data: newProgress,
-          message: 'Initial progress created'
+      if (!material) {
+        console.log('❌ Material not found:', materialId);
+        return res.status(404).json({
+          success: false,
+          error: 'Material not found'
         });
       }
 
+      console.log('📚 Material found:', {
+        id: material.id,
+        title: material.title,
+        xp_reward: material.xp_reward,
+        totalStages: material.stages.length
+      });
+
+      // Get progress
+      const progress = await prisma.materialProgress.findUnique({
+        where: {
+          userId_materialId: {
+            userId: parsedUserId,
+            materialId: parsedMaterialId
+          }
+        }
+      });
+
+      console.log('🔍 Raw progress data from database:', progress);
+
+      // If no progress found, return default values
+      if (!progress) {
+        const defaultResponse = {
+          userId: parsedUserId,
+          materialId: parsedMaterialId,
+          progress: 0,
+          completed: false,
+          stageProgress: '{}',
+          completedStages: [],
+          activeStage: 0,
+          lastAccessed: new Date()
+        };
+        console.log('📤 Sending default response:', defaultResponse);
+        return res.json({
+          success: true,
+          data: defaultResponse
+        });
+      }
+
+      // Prepare response data with proper parsing
+      let parsedStageProgress;
+      try {
+        parsedStageProgress = progress.stageProgress ? JSON.parse(progress.stageProgress) : {};
+      } catch (e) {
+        console.warn('⚠️ Failed to parse stageProgress:', e);
+        parsedStageProgress = {};
+      }
+
+      const responseData = {
+        ...progress,
+        stageProgress: parsedStageProgress,
+        completedStages: Array.isArray(progress.completedStages) ? progress.completedStages : [],
+        activeStage: typeof progress.activeStage === 'number' ? progress.activeStage : 0
+      };
+
+      console.log('📤 Sending formatted response:', {
+        userId: responseData.userId,
+        materialId: responseData.materialId,
+        progress: responseData.progress,
+        completed: responseData.completed,
+        stageProgress: responseData.stageProgress,
+        completedStages: responseData.completedStages,
+        activeStage: responseData.activeStage,
+        lastAccessed: responseData.lastAccessed
+      });
+
       res.json({
         success: true,
-        data: progress
+        data: responseData
       });
     } catch (error) {
-      console.error('Error in getMaterialProgress:', error);
+      console.error('❌ Error in getMaterialProgress:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to get material progress',
-        message: error.message
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
   },
@@ -91,151 +121,203 @@ const progressController = {
   updateProgress: async (req, res) => {
     try {
       const { userId, materialId } = req.params;
-      const { progress, completed } = req.body;
-      console.log(`Updating progress for user ${userId} and material ${materialId}`, {
-        progress, completed
+      const { progress, completed, stageIndex, stageProgress, completedStages, activeStage } = req.body;
+      
+      // Log incoming data
+      console.log('📝 Update Progress Request:', {
+        userId, materialId, progress, completed, stageIndex,
+        stageProgress, completedStages, activeStage,
+        body: req.body
       });
 
-      // Update progress
-      const updatedProgress = await prisma.materialProgress.upsert({
-        where: {
-          userId_materialId: {
-            userId: parseInt(userId),
-            materialId: parseInt(materialId)
-          }
-        },
-        update: {
-          progress: parseFloat(progress),
-          completed,
-          lastAccessed: new Date()
-        },
-        create: {
-          userId: parseInt(userId),
-          materialId: parseInt(materialId),
-          progress: parseFloat(progress),
-          completed,
-          lastAccessed: new Date()
+      // Validate and convert data
+      const parsedUserId = parseInt(userId);
+      const parsedMaterialId = parseInt(materialId);
+      const parsedProgress = parseFloat(progress);
+      const parsedActiveStage = parseInt(activeStage) || 0;
+      const parsedStageIndex = parseInt(stageIndex);
+      
+      // Convert stageProgress to JSON string if it's an object
+      const parsedStageProgress = typeof stageProgress === 'object' 
+        ? JSON.stringify(stageProgress)
+        : '{}';
+      
+      // Ensure completedStages is an array of integers
+      const parsedCompletedStages = Array.isArray(completedStages)
+        ? completedStages.map(stage => parseInt(stage))
+        : [];
+
+      // Get material details first
+      const material = await prisma.material.findUnique({
+        where: { id: parsedMaterialId },
+        include: {
+          subcategory: {
+            include: {
+              category: true
+            }
+          },
+          stages: true
         }
       });
 
-      // If material is completed, update user stats and points
-      if (completed) {
-        // Get material details
-        const material = await prisma.material.findUnique({
-          where: { id: parseInt(materialId) },
-          include: {
-            subcategory: true
-          }
+      if (!material) {
+        console.log('❌ Material not found:', materialId);
+        return res.status(404).json({
+          success: false,
+          error: 'Material not found'
         });
-
-        // Get user's current data
-        const user = await prisma.user.findUnique({
-          where: { id: parseInt(userId) },
-          select: {
-            lastStudyDate: true,
-            studyStreak: true,
-            totalXP: true,
-            level: true,
-            rank: true
-          }
-        });
-
-        // Calculate new XP and level
-        const newTotalXP = user.totalXP + material.xp_reward;
-        const levelInfo = calculateLevel(newTotalXP);
-        const newRank = calculateRank(levelInfo.level);
-
-        // Create XP notification
-        await createNotification(userId, 'XP_EARNED', 
-          `Selamat! Anda mendapatkan ${material.xp_reward} XP dari materi "${material.title}"`,
-          { xp: material.xp_reward, materialTitle: material.title }
-        );
-
-        // Check level up
-        if (levelInfo.level > user.level) {
-          await createNotification(userId, 'LEVEL_UP',
-            `Selamat! Anda naik ke Level ${levelInfo.level}`,
-            { oldLevel: user.level, newLevel: levelInfo.level }
-          );
-        }
-
-        // Check rank change
-        if (newRank !== user.rank) {
-          await createNotification(userId, 'RANK_UP',
-            `Selamat! Anda naik ke rank ${newRank}`,
-            { oldRank: user.rank, newRank: newRank }
-          );
-        }
-
-        // Calculate streak
-        const now = new Date();
-        const lastStudy = user.lastStudyDate;
-        let newStreak = user.studyStreak;
-
-        if (lastStudy) {
-          const lastStudyDay = new Date(lastStudy).setHours(0, 0, 0, 0);
-          const today = new Date(now).setHours(0, 0, 0, 0);
-          const diffDays = Math.floor((today - lastStudyDay) / (1000 * 60 * 60 * 24));
-
-          if (diffDays > 1) {
-            newStreak = 1;
-          } else if (diffDays === 1) {
-            newStreak += 1;
-            // Notifikasi untuk streak baru
-            await createNotification(userId, 'STREAK_UPDATE',
-              `Hebat! Anda telah belajar ${newStreak} hari berturut-turut!`,
-              { streak: newStreak }
-            );
-          }
-        } else {
-          newStreak = 1;
-          await createNotification(userId, 'STREAK_START',
-            'Selamat datang! Anda telah memulai streak belajar!',
-            { streak: 1 }
-          );
-        }
-
-        // Update user stats
-        await prisma.user.update({
-          where: { id: parseInt(userId) },
-          data: {
-            totalXP: newTotalXP,
-            level: levelInfo.level,
-            rank: newRank,
-            completedMaterials: { increment: 1 },
-            lastStudyDate: now,
-            studyStreak: newStreak,
-            weeklyStudyTime: { increment: material.estimated_time },
-            monthlyStudyTime: { increment: material.estimated_time },
-            totalStudyTime: { increment: material.estimated_time }
-          }
-        });
-
-        // Create point record
-        await prisma.point.create({
-          data: {
-            userId: parseInt(userId),
-            materialId: parseInt(materialId),
-            value: material.xp_reward,
-            categoryId: material.subcategory.categoryId,
-            subcategoryId: material.subcategoryId
-          }
-        });
-
-        console.log(`Updated stats and created points for user ${userId}, new level: ${levelInfo.level}, new rank: ${newRank}`);
       }
 
-      res.json({
-        success: true,
-        data: updatedProgress,
-        message: completed ? 'Progress updated and rewards given' : 'Progress updated'
+      if (!material.subcategory?.categoryId || !material.subcategoryId) {
+        console.log('❌ Material is missing category or subcategory:', {
+          categoryId: material.subcategory?.categoryId,
+          subcategoryId: material.subcategoryId
+        });
+        return res.status(400).json({
+          success: false,
+          error: 'Material is missing required category information'
+        });
+      }
+
+      console.log('📚 Material found:', {
+        id: material.id,
+        title: material.title,
+        xp_reward: material.xp_reward,
+        stages: material.stages.length,
+        categoryId: material.subcategory.categoryId,
+        subcategoryId: material.subcategoryId
       });
+
+      // Calculate XP per stage
+      const stageXP = Math.floor(material.xp_reward / material.stages.length);
+      console.log('💰 XP per stage:', stageXP);
+
+      try {
+        // Start transaction
+        const result = await prisma.$transaction(async (prisma) => {
+          console.log('🔄 Starting transaction...');
+
+          // Update progress
+          const updatedProgress = await prisma.materialProgress.upsert({
+            where: {
+              userId_materialId: {
+                userId: parsedUserId,
+                materialId: parsedMaterialId
+              }
+            },
+            update: {
+              progress: parsedProgress,
+              completed,
+              lastAccessed: new Date(),
+              stageProgress: parsedStageProgress,
+              completedStages: parsedCompletedStages,
+              activeStage: parsedActiveStage
+            },
+            create: {
+              userId: parsedUserId,
+              materialId: parsedMaterialId,
+              progress: parsedProgress,
+              completed,
+              lastAccessed: new Date(),
+              stageProgress: parsedStageProgress,
+              completedStages: parsedCompletedStages,
+              activeStage: parsedActiveStage
+            }
+          });
+
+          console.log('✅ Progress updated:', updatedProgress);
+
+          // Check if this stage was just completed (100% progress)
+          const currentStageProgress = stageProgress?.[parsedStageIndex];
+          const isStageCompleted = currentStageProgress === 100 && 
+            !parsedCompletedStages.includes(parsedStageIndex);
+
+          // Create point record for newly completed stage
+          if (isStageCompleted) {
+            console.log('🎯 Creating point record for completed stage:', {
+              stageIndex: parsedStageIndex,
+              userId: parsedUserId,
+              materialId: parsedMaterialId,
+              categoryId: material.subcategory.categoryId,
+              subcategoryId: material.subcategoryId,
+              xp: stageXP
+            });
+
+            try {
+              const point = await prisma.point.create({
+                data: {
+                  userId: parsedUserId,
+                  materialId: parsedMaterialId,
+                  categoryId: material.subcategory.categoryId,
+                  subcategoryId: material.subcategoryId,
+                  value: stageXP
+                }
+              });
+
+              console.log('💰 Point record created:', point);
+
+              // Update user's total points and XP
+              const updatedUser = await prisma.user.update({
+                where: { id: parsedUserId },
+                data: {
+                  totalPoints: {
+                    increment: stageXP
+                  },
+                  totalXP: {
+                    increment: stageXP
+                  }
+                }
+              });
+
+              console.log('👤 User stats updated:', {
+                userId: updatedUser.id,
+                totalPoints: updatedUser.totalPoints,
+                totalXP: updatedUser.totalXP
+              });
+
+              // Create notification for stage completion
+              await createNotification(parsedUserId, 'XP_EARNED',
+                `Selamat! Anda mendapatkan ${stageXP} XP dari stage ${parsedStageIndex + 1} materi "${material.title}"`,
+                { xp: stageXP, materialTitle: material.title, stage: parsedStageIndex + 1 }
+              );
+
+              console.log('🔔 Notification created for stage completion');
+            } catch (pointError) {
+              console.error('❌ Error creating point:', pointError);
+              throw new Error(`Failed to create point: ${pointError.message}`);
+            }
+          }
+
+          return updatedProgress;
+        });
+
+        console.log('✅ Transaction completed successfully');
+
+        // Prepare response data
+        const responseData = {
+          ...result,
+          stageProgress: JSON.parse(result.stageProgress || '{}'),
+          completedStages: result.completedStages || [],
+          activeStage: result.activeStage || 0
+        };
+
+        console.log('📤 Sending response:', responseData);
+
+        res.json({
+          success: true,
+          data: responseData
+        });
+      } catch (txError) {
+        console.error('❌ Transaction failed:', txError);
+        throw new Error(`Transaction failed: ${txError.message}`);
+      }
     } catch (error) {
-      console.error('Error in updateProgress:', error);
+      console.error('❌ Error in updateProgress:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to update progress',
-        message: error.message
+        message: error.message,
+        details: error.stack
       });
     }
   },

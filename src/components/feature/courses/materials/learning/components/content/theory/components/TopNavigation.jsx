@@ -1,13 +1,67 @@
-import { FiArrowLeft, FiClock, FiAward } from 'react-icons/fi';
+import { FiArrowLeft, FiClock, FiAward, FiZap } from 'react-icons/fi';
 import { RiBrainLine } from 'react-icons/ri';
+import { useState, useEffect } from 'react';
 
-const TopNavigation = ({ section, onBack, show, material }) => {
+const TopNavigation = ({ section, onBack, show, material, earnedPoints }) => {
+  const [showPointNotification, setShowPointNotification] = useState(false);
+  const [lastEarnedPoints, setLastEarnedPoints] = useState(0);
+
+  // Show notification when points are earned
+  useEffect(() => {
+    if (earnedPoints > 0 && earnedPoints !== lastEarnedPoints) {
+      setLastEarnedPoints(earnedPoints);
+      setShowPointNotification(true);
+      
+      // Hide notification after 3 seconds
+      const timer = setTimeout(() => {
+        setShowPointNotification(false);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [earnedPoints]);
+
+  // Calculate stage XP
+  const calculateStageXP = () => {
+    if (!material?.xp_reward || !material?.stages?.length) return 0;
+    
+    const baseXP = Math.floor(material.xp_reward / material.stages.length);
+    const remainder = material.xp_reward % material.stages.length;
+    
+    // Get current stage index
+    const stageIndex = section?.order ? section.order - 1 : 0;
+    
+    // Add remainder to last stage
+    if (stageIndex === material.stages.length - 1) {
+      return baseXP + remainder;
+    }
+    return baseXP;
+  };
+
+  const stageXP = calculateStageXP();
+
   return (
     <div className={`
       fixed top-0 left-0 right-0 z-50
       transition-all duration-300
       ${show ? 'translate-y-0' : '-translate-y-full'}
     `}>
+      {/* Point Notification */}
+      <div className={`
+        absolute top-full left-1/2 -translate-x-1/2 mt-4
+        px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-500/20 to-yellow-600/20
+        border border-yellow-500/20 backdrop-blur-sm
+        transition-all duration-300 transform
+        ${showPointNotification ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'}
+      `}>
+        <div className="flex items-center gap-3">
+          <FiZap className="w-5 h-5 text-yellow-400" />
+          <span className="text-yellow-400 font-medium">
+            +{stageXP} XP Diperoleh!
+          </span>
+        </div>
+      </div>
+
       {/* Top Bar */}
       <div className="h-20 bg-black/80 backdrop-blur-lg border-b border-white/[0.05]">
         <div className="h-full max-w-[2000px] mx-auto px-4 lg:px-8 flex items-center justify-between">
@@ -23,11 +77,23 @@ const TopNavigation = ({ section, onBack, show, material }) => {
               <h2 className="font-medium text-white">
                 {section?.title || 'Loading...'}
               </h2>
+            
             </div>
           </div>
 
           {/* Right Side - Stats */}
           <div className="flex items-center gap-6">
+            {/* Stage XP */}
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center">
+                <FiZap className="w-4 h-4 text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">Stage XP</p>
+                <p className="text-sm text-white/60">{stageXP} XP</p>
+              </div>
+            </div>
+
             {/* Estimated Time */}
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center">
@@ -39,13 +105,13 @@ const TopNavigation = ({ section, onBack, show, material }) => {
               </div>
             </div>
 
-            {/* XP Reward */}
+            {/* Total XP Reward */}
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center">
                 <FiAward className="w-4 h-4 text-purple-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">XP Reward</p>
+                <p className="text-sm font-medium text-white">Total XP</p>
                 <p className="text-sm text-white/60">{material?.xp_reward || 0} XP</p>
               </div>
             </div>

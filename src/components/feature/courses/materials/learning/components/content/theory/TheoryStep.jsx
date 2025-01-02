@@ -1,4 +1,4 @@
-import { useState, Suspense, useEffect, useRef, lazy } from 'react';
+import { useState, Suspense, useEffect, useRef, lazy, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiMenu } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
@@ -19,123 +19,216 @@ const TheoryStep = ({ material }) => {
   const [showLeftSidebar, setShowLeftSidebar] = useState(false);
   const [showNav, setShowNav] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [materialProgress, setMaterialProgress] = useState(null);
+  const [completedStages, setCompletedStages] = useState(new Set());
+  const [stageProgress, setStageProgress] = useState({});
+  const [earnedPoints, setEarnedPoints] = useState(0);
   const mainContentRef = useRef(null);
   
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
   const { user } = useAuth();
 
-  // Update progress in backend
-  const updateProgressInBackend = async (newProgress, isCompleted = false, isStageCompleted = false) => {
-    try {
-      // Update material progress
-      const response = await fetch(`http://localhost:3000/api/progress/material/${user.id}/${material.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          progress: newProgress,
-          completed: isCompleted
-        })
-      });
+  const currentStage = material?.stages?.[activeSection];
+  const sortedContents = currentStage?.contents?.sort((a, b) => a.order - b.order) || [];
 
-      const data = await response.json();
-      if (!data.success) {
-        console.error('Failed to update progress:', data.error);
-        return;
-      }
+  // Initialize material data
+  useEffect(() => {
+    if (!material?.id) return;
+    
+    console.log('📚 Material data loaded:', {
+      id: material.id,
+      title: material.title,
+      xp_reward: material.xp_reward,
+      stages: material.stages?.length
+    });
 
-      // If stage is completed, create point record
-      if (isStageCompleted && material?.subcategoryId) {
-        const pointResponse = await fetch('http://localhost:3000/api/points', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            userId: user.id,
-            materialId: material.id,
-            categoryId: parseInt(categoryId),
-            subcategoryId: material.subcategoryId,
-            value: Math.floor(material.xp_reward / material.stages.length) // Distribute XP evenly across stages
-          })
-        });
+    // Initialize stage progress
+    const initialProgress = {};
+    material.stages?.forEach((_, index) => {
+      initialProgress[index] = {
+        progress: 0,
+        contents: {}
+      };
+    });
+    setStageProgress(initialProgress);
+  }, [material]);
 
-        const pointData = await pointResponse.json();
-        if (!pointData.success) {
-          console.error('Failed to create point record:', pointData.error);
-        }
-      }
-    } catch (error) {
-      console.error('Error updating progress:', error);
-    }
-  };
-
-  // Load initial progress
+  // Load saved progress
   useEffect(() => {
     const loadProgress = async () => {
+      if (!user?.id || !material?.id) return;
+
       try {
+        console.log('🔄 Loading progress for material:', material.id);
         const response = await fetch(`http://localhost:3000/api/progress/material/${user.id}/${material.id}`);
+        if (!response.ok) {
+          throw new Error('Failed to load progress');
+        }
         const data = await response.json();
+        
         if (data.success && data.data) {
-          // Set initial position based on saved progress
-          if (data.data.progress > 0) {
-            const totalProgress = data.data.progress / 100;
-            let remainingProgress = totalProgress;
-            
-            for (let i = 0; i < material.stages.length; i++) {
-              const stageContents = material.stages[i].contents?.length || 0;
-              const stageProgress = stageContents / material.stages.reduce((acc, stage) => 
-                acc + (stage.contents?.length || 0), 0);
+          console.log('✅ Progress data:', data.data);
+          
+          // Update material progress
+          setMaterialProgress(data.data);
+          
+          // Restore stage progress
+          if (data.data.stageProgress) {
+            const parsedProgress = typeof data.data.stageProgress === 'string' 
+              ? JSON.parse(data.data.stageProgress)
+              : data.data.stageProgress;
               
-              if (remainingProgress <= stageProgress) {
-                setActiveSection(i);
-                setActiveContentIndex(Math.floor((remainingProgress / stageProgress) * stageContents));
-                break;
-              }
-              remainingProgress -= stageProgress;
-            }
+            setStageProgress(parsedProgress);
+            
+            // Update completed stages
+            const completed = new Set(
+              Array.isArray(data.data.completedStages)
+                ? data.data.completedStages
+                : Object.entries(parsedProgress)
+                    .filter(([_, progress]) => progress.progress === 100)
+                    .map(([index]) => parseInt(index))
+            );
+            setCompletedStages(completed);
+            
+            console.log('📊 Restored progress:', {
+              stageProgress: parsedProgress,
+              completedStages: Array.from(completed)
+            });
+          }
+          
+          // Restore position
+          if (data.data.activeSection !== undefined) {
+            setActiveSection(data.data.activeSection);
+          }
+          if (data.data.activeContentIndex !== undefined) {
+            setActiveContentIndex(data.data.activeContentIndex);
           }
         }
       } catch (error) {
-        console.error('Error loading progress:', error);
+        console.error('❌ Error loading progress:', error);
       }
     };
 
-    if (user?.id && material?.id) {
-      loadProgress();
-    }
+    loadProgress();
   }, [user?.id, material?.id]);
 
-  // Handle progress updates when navigation occurs
-  useEffect(() => {
+  // Update progress when content changes
+  const handleProgressUpdate = useCallback((progress) => {
     if (!user?.id || !material?.id) return;
 
-    const currentStage = material.stages[activeSection];
-    if (!currentStage?.contents) return;
+    // Update stage progress
+    const newStageProgress = {
+      ...stageProgress,
+      [activeSection]: {
+        progress,
+        contents: {
+          ...(stageProgress[activeSection]?.contents || {}),
+          [activeContentIndex]: progress
+        }
+      }
+    };
+    setStageProgress(newStageProgress);
 
-    const totalContents = material.stages.reduce((acc, stage) => 
-      acc + (stage.contents?.length || 0), 0);
-    
-    let completedContents = 0;
-    for (let i = 0; i < activeSection; i++) {
-      completedContents += material.stages[i].contents?.length || 0;
-    }
-    completedContents += activeContentIndex + 1;
+    console.log('📈 Progress update:', {
+      stage: activeSection,
+      content: activeContentIndex,
+      progress,
+      stageProgress: newStageProgress
+    });
 
-    const newProgress = Math.min((completedContents / totalContents) * 100, 100);
-    
-    const isLastContent = activeContentIndex === (currentStage.contents.length - 1);
-    const isLastSection = activeSection === (material.stages.length - 1);
-    const isCompleted = isLastContent && isLastSection;
-    
-    // Check if stage is completed
-    const isStageCompleted = isLastContent && 
-      activeContentIndex === currentStage.contents.length - 1;
+    // Save progress to backend
+    fetch(`http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stageIndex: activeSection,
+        contentIndex: activeContentIndex,
+        contentProgress: progress,
+        completedStages: Array.from(completedStages)
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(err => Promise.reject(err));
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        console.log('✅ Progress saved:', data);
+        
+        // Update material progress
+        setMaterialProgress(data.data);
 
-    updateProgressInBackend(newProgress, isCompleted, isStageCompleted);
-  }, [activeSection, activeContentIndex]);
+        // Parse stage progress if it's a string
+        const parsedStageProgress = typeof data.data.stageProgress === 'string' 
+          ? JSON.parse(data.data.stageProgress) 
+          : data.data.stageProgress;
+
+        // Update stage progress state
+        setStageProgress(parsedStageProgress);
+
+        // Check if stage is completed
+        if (parsedStageProgress[activeSection]?.progress === 100 && 
+            !completedStages.has(activeSection)) {
+          const newCompletedStages = new Set(completedStages);
+          newCompletedStages.add(activeSection);
+          setCompletedStages(newCompletedStages);
+
+          // Calculate XP reward
+          const stageXP = Math.floor(material.xp_reward / material.stages.length);
+          const isLastStage = activeSection === material.stages.length - 1;
+          const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
+          const totalStageXP = stageXP + remainderXP;
+
+          console.log('⭐ Stage completed:', {
+            stage: activeSection,
+            xp: totalStageXP,
+            isLastStage,
+            totalXP: material.xp_reward
+          });
+
+          // Create point record
+          fetch('http://localhost:3000/api/points', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              materialId: material.id,
+              categoryId: parseInt(categoryId),
+              subcategoryId: parseInt(subcategoryId),
+              value: totalStageXP,
+              stageIndex: activeSection
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data.success) {
+              console.log('💰 Points awarded:', data);
+              setEarnedPoints(totalStageXP);
+            } else {
+              throw new Error(data.error || 'Failed to award points');
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error creating points:', error);
+            // Don't block the UI for points error
+          });
+        }
+      }
+    })
+    .catch(error => {
+      console.error('❌ Error saving progress:', error);
+      // Optionally show error to user
+      // toast.error('Failed to save progress. Please try again.');
+    });
+  }, [activeSection, activeContentIndex, completedStages, material, stageProgress, user?.id, categoryId, subcategoryId]);
 
   // Handle scroll behavior
   useEffect(() => {
@@ -164,9 +257,6 @@ const TheoryStep = ({ material }) => {
   const handleBackToMaterials = () => {
     navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/materials`);
   };
-
-  const currentStage = material?.stages?.[activeSection];
-  const sortedContents = currentStage?.contents?.sort((a, b) => a.order - b.order) || [];
 
   const handleNext = () => {
     if (!currentStage?.contents?.length) return;
@@ -201,6 +291,7 @@ const TheoryStep = ({ material }) => {
           onBack={handleBackToMaterials}
           show={showNav}
           material={material}
+          earnedPoints={earnedPoints}
         />
       </div>
 
@@ -218,8 +309,12 @@ const TheoryStep = ({ material }) => {
               <SectionsList 
                 material={material}
                 activeSection={activeSection}
+                materialProgress={materialProgress}
+                completedStages={completedStages}
+                stageProgress={stageProgress}
                 onSectionChange={(index) => {
                   setActiveSection(index);
+                  setActiveContentIndex(0);
                   setShowLeftSidebar(false);
                 }}
               />
@@ -297,6 +392,8 @@ const TheoryStep = ({ material }) => {
                     onNextStage={handleNext}
                     currentContentIndex={activeContentIndex}
                     onContentChange={setActiveContentIndex}
+                    savedContentIndex={materialProgress?.activeContentIndex}
+                    onProgressUpdate={handleProgressUpdate}
                   />
                 )}
               </div>
