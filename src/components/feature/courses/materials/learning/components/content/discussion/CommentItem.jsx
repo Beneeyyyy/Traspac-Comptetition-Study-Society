@@ -245,11 +245,11 @@ const CommentItem = ({
                 <span className="text-sm font-medium">Answer</span>
               </button>
 
-              {isResolved && (
+              {comment.resolvedReplyId && comment.resolvedReply && comment.resolvedReply.user && (
                 <div className="flex items-center gap-2 text-green-500">
                   <span className="w-2 h-2 rounded-full bg-green-500"></span>
                   <span className="text-sm font-medium">
-                    Solved by {resolvedReply?.user?.name || 'Unknown'}
+                    Solved by {comment.resolvedReply.user.name}
                   </span>
                 </div>
               )}

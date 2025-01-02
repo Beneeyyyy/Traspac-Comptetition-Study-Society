@@ -173,8 +173,7 @@ const ReplyList = ({ discussionId, replies: initialReplies, currentUser, isCreat
               {/* Solution Button or Status - Positioned at top right */}
               {isCreator && 
                reply.userId !== currentUser?.id && 
-               !resolvedReply && 
-               !reply.isResolved && (
+               !resolvedReply && (
                 <button
                   onClick={() => handleResolve(discussionId, reply.id)}
                   className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-white/40 hover:text-green-500 transition-colors bg-white/[0.02] hover:bg-white/[0.05] rounded-lg border border-white/[0.05]"
