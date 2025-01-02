@@ -8,45 +8,16 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const DiscussionPanel = ({ materialId }) => {
   const auth = useAuth();
-  const { user: currentUser, loading } = auth || { user: null, loading: true };
+  const { user: currentUser, loading: authLoading } = auth || { user: null, loading: true };
   const [discussions, setDiscussions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [newDiscussion, setNewDiscussion] = useState('');
   const [filter, setFilter] = useState('');
 
-  // Debug log untuk currentUser dan auth state
-  console.log('DiscussionPanel state:', {
-    currentUser,
-    loading,
-    isLoading,
-    discussionsCount: discussions.length,
-    error
-  });
-
-  if (loading) {
-    return (
-      <div className="bg-black/[0.02] border border-white/[0.05] rounded-xl p-8">
-        <div className="animate-pulse space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-32 bg-white/[0.02] rounded-lg" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return (
-      <div className="bg-black/[0.02] border border-white/[0.05] rounded-xl p-8">
-        <div className="text-center py-8">
-          <p className="text-white/40">Please log in to participate in discussions.</p>
-        </div>
-      </div>
-    );
-  }
-
   const fetchDiscussions = async () => {
+    if (!materialId) return;
+    
     try {
       setIsLoading(true);
       setError(null);
@@ -59,30 +30,31 @@ const DiscussionPanel = ({ materialId }) => {
         throw new Error(data.error || 'Failed to fetch discussions');
       }
 
-      // Debug log untuk discussions
-      console.log('Fetched discussions:', data.data.discussions);
+      console.log('=== fetchDiscussions Response ===');
+      console.log('Raw discussions data:', data.data.discussions);
 
-      // Ensure resolved state is properly set for all discussions and their replies
-      const discussionsWithResolvedState = data.data.discussions.map(discussion => ({
-        ...discussion,
-        replies: discussion.replies?.map(reply => ({
-          ...reply,
-          isResolved: reply.id === discussion.resolvedReplyId || reply.isResolved
-        }))
-      }));
+      const discussionsWithResolvedState = data.data.discussions.map(discussion => {
+        console.log(`Discussion ${discussion.id} isLiked:`, discussion.isLiked);
+        console.log(`Discussion ${discussion.id} likes count:`, discussion._count?.likes);
+        
+        return {
+          ...discussion,
+          replies: discussion.replies?.map(reply => ({
+            ...reply,
+            isResolved: reply.id === discussion.resolvedReplyId || reply.isResolved
+          }))
+        };
+      });
 
+      console.log('Processed discussions:', discussionsWithResolvedState);
       setDiscussions(discussionsWithResolvedState);
     } catch (err) {
-      setError(err.message);
       console.error('Error fetching discussions:', err);
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchDiscussions();
-  }, [materialId, filter]);
 
   const handleSubmitDiscussion = async (e) => {
     e.preventDefault();
@@ -129,6 +101,9 @@ const DiscussionPanel = ({ materialId }) => {
 
   const handleLike = async (discussionId) => {
     try {
+      console.log('=== handleLike START ===');
+      console.log('Liking discussion:', discussionId);
+      
       const response = await fetch(`${API_URL}/api/discussions/discussion/${discussionId}/like`, {
         method: 'POST',
         headers: {
@@ -138,27 +113,25 @@ const DiscussionPanel = ({ materialId }) => {
       });
 
       const data = await response.json();
+      console.log('Like response:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to toggle like');
       }
 
-      // Update only the like status of the main discussion without affecting replies
-      setDiscussions(prevDiscussions => 
-        prevDiscussions.map(discussion => {
+      setDiscussions(prevDiscussions => {
+        const newDiscussions = prevDiscussions.map(discussion => {
           if (discussion.id === discussionId) {
-            return {
-              ...discussion,
-              isLiked: !discussion.isLiked,
-              _count: {
-                ...discussion._count,
-                likes: discussion.isLiked ? discussion._count.likes - 1 : discussion._count.likes + 1
-              }
-            };
+            console.log('Updating discussion:', discussion.id);
+            console.log('Old isLiked:', discussion.isLiked);
+            console.log('New isLiked:', data.data.isLiked);
+            return data.data;
           }
           return discussion;
-        })
-      );
+        });
+        console.log('Updated discussions:', newDiscussions);
+        return newDiscussions;
+      });
 
       return data.data;
     } catch (err) {
@@ -169,19 +142,16 @@ const DiscussionPanel = ({ materialId }) => {
 
   const handleResolve = async (discussionId, replyId) => {
     try {
-      console.log('DiscussionPanel handleResolve:', {
-        discussionId,
-        replyId,
-        currentUser
-      });
-
-      // Find the discussion
       const discussion = discussions.find(d => d.id === discussionId);
       if (!discussion) {
         throw new Error('Discussion not found');
       }
 
-      // Immediately update the UI to show resolved state
+      // Hanya pembuat diskusi yang bisa resolve
+      if (discussion.userId !== currentUser?.id) {
+        throw new Error('Only the discussion creator can resolve the discussion');
+      }
+
       setDiscussions(prevDiscussions => 
         prevDiscussions.map(discussion => {
           if (discussion.id === discussionId) {
@@ -211,16 +181,12 @@ const DiscussionPanel = ({ materialId }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        // If already resolved, keep the UI state
         if (data.error?.includes('already resolved')) {
           return;
         }
         throw new Error(data.error || 'Failed to resolve discussion');
       }
 
-      console.log('Discussion resolved successfully:', data);
-      
-      // Update with server data
       if (data.data) {
         setDiscussions(prevDiscussions => 
           prevDiscussions.map(discussion => 
@@ -236,7 +202,6 @@ const DiscussionPanel = ({ materialId }) => {
       }
     } catch (err) {
       console.error('Error resolving discussion:', err);
-      // Only revert UI if it's not an "already resolved" error
       if (!err.message?.includes('already resolved')) {
         setDiscussions(prevDiscussions => 
           prevDiscussions.map(discussion => {
@@ -255,20 +220,15 @@ const DiscussionPanel = ({ materialId }) => {
           })
         );
       }
+      // Tampilkan error dalam UI
+      setError(err.message);
     }
   };
 
-  if (isLoading && discussions.length === 0) {
-    return (
-      <div className="bg-black/[0.02] border border-white/[0.05] rounded-xl p-8">
-        <div className="animate-pulse space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-32 bg-white/[0.02] rounded-lg" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Fetch discussions immediately when component mounts and when filter changes
+  useEffect(() => {
+    fetchDiscussions();
+  }, [materialId, filter]);
 
   return (
     <div className="bg-black/[0.02] border border-white/[0.05] rounded-xl p-8">
@@ -302,27 +262,52 @@ const DiscussionPanel = ({ materialId }) => {
         </div>
       )}
 
-      {/* Discussion Form */}
-      <CommentForm
-        onSubmit={handleSubmitDiscussion}
-        newComment={newDiscussion}
-        setNewComment={setNewDiscussion}
-      />
+      {/* Comment Form Section - Moved to top */}
+      <div className="mb-8">
+        {!authLoading && (
+          <>
+            {currentUser ? (
+              <CommentForm
+                onSubmit={handleSubmitDiscussion}
+                newComment={newDiscussion}
+                setNewComment={setNewDiscussion}
+              />
+            ) : (
+              <div className="text-center py-4 bg-white/[0.02] rounded-lg">
+                <p className="text-white/40">Silakan login untuk berpartisipasi dalam diskusi</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Discussions List */}
       <div className="mt-6 space-y-6">
-        {discussions.map(discussion => (
-          <CommentItem
-            key={discussion.id}
-            comment={discussion}
-            onLike={handleLike}
-            onResolve={handleResolve}
-            currentUser={currentUser}
-          />
-        ))}
-        {discussions.length === 0 && !isLoading && (
+        {isLoading ? (
+          <div className="animate-pulse space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-32 bg-white/[0.02] rounded-lg" />
+            ))}
+          </div>
+        ) : discussions.length > 0 ? (
+          discussions.map(discussion => (
+            <CommentItem
+              key={discussion.id}
+              commentId={discussion.id}
+              userId={discussion.userId}
+              currentUserId={currentUser?.id}
+              isResolved={discussion.isResolved}
+              canResolve={currentUser?.id === discussion.userId && !discussion.isResolved}
+              initialReplies={discussion.replies}
+              isLiked={discussion.isLiked}
+              likeCount={discussion._count?.likes || 0}
+              onResolve={handleResolve}
+              onLike={handleLike}
+            />
+          ))
+        ) : (
           <div className="text-center py-8">
-            <p className="text-white/40">Belum ada diskusi. Mulai diskusi pertama!</p>
+            <p className="text-white/40">Belum ada diskusi untuk materi ini.</p>
           </div>
         )}
       </div>

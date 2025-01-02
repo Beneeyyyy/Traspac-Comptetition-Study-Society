@@ -271,16 +271,21 @@ const checkAuth = async (req, res, next) => {
 // Auth middleware for protected routes
 const requireAuth = async (req, res, next) => {
   try {
+    console.log('=== requireAuth START ===');
     const token = req.cookies.token;
+    console.log('Token exists:', !!token);
     
     if (!token) {
+      console.log('No token found');
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('Decoded token:', decoded);
     } catch (jwtError) {
+      console.log('JWT verification failed:', jwtError.message);
       return res.status(401).json({ 
         message: 'Authentication failed',
         error: jwtError.message 
@@ -300,14 +305,29 @@ const requireAuth = async (req, res, next) => {
       }
     });
 
+    console.log('Found user:', user ? {
+      id: user.id,
+      email: user.email,
+      name: user.name
+    } : 'No user found');
+
     if (!user) {
+      console.log('User not found in database');
       return res.status(401).json({ message: 'User not found' });
     }
 
     // Attach user to request object
     req.user = user;
+    console.log('Attached user to request:', {
+      id: req.user.id,
+      email: req.user.email,
+      name: req.user.name
+    });
+    console.log('=== requireAuth END ===');
     next();
   } catch (error) {
+    console.error('=== requireAuth ERROR ===');
+    console.error('Error:', error);
     next(error);
   }
 };

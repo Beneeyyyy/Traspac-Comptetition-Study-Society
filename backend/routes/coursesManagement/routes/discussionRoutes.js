@@ -3,14 +3,14 @@ const router = express.Router();
 const discussionController = require('../controllers/discussionController');
 const { requireAuth } = require('../../usersManagement/controllers/authController');
 
+// All routes need authentication
+router.use(requireAuth);
+
 // Get discussions for a material
 router.get('/material/:materialId', discussionController.getMaterialDiscussions);
 
 // Get single discussion with replies
 router.get('/:id', discussionController.getDiscussion);
-
-// Protected routes (need authentication)
-router.use(requireAuth);
 
 // Create new discussion
 router.post('/material/:materialId', discussionController.createDiscussion);

@@ -7,7 +7,17 @@ const discussionController = {
     try {
       const { materialId } = req.params;
       const { page = 1, limit = 10, filter } = req.query;
+      const userId = req.user?.id;
       const skip = (page - 1) * parseInt(limit);
+
+      console.log('=== getMaterialDiscussions START ===');
+      console.log('User ID:', userId);
+      console.log('User object:', req.user);
+      console.log('Material ID:', materialId);
+
+      if (!userId) {
+        console.log('No user ID found in request');
+      }
 
       // Build where clause
       const where = {
@@ -44,7 +54,12 @@ const discussionController = {
                 }
               }
             }
-          }
+          },
+          likes: userId ? {
+            where: {
+              userId: parseInt(userId)
+            }
+          } : undefined
         },
         orderBy: {
           createdAt: 'desc'
@@ -53,13 +68,47 @@ const discussionController = {
         skip
       });
 
+      console.log('Raw discussions:', discussions.map(d => ({
+        id: d.id,
+        likes: d.likes,
+        likesCount: d._count.likes,
+        userId: userId
+      })));
+
+      // Add isLiked field and format response
+      const discussionsWithLikes = discussions.map(discussion => {
+        // Remove likes array after checking
+        const isLiked = discussion.likes?.length > 0;
+        const { likes, ...discussionWithoutLikes } = discussion;
+        
+        console.log(`Discussion ${discussion.id}:`, {
+          hasLikes: !!discussion.likes,
+          likesLength: discussion.likes?.length,
+          isLiked,
+          likesCount: discussion._count.likes,
+          userId: userId
+        });
+
+        return {
+          ...discussionWithoutLikes,
+          isLiked
+        };
+      });
+
+      console.log('Processed discussions:', discussionsWithLikes.map(d => ({
+        id: d.id,
+        isLiked: d.isLiked,
+        likesCount: d._count.likes,
+        userId: userId
+      })));
+
       // Get total count
       const total = await prisma.discussion.count({ where });
 
       res.json({
         success: true,
         data: {
-          discussions,
+          discussions: discussionsWithLikes,
           meta: {
             total,
             page: parseInt(page),
@@ -506,42 +555,105 @@ const discussionController = {
   toggleLike: async (req, res) => {
     try {
       const { type, id } = req.params; // type: 'discussion' or 'reply'
-      const userId = req.user.id;
+      const userId = req.user?.id;
+
+      console.log('=== toggleLike START ===');
+      console.log('User ID:', userId);
+      console.log('User object:', req.user);
+      console.log('Type:', type);
+      console.log('ID:', id);
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+      }
 
       const where = {
-        userId,
+        userId: parseInt(userId),
         ...(type === 'discussion' ? { discussionId: parseInt(id) } : { replyId: parseInt(id) })
       };
+
+      console.log('Looking for existing like with:', where);
 
       // Check if like exists
       const existingLike = await prisma.like.findFirst({
         where: {
-          userId,
+          userId: parseInt(userId),
           ...(type === 'discussion' ? { discussionId: parseInt(id) } : { replyId: parseInt(id) })
         }
       });
 
+      console.log('Existing like:', existingLike);
+
       if (existingLike) {
         // Unlike
+        console.log('Deleting like:', existingLike.id);
         await prisma.like.delete({
           where: { id: existingLike.id }
         });
-
-        res.json({
-          success: true,
-          message: `${type} unliked successfully`
-        });
       } else {
         // Like
+        console.log('Creating new like with:', where);
         await prisma.like.create({
           data: where
         });
-
-        res.json({
-          success: true,
-          message: `${type} liked successfully`
-        });
       }
+
+      // Get updated discussion data
+      const updatedDiscussion = await prisma.discussion.findUnique({
+        where: {
+          id: parseInt(id)
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              rank: true
+            }
+          },
+          _count: {
+            select: {
+              replies: true,
+              likes: true
+            }
+          },
+          likes: {
+            where: {
+              userId: parseInt(userId)
+            }
+          }
+        }
+      });
+
+      console.log('Updated discussion:', {
+        id: updatedDiscussion.id,
+        likes: updatedDiscussion.likes,
+        likesCount: updatedDiscussion._count.likes
+      });
+
+      // Add isLiked field and format response
+      const formattedDiscussion = {
+        ...updatedDiscussion,
+        isLiked: updatedDiscussion.likes?.length > 0,
+        likeCount: updatedDiscussion._count.likes
+      };
+      delete formattedDiscussion.likes;
+
+      console.log('Formatted discussion:', {
+        id: formattedDiscussion.id,
+        isLiked: formattedDiscussion.isLiked,
+        likeCount: formattedDiscussion.likeCount
+      });
+
+      res.json({
+        success: true,
+        message: existingLike ? `${type} unliked successfully` : `${type} liked successfully`,
+        data: formattedDiscussion
+      });
     } catch (error) {
       console.error('Error in toggleLike:', error);
       
@@ -551,7 +663,7 @@ const discussionController = {
         try {
           const existingLike = await prisma.like.findFirst({
             where: {
-              userId: req.user.id,
+              userId: parseInt(req.user?.id),
               ...(req.params.type === 'discussion' 
                 ? { discussionId: parseInt(req.params.id) } 
                 : { replyId: parseInt(req.params.id) })
