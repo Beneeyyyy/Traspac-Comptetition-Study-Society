@@ -1,5 +1,5 @@
-import { FiArrowLeft, FiClock, FiAward, FiX } from 'react-icons/fi';
-import { RiBrainLine, RiFlashlightLine } from 'react-icons/ri';
+import { FiArrowLeft, FiClock, FiAward } from 'react-icons/fi';
+import { RiBrainLine } from 'react-icons/ri';
 
 const TopNavigation = ({ section, onBack, show, material }) => {
   return (
@@ -23,7 +23,6 @@ const TopNavigation = ({ section, onBack, show, material }) => {
               <h2 className="font-medium text-white">
                 {section?.title || 'Loading...'}
               </h2>
-            
             </div>
           </div>
 

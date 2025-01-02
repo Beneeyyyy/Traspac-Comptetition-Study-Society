@@ -2,6 +2,7 @@ import { useState, Suspense, useEffect, useRef, lazy } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiMenu } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
+import { useAuth } from '../../../../../../../../context/AuthContext';
 
 // Lazy load components
 const TopNavigation = lazy(() => import('./components/TopNavigation'));
@@ -22,6 +23,119 @@ const TheoryStep = ({ material }) => {
   
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
+  const { user } = useAuth();
+
+  // Update progress in backend
+  const updateProgressInBackend = async (newProgress, isCompleted = false, isStageCompleted = false) => {
+    try {
+      // Update material progress
+      const response = await fetch(`http://localhost:3000/api/progress/material/${user.id}/${material.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          progress: newProgress,
+          completed: isCompleted
+        })
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        console.error('Failed to update progress:', data.error);
+        return;
+      }
+
+      // If stage is completed, create point record
+      if (isStageCompleted && material?.subcategoryId) {
+        const pointResponse = await fetch('http://localhost:3000/api/points', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            materialId: material.id,
+            categoryId: parseInt(categoryId),
+            subcategoryId: material.subcategoryId,
+            value: Math.floor(material.xp_reward / material.stages.length) // Distribute XP evenly across stages
+          })
+        });
+
+        const pointData = await pointResponse.json();
+        if (!pointData.success) {
+          console.error('Failed to create point record:', pointData.error);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating progress:', error);
+    }
+  };
+
+  // Load initial progress
+  useEffect(() => {
+    const loadProgress = async () => {
+      try {
+        const response = await fetch(`http://localhost:3000/api/progress/material/${user.id}/${material.id}`);
+        const data = await response.json();
+        if (data.success && data.data) {
+          // Set initial position based on saved progress
+          if (data.data.progress > 0) {
+            const totalProgress = data.data.progress / 100;
+            let remainingProgress = totalProgress;
+            
+            for (let i = 0; i < material.stages.length; i++) {
+              const stageContents = material.stages[i].contents?.length || 0;
+              const stageProgress = stageContents / material.stages.reduce((acc, stage) => 
+                acc + (stage.contents?.length || 0), 0);
+              
+              if (remainingProgress <= stageProgress) {
+                setActiveSection(i);
+                setActiveContentIndex(Math.floor((remainingProgress / stageProgress) * stageContents));
+                break;
+              }
+              remainingProgress -= stageProgress;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading progress:', error);
+      }
+    };
+
+    if (user?.id && material?.id) {
+      loadProgress();
+    }
+  }, [user?.id, material?.id]);
+
+  // Handle progress updates when navigation occurs
+  useEffect(() => {
+    if (!user?.id || !material?.id) return;
+
+    const currentStage = material.stages[activeSection];
+    if (!currentStage?.contents) return;
+
+    const totalContents = material.stages.reduce((acc, stage) => 
+      acc + (stage.contents?.length || 0), 0);
+    
+    let completedContents = 0;
+    for (let i = 0; i < activeSection; i++) {
+      completedContents += material.stages[i].contents?.length || 0;
+    }
+    completedContents += activeContentIndex + 1;
+
+    const newProgress = Math.min((completedContents / totalContents) * 100, 100);
+    
+    const isLastContent = activeContentIndex === (currentStage.contents.length - 1);
+    const isLastSection = activeSection === (material.stages.length - 1);
+    const isCompleted = isLastContent && isLastSection;
+    
+    // Check if stage is completed
+    const isStageCompleted = isLastContent && 
+      activeContentIndex === currentStage.contents.length - 1;
+
+    updateProgressInBackend(newProgress, isCompleted, isStageCompleted);
+  }, [activeSection, activeContentIndex]);
 
   // Handle scroll behavior
   useEffect(() => {

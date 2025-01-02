@@ -13,10 +13,27 @@ const IntroductionStep = ({ material, onComplete }) => {
     return material.glossary.filter(item => Array.isArray(item) && item.length === 2);
   }, [material]);
 
-  // Ensure stages is always an array
+  // Ensure stages is always an array and add proper status
   const stages = useMemo(() => {
     if (!Array.isArray(material?.stages)) return [];
-    return material.stages;
+    
+    // Find current stage index (first incomplete stage)
+    const currentStageIndex = material.stages.findIndex(stage => !stage.completed);
+    
+    return material.stages.map((stage, index) => {
+      // Calculate darkness level for locked stages
+      // Each subsequent locked stage gets 10% darker
+      const darknessLevel = index > currentStageIndex 
+        ? Math.min(90, 40 + ((index - currentStageIndex - 1) * 10))
+        : 0;
+      
+      return {
+        ...stage,
+        status: index === currentStageIndex ? 'current' : 'locked',
+        opacity: index < currentStageIndex ? 'opacity-100' : `opacity-${100 - darknessLevel}`,
+        darknessLevel
+      };
+    });
   }, [material]);
 
   const filteredGlossary = useMemo(() => {
@@ -83,6 +100,7 @@ const IntroductionStep = ({ material, onComplete }) => {
                   <StageCard 
                     key={stage.id} 
                     stage={stage} 
+                    material={material}
                     onComplete={onComplete}
                   />
                 ))}
