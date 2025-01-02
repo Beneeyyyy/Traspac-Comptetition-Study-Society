@@ -71,28 +71,56 @@ const ReplyList = ({ discussionId, replies: initialReplies, currentUser, isCreat
   };
 
   const handleResolve = async (discussionId, replyId) => {
+    console.log('=== handleResolve START ===');
+    console.log('Resolving reply:', { discussionId, replyId });
+    console.log('API URL:', `${API_URL}/api/discussions/${discussionId}/resolve/${replyId}`);
+    
     try {
       const response = await fetch(`${API_URL}/api/discussions/${discussionId}/resolve/${replyId}`, {
-        method: 'POST',
+        method: 'PUT', // Changed to PUT as per backend route
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         credentials: 'include',
         body: JSON.stringify({ pointAmount: 10 }) // Default point amount
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to mark as solution');
+      console.log('Response status:', response.status);
+      
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Invalid response type:', contentType);
+        throw new Error('Invalid response type from server');
       }
 
       const data = await response.json();
-      if (data.success && onResolve) {
-        onResolve(discussionId, replyId);
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to mark as solution');
+      }
+
+      if (data.success || data.data) {
+        console.log('Reply marked as solution successfully');
+        // Update the local state to reflect the change
+        setReplies(prevReplies =>
+          prevReplies.map(reply => ({
+            ...reply,
+            isResolved: reply.id === replyId
+          }))
+        );
+        // Call the parent's onResolve callback
+        if (onResolve) {
+          onResolve(discussionId, replyId);
+        }
       }
     } catch (err) {
       console.error('Error marking as solution:', err);
+      setError(err.message || 'Failed to mark as solution');
     }
+    console.log('=== handleResolve END ===');
   };
 
   return (

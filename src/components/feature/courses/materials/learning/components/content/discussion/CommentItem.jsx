@@ -23,6 +23,7 @@ const CommentItem = ({
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [error, setError] = useState(null);
+  const [replyCount, setReplyCount] = useState(comment._count?.replies || 0);
 
   // Find the resolved reply
   const resolvedReply = replies.find(reply => reply.isResolved);
@@ -38,15 +39,17 @@ const CommentItem = ({
       canResolve,
       initialReplies,
       initialIsLiked,
-      initialLikeCount
+      initialLikeCount,
+      replyCount: comment._count?.replies
     });
     console.log('State:', {
       showReplies,
       repliesCount: replies.length,
       isLiked,
-      likeCount
+      likeCount,
+      replyCount
     });
-  }, [commentId, isLiked, replies, showReplies, likeCount]);
+  }, [commentId, isLiked, replies, showReplies, likeCount, replyCount]);
 
   // Update isLiked when prop changes
   useEffect(() => {
@@ -64,6 +67,13 @@ const CommentItem = ({
       setReplies(initialReplies);
     }
   }, [initialReplies]);
+
+  // Update reply count when comment changes
+  useEffect(() => {
+    if (comment._count?.replies !== undefined) {
+      setReplyCount(comment._count.replies);
+    }
+  }, [comment._count?.replies]);
 
   // Fetch replies when showReplies is toggled to true
   const handleToggleReplies = async () => {
@@ -223,7 +233,7 @@ const CommentItem = ({
               >
                 <FiMessageSquare className="w-5 h-5" />
                 <span className="text-sm font-medium">
-                  {replies.length} {replies.length === 1 ? 'Answer' : 'Answers'}
+                  {replyCount} {replyCount === 1 ? 'Answer' : 'Answers'}
                 </span>
               </button>
 
