@@ -102,11 +102,11 @@ const stageProgressController = {
   completeStage: async (req, res) => {
     try {
       const { userId, materialId } = req.params;
-      const { stageIndex, contentIndex, contentProgress } = req.body;
+      const { stageIndex, contentIndex, contentProgress, completedStages: newCompletedStages } = req.body;
 
       console.log('🔍 Debug - Request data:', {
         params: { userId, materialId },
-        body: { stageIndex, contentIndex, contentProgress },
+        body: { stageIndex, contentIndex, contentProgress, newCompletedStages },
         rawBody: req.body
       });
 
@@ -115,15 +115,7 @@ const stageProgressController = {
       const parsedStageIndex = parseInt(stageIndex);
       const parsedContentIndex = contentIndex !== undefined ? parseInt(contentIndex) : null;
 
-      console.log('🔍 Debug - Parsed values:', {
-        parsedUserId,
-        parsedMaterialId,
-        parsedStageIndex,
-        parsedContentIndex,
-        contentProgress
-      });
-
-      // Get material with stages
+      // Get material with its stages
       const material = await prisma.material.findUnique({
         where: { id: parsedMaterialId },
         include: {
@@ -135,24 +127,10 @@ const stageProgressController = {
         }
       });
 
-      console.log('🔍 Debug - Found material:', {
-        materialExists: !!material,
-        stageCount: material?.stages?.length,
-        materialId: material?.id
-      });
-
       if (!material) {
         return res.status(404).json({
           success: false,
           error: 'Material not found'
-        });
-      }
-
-      // Validate stage index
-      if (parsedStageIndex < 0 || parsedStageIndex >= material.stages.length) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid stage index'
         });
       }
 
@@ -166,12 +144,6 @@ const stageProgressController = {
         }
       });
 
-      console.log('🔍 Debug - Current progress:', {
-        exists: !!currentProgress,
-        currentStageProgress: currentProgress?.stageProgress,
-        completedStages: currentProgress?.completedStages
-      });
-
       // Initialize or parse existing progress
       let stageProgress = {};
       let completedStages = [];
@@ -180,7 +152,6 @@ const stageProgressController = {
         try {
           stageProgress = currentProgress.stageProgress ? JSON.parse(currentProgress.stageProgress) : {};
           completedStages = currentProgress.completedStages || [];
-          console.log('🔍 Debug - Parsed existing progress:', { stageProgress, completedStages });
         } catch (e) {
           console.error('🔍 Debug - Failed to parse progress:', e);
           stageProgress = {};
@@ -205,41 +176,26 @@ const stageProgressController = {
 
       // Update content progress if provided
       if (parsedContentIndex !== null && contentProgress !== undefined) {
-        // Ensure contents object exists
-        if (!stageProgress[parsedStageIndex].contents) {
-          stageProgress[parsedStageIndex].contents = {};
-        }
-        
         stageProgress[parsedStageIndex].contents[parsedContentIndex] = contentProgress;
         
         // Calculate stage progress based on content progress
-        const stage = material.stages[parsedStageIndex];
-        const contents = typeof stage.contents === 'string' ? JSON.parse(stage.contents) : stage.contents;
-        const contentCount = Array.isArray(contents) ? contents.length : 1;
         const totalContentProgress = Object.values(stageProgress[parsedStageIndex].contents)
           .reduce((sum, progress) => sum + progress, 0);
-        
+        const contentCount = Object.keys(stageProgress[parsedStageIndex].contents).length;
         stageProgress[parsedStageIndex].progress = Math.round(totalContentProgress / contentCount);
-        
-        console.log('🔍 Debug - Updated stage progress:', {
-          stageIndex: parsedStageIndex,
-          contentCount,
-          totalContentProgress,
-          calculatedProgress: stageProgress[parsedStageIndex].progress,
-          stageProgress: stageProgress[parsedStageIndex]
-        });
       } else {
         // If no content progress provided, mark entire stage as complete
         stageProgress[parsedStageIndex].progress = 100;
       }
 
-      // Update completed stages if stage is complete
+      // Update completed stages
       if (stageProgress[parsedStageIndex].progress === 100 && !completedStages.includes(parsedStageIndex)) {
         completedStages.push(parsedStageIndex);
-        console.log('🔍 Debug - Stage completed:', {
-          stageIndex: parsedStageIndex,
-          completedStages
-        });
+      }
+
+      // If new completed stages provided, merge them
+      if (Array.isArray(newCompletedStages)) {
+        completedStages = Array.from(new Set([...completedStages, ...newCompletedStages]));
       }
 
       // Calculate next stage and overall progress
@@ -251,8 +207,9 @@ const stageProgressController = {
         nextStage,
         hasNextStage,
         totalProgress,
+        completedStages,
         stageProgress,
-        stageProgressString: JSON.stringify(stageProgress)
+        totalStages: material.stages.length
       });
 
       // Update progress in database
@@ -283,18 +240,11 @@ const stageProgressController = {
         }
       });
 
-      console.log('🔍 Debug - Progress updated:', {
-        id: updatedProgress.id,
-        progress: updatedProgress.progress,
-        completed: updatedProgress.completed,
-        activeStage: updatedProgress.activeStage
-      });
-
       // Prepare response
       const response = {
         ...updatedProgress,
         stageProgress: JSON.parse(updatedProgress.stageProgress || '{}'),
-        material
+        completedStages: updatedProgress.completedStages
       };
 
       res.json({
@@ -302,18 +252,15 @@ const stageProgressController = {
         data: response
       });
     } catch (error) {
-      console.error('❌ Error completing stage:', {
-        error: error.message,
-        stack: error.stack
-      });
+      console.error('❌ Error completing stage:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to complete stage',
-        message: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        message: error.message
       });
     }
   }
 };
 
+module.exports = stageProgressController; 
 module.exports = stageProgressController; 

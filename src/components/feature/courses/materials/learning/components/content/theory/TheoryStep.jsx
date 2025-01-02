@@ -1,5 +1,5 @@
 import { useState, Suspense, useEffect, useRef, lazy, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FiArrowLeft, FiMenu } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
 import { useAuth } from '../../../../../../../../context/AuthContext';
@@ -14,7 +14,10 @@ const QuickQuiz = lazy(() => import('./components/QuickQuiz'));
 const DiscussionPanel = lazy(() => import('../DiscussionPanel'));
 
 const TheoryStep = ({ material }) => {
-  const [activeSection, setActiveSection] = useState(0);
+  const [searchParams] = useSearchParams();
+  const initialStage = parseInt(searchParams.get('stage')) || 0;
+  
+  const [activeSection, setActiveSection] = useState(initialStage);
   const [activeContentIndex, setActiveContentIndex] = useState(0);
   const [showLeftSidebar, setShowLeftSidebar] = useState(false);
   const [showNav, setShowNav] = useState(true);
@@ -42,6 +45,15 @@ const TheoryStep = ({ material }) => {
       xp_reward: material.xp_reward,
       stages: material.stages?.length
     });
+
+    // Get stage from URL query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const stageParam = urlParams.get('stage');
+    if (stageParam !== null) {
+      const stageIndex = parseInt(stageParam);
+      setActiveSection(stageIndex);
+      console.log('📍 Setting initial stage from URL:', stageIndex);
+    }
 
     // Initialize stage progress
     const initialProgress = {};
@@ -258,14 +270,48 @@ const TheoryStep = ({ material }) => {
     navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/materials`);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!currentStage?.contents?.length) return;
 
     if (activeContentIndex < sortedContents.length - 1) {
       setActiveContentIndex(activeContentIndex + 1);
     } else if (material?.stages && activeSection < material.stages.length - 1) {
-      setActiveSection(activeSection + 1);
-      setActiveContentIndex(0);
+      // Mark current stage as complete before moving to next stage
+      const newCompletedStages = new Set(completedStages);
+      newCompletedStages.add(activeSection);
+      setCompletedStages(newCompletedStages);
+
+      // Save completion status to backend
+      try {
+        const response = await fetch(`http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stageIndex: activeSection,
+            contentIndex: activeContentIndex,
+            contentProgress: 100,
+            completedStages: Array.from(newCompletedStages)
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save completion status');
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          console.log('✅ Stage completion saved:', {
+            stage: activeSection,
+            completedStages: Array.from(newCompletedStages)
+          });
+          
+          // Move to next stage
+          setActiveSection(activeSection + 1);
+          setActiveContentIndex(0);
+        }
+      } catch (error) {
+        console.error('❌ Error saving completion:', error);
+      }
     }
   };
 

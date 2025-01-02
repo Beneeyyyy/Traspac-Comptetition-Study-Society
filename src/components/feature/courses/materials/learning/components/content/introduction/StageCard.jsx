@@ -1,13 +1,23 @@
 import { FiArrowRight, FiZap, FiLock, FiCheck } from 'react-icons/fi';
+import { useNavigate, useParams } from 'react-router-dom';
 
-const StageCard = ({ stage, material, onComplete, onSelect }) => {
+const StageCard = ({ stage, material, onComplete, onSelect, stageIndex }) => {
+  const navigate = useNavigate();
+  const { categoryId, subcategoryId } = useParams();
+  
   // Calculate XP for this stage
   const stageXP = Math.floor((material.total_xp || material.xp_reward || 0) / material.stages.length);
+
+  const handleStartLearning = (e) => {
+    e.stopPropagation();
+    // Navigate to theory step with the correct stage index
+    navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/learn/${material.id}/theory?stage=${stageIndex}`);
+  };
 
   const handleClick = () => {
     if (stage.isLocked) return;
     if (stage.isCurrent) {
-      onComplete?.();
+      handleStartLearning();
     } else {
       onSelect?.();
     }
@@ -74,10 +84,7 @@ const StageCard = ({ stage, material, onComplete, onSelect }) => {
           <div className="flex items-center justify-between">
             {stage.isCurrent && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onComplete?.();
-                }}
+                onClick={handleStartLearning}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700 transition-all duration-200 transform hover:scale-[1.02] group"
               >
                 <span className="font-medium text-white">Mulai Belajar</span>
@@ -92,10 +99,7 @@ const StageCard = ({ stage, material, onComplete, onSelect }) => {
             )}
             {!stage.isCompleted && !stage.isCurrent && !stage.isLocked && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onComplete?.();
-                }}
+                onClick={handleStartLearning}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-200 transform hover:scale-[1.02] group"
               >
                 <span className="font-medium text-white">Mulai Belajar</span>

@@ -15,7 +15,7 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
 
   // Sort completedStages array to get the highest completed stage
   const sortedCompletedStages = Array.from(completedStages || []).sort((a, b) => b - a);
-  const highestCompletedStage = sortedCompletedStages[0] || -1;
+  const highestCompletedStage = Math.max(...Array.from(completedStages || []), -1);
 
   // Calculate highest accessible stage (next stage after highest completed)
   const highestAccessibleStage = Math.max(
@@ -46,16 +46,16 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
       {/* Stages */}
       <div className="space-y-2">
         {material.stages.map((stage, index) => {
-          const isActive = index === activeSection;
-          const isCompleted = completedStages?.has(index);
-          const allPreviousCompleted = areAllPreviousStagesCompleted(index);
-          const isLocked = index > highestCompletedStage + 1;
-          const isClickable = !isLocked;
-          const currentProgress = typeof stageProgress?.[index] === 'object' 
-            ? stageProgress[index].progress 
-            : stageProgress?.[index] || 0;
+          // Get stage progress
+          const stageProgressData = typeof stageProgress?.[index] === 'object' 
+            ? stageProgress[index]
+            : { progress: stageProgress?.[index] || 0 };
 
-          // Get next stage status
+          // Determine stage status
+          const isCompleted = completedStages?.has(index) || stageProgressData.progress === 100;
+          const isActive = index === activeSection;
+          const allPreviousCompleted = areAllPreviousStagesCompleted(index);
+          const isLocked = !isCompleted && !isActive && !allPreviousCompleted;
           const isNextStage = !isCompleted && allPreviousCompleted && index === highestCompletedStage + 1;
 
           console.log(`Stage ${index} Status:`, {
@@ -63,13 +63,15 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
             isCompleted,
             allPreviousCompleted,
             isLocked,
-            isNextStage
+            isNextStage,
+            progress: stageProgressData.progress,
+            completedStages: Array.from(completedStages || [])
           });
 
           return (
             <button
               key={stage.id}
-              onClick={() => isClickable && onSectionChange(index)}
+              onClick={() => !isLocked && onSectionChange(index)}
               disabled={isLocked}
               className={`
                 w-full p-3 rounded-xl border transition-all duration-200
@@ -79,7 +81,9 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
                     ? 'border-transparent opacity-40 cursor-not-allowed'
                     : isNextStage
                       ? 'border-white/10 bg-gradient-to-r from-green-500/5 to-blue-500/5 hover:from-green-500/10 hover:to-blue-500/10'
-                      : 'border-transparent hover:border-white/5 hover:bg-white/5'
+                      : isCompleted
+                        ? 'bg-gradient-to-r from-green-500/5 to-blue-500/5 border-green-500/20'
+                        : 'border-transparent hover:border-white/5 hover:bg-white/5'
                 }
                 group relative
               `}
@@ -125,7 +129,7 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
                     <div className="mt-2 w-full h-1 bg-white/5 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
-                        style={{ width: `${currentProgress}%` }}
+                        style={{ width: `${stageProgressData.progress}%` }}
                       />
                     </div>
                   )}

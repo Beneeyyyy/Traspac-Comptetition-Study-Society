@@ -16,63 +16,51 @@ const IntroductionStep = ({ material, onComplete }) => {
   const { user } = useAuth();
   const { categoryId, subcategoryId } = useParams();
 
-  // Load initial progress
-  useEffect(() => {
-    const loadProgress = async () => {
-      if (!user?.id || !material?.id) {
-        setIsLoading(false);
-        return;
-      }
+  // Function to load progress
+  const loadProgress = useCallback(async () => {
+    if (!user?.id || !material?.id) {
+      setIsLoading(false);
+      return;
+    }
 
-      try {
-        setIsLoading(true);
-        console.log('🔄 Checking database for progress:', {
-          userId: user.id,
-          materialId: material.id
+    try {
+      setIsLoading(true);
+      console.log('🔄 Checking database for progress:', {
+        userId: user.id,
+        materialId: material.id
+      });
+
+      const response = await fetch(`http://localhost:3000/api/progress/material/${user.id}/${material.id}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('📂 Database records found:', {
+          progress: data.data?.progress,
+          stageProgress: data.data?.stageProgress,
+          completedStages: data.data?.completedStages,
+          activeStage: data.data?.activeStage
         });
 
-        const response = await fetch(`http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}`);
-        const data = await response.json();
+        // Set material progress
+        setMaterialProgress(data.data);
         
-        if (data.success) {
-          console.log('📂 Database records found:', {
-            progress: data.data?.progress,
-            stageProgress: data.data?.stageProgress,
-            completedStages: data.data?.completedStages,
-            activeStage: data.data?.activeStage
-          });
+        // Set stage progress
+        setStageProgress(data.data.stageProgress || {});
+        
+        // Set completed stages
+        const completed = new Set(data.data.completedStages || []);
+        setCompletedStages(completed);
 
-          // Set material progress
-          setMaterialProgress(data.data);
-          
-          // Set stage progress
-          setStageProgress(data.data.stageProgress || {});
-          
-          // Set completed stages
-          const completed = new Set(data.data.completedStages || []);
-          setCompletedStages(completed);
+        // Set active stage
+        setActiveStage(data.data.activeStage || 0);
 
-          // Set active stage
-          setActiveStage(data.data.activeStage || 0);
-
-          console.log('🔄 Current state after loading:', {
-            activeStage: data.data.activeStage || 0,
-            completedStages: Array.from(completed),
-            stageProgress: data.data.stageProgress || {}
-          });
-        } else {
-          console.log('🆕 No database records found, initializing new progress');
-          const initialProgress = {};
-          material.stages?.forEach((_, index) => {
-            initialProgress[index] = 0;
-          });
-          setStageProgress(initialProgress);
-          setCompletedStages(new Set());
-          setActiveStage(0);
-        }
-      } catch (error) {
-        console.error('❌ Database error:', error);
-        // Initialize empty progress on error
+        console.log('🔄 Current state after loading:', {
+          activeStage: data.data.activeStage || 0,
+          completedStages: Array.from(completed),
+          stageProgress: data.data.stageProgress || {}
+        });
+      } else {
+        console.log('🆕 No database records found, initializing new progress');
         const initialProgress = {};
         material.stages?.forEach((_, index) => {
           initialProgress[index] = 0;
@@ -80,13 +68,53 @@ const IntroductionStep = ({ material, onComplete }) => {
         setStageProgress(initialProgress);
         setCompletedStages(new Set());
         setActiveStage(0);
-      } finally {
-        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('❌ Database error:', error);
+      // Initialize empty progress on error
+      const initialProgress = {};
+      material.stages?.forEach((_, index) => {
+        initialProgress[index] = 0;
+      });
+      setStageProgress(initialProgress);
+      setCompletedStages(new Set());
+      setActiveStage(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id, material?.id]);
+
+  // Load initial progress
+  useEffect(() => {
+    loadProgress();
+  }, [loadProgress]);
+
+  // Refresh progress when component becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 Component visible, refreshing progress...');
+        loadProgress();
       }
     };
 
-    loadProgress();
-  }, [user?.id, material?.id]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', loadProgress);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', loadProgress);
+    };
+  }, [loadProgress]);
+
+  // Helper function to check if all previous stages are completed
+  const areAllPreviousStagesCompleted = useCallback((stageIndex) => {
+    if (stageIndex === 0) return true;
+    for (let i = 0; i < stageIndex; i++) {
+      if (!completedStages.has(i)) return false;
+    }
+    return true;
+  }, [completedStages]);
 
   // Process stages with progress and locking
   const stages = useMemo(() => {
@@ -96,19 +124,29 @@ const IntroductionStep = ({ material, onComplete }) => {
     const maxCompletedStage = Math.max(...Array.from(completedStages), -1);
     
     return material.stages.map((stage, index) => {
+      // Get stage progress
+      const stageProgressData = typeof stageProgress[index] === 'object' 
+        ? stageProgress[index]
+        : { progress: stageProgress[index] || 0 };
+
       // Determine stage status
-      const isCompleted = completedStages.has(index);
-      const isCurrent = !isCompleted && (index === activeStage);
-      const isLocked = !isCompleted && index > maxCompletedStage + 1; // Unlock next stage after completed stages
-      const progress = typeof stageProgress[index] === 'object' 
-        ? stageProgress[index].progress 
-        : stageProgress[index] || 0;
+      const isCompleted = completedStages.has(index) || stageProgressData.progress === 100;
+      const allPreviousCompleted = areAllPreviousStagesCompleted(index);
+      const isNextStage = !isCompleted && allPreviousCompleted && (index === maxCompletedStage + 1 || index === 0);
+      // Current stage should be the next available stage
+      const isCurrent = isNextStage || index === activeStage;
+      // Lock stage if: not completed AND (after current stage OR previous stages not completed)
+      const isLocked = !isCompleted && (index > activeStage || !allPreviousCompleted);
+      // If stage is locked, it can't be current
+      const finalIsCurrent = isCurrent && !isLocked;
 
       console.log(`Stage ${index} Status:`, {
         isCompleted,
         isCurrent,
+        allPreviousCompleted,
         isLocked,
-        progress,
+        isNextStage,
+        progress: stageProgressData.progress,
         maxCompletedStage,
         completedStages: Array.from(completedStages)
       });
@@ -116,13 +154,13 @@ const IntroductionStep = ({ material, onComplete }) => {
       return {
         ...stage,
         isCompleted,
-        isCurrent,
+        isCurrent: finalIsCurrent,
         isLocked,
-        progress,
+        progress: stageProgressData.progress || 0,
         time: stage.time || '15-20 menit'  // Default time if not specified
       };
     });
-  }, [material?.stages, completedStages, activeStage, stageProgress]);
+  }, [material?.stages, completedStages, activeStage, stageProgress, areAllPreviousStagesCompleted]);
 
   // Handle stage selection
   const handleStageSelect = useCallback((stage, index) => {
@@ -146,6 +184,10 @@ const IntroductionStep = ({ material, onComplete }) => {
         currentProgress: stageProgress[stageIndex]
       });
 
+      // Add stage to completed stages
+      const newCompletedStages = new Set(completedStages);
+      newCompletedStages.add(stageIndex);
+
       // Save to database first
       console.log('💾 Saving to database...');
       
@@ -155,7 +197,9 @@ const IntroductionStep = ({ material, onComplete }) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            stageIndex
+            stageIndex,
+            contentProgress: 100,
+            completedStages: Array.from(newCompletedStages)
           })
         }
       );
@@ -170,7 +214,7 @@ const IntroductionStep = ({ material, onComplete }) => {
         throw new Error('Failed to save progress to database');
       }
 
-      console.log('✅ Progress saved to database');
+      console.log('✅ Progress saved to database:', progressData.data);
       
       // Update local state from response
       setStageProgress(progressData.data.stageProgress || {});
@@ -266,6 +310,7 @@ const IntroductionStep = ({ material, onComplete }) => {
                     key={stage.id} 
                     stage={stage} 
                     material={material}
+                    stageIndex={index}
                     onComplete={() => handleStageComplete(index)}
                     onSelect={() => handleStageSelect(stage, index)}
                   />
