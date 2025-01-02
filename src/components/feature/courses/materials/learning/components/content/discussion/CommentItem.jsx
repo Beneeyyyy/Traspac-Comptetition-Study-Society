@@ -24,6 +24,7 @@ const CommentItem = ({
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [error, setError] = useState(null);
   const [replyCount, setReplyCount] = useState(comment._count?.replies || 0);
+  const [resolvedReplyData, setResolvedReplyData] = useState(comment.resolvedReply);
 
   // Find the resolved reply
   const resolvedReply = replies.find(reply => reply.isResolved);
@@ -74,6 +75,11 @@ const CommentItem = ({
       setReplyCount(comment._count.replies);
     }
   }, [comment._count?.replies]);
+
+  // Update resolvedReplyData when comment changes
+  useEffect(() => {
+    setResolvedReplyData(comment.resolvedReply);
+  }, [comment.resolvedReply]);
 
   // Fetch replies when showReplies is toggled to true
   const handleToggleReplies = async () => {
@@ -162,12 +168,26 @@ const CommentItem = ({
 
   const handleResolve = async (discussionId, replyId) => {
     // Update local state immediately
+    const resolvedReply = replies.find(reply => reply.id === replyId);
+    
+    // Update replies state
     setReplies(prevReplies =>
       prevReplies.map(reply => ({
         ...reply,
         isResolved: reply.id === replyId
       }))
     );
+
+    // Update resolved reply state immediately
+    if (resolvedReply) {
+      const updatedResolvedReply = {
+        ...resolvedReply,
+        isResolved: true
+      };
+      setResolvedReplyData(updatedResolvedReply);
+      comment.resolvedReplyId = replyId;
+      comment.resolvedReply = updatedResolvedReply;
+    }
     
     // Call parent's onResolve if provided
     if (onResolve) {
@@ -276,11 +296,11 @@ const CommentItem = ({
                 <span className="text-sm font-medium">Answer</span>
               </button>
 
-              {comment.resolvedReplyId && comment.resolvedReply && comment.resolvedReply.user && (
+              {(resolvedReplyData || comment.resolvedReply) && (
                 <div className="flex items-center gap-2 text-green-500 ml-auto">
                   <span className="w-2 h-2 rounded-full bg-green-500"></span>
                   <span className="text-sm font-medium">
-                    Solved by {comment.resolvedReply.user.name}
+                    Solved by {(resolvedReplyData || comment.resolvedReply).user.name}
                   </span>
                 </div>
               )}
