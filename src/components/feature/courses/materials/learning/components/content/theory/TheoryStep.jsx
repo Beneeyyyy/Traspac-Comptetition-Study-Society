@@ -199,41 +199,41 @@ const TheoryStep = ({ material }) => {
     if (!user?.id || !material?.id) return;
 
     try {
-      // Ensure we have valid objects for new users
-      const currentStageProgress = stageProgress[activeSection] || { progress: 0, contents: {} };
-      const currentContents = currentStageProgress.contents || {};
+    // Ensure we have valid objects for new users
+    const currentStageProgress = stageProgress[activeSection] || { progress: 0, contents: {} };
+    const currentContents = currentStageProgress.contents || {};
 
-      // Update stage progress
-      const newStageProgress = {
-        ...stageProgress,
-        [activeSection]: {
-          progress,
-          contents: {
-            ...currentContents,
-            [activeContentIndex]: progress
-          }
-        }
-      };
-
-      console.log('📈 Progress update:', {
-        stage: activeSection,
-        content: activeContentIndex,
+    // Update stage progress
+    const newStageProgress = {
+      ...stageProgress,
+      [activeSection]: {
         progress,
-        stageProgress: newStageProgress
-      });
+        contents: {
+          ...currentContents,
+          [activeContentIndex]: progress
+        }
+      }
+    };
 
-      // Save progress to backend
+    console.log('📈 Progress update:', {
+      stage: activeSection,
+      content: activeContentIndex,
+      progress,
+      stageProgress: newStageProgress
+    });
+
+    // Save progress to backend
       const response = await fetch(
         `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stageIndex: activeSection,
-            contentIndex: activeContentIndex,
-            contentProgress: progress,
-            completedStages: Array.from(completedStages)
-          })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stageIndex: activeSection,
+        contentIndex: activeContentIndex,
+        contentProgress: progress,
+        completedStages: Array.from(completedStages)
+      })
         }
       );
 
@@ -269,22 +269,22 @@ const TheoryStep = ({ material }) => {
             // Hanya berikan point jika belum pernah diberikan untuk stage ini
             if (!pointCheckData.exists) {
               // Calculate XP reward per stage
-              const stageXP = Math.floor(material.xp_reward / material.stages.length);
-              const isLastStage = activeSection === material.stages.length - 1;
-              const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
-              const totalStageXP = stageXP + remainderXP;
+          const stageXP = Math.floor(material.xp_reward / material.stages.length);
+          const isLastStage = activeSection === material.stages.length - 1;
+          const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
+          const totalStageXP = stageXP + remainderXP;
 
               console.log(`Recording ${stageXP} points for stage ${activeSection + 1}...`);
 
               // Create point record with stage XP
               const pointResponse = await fetch('http://localhost:3000/api/points', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  userId: user.id,
-                  materialId: material.id,
-                  categoryId: parseInt(categoryId),
-                  subcategoryId: parseInt(subcategoryId),
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              materialId: material.id,
+              categoryId: parseInt(categoryId),
+              subcategoryId: parseInt(subcategoryId),
                   value: stageXP,
                   stageIndex: activeSection,
                   isLastStage,
@@ -311,7 +311,7 @@ const TheoryStep = ({ material }) => {
                     userId: user.id,
                     materialId: material.id,
                     value: stageXP,
-                    stageIndex: activeSection
+              stageIndex: activeSection
                   }
                 });
                 throw new Error(errorMessage);
@@ -535,6 +535,34 @@ const TheoryStep = ({ material }) => {
           setActiveSection(activeSection + 1);
           setActiveContentIndex(0);
         } else {
+          // Update progress to mark material as complete
+          try {
+            const progressResponse = await fetch(
+          `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, 
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              stageIndex: activeSection,
+              contentProgress: 100,
+              completedStages: Array.from(newCompletedStages)
+            })
+          }
+        );
+
+            if (!progressResponse.ok) {
+              throw new Error('Failed to update completion status');
+            }
+
+            const progressData = await progressResponse.json();
+            if (progressData.success) {
+              console.log('Material completed successfully:', progressData.data);
+              setMaterialProgress(progressData.data);
+            }
+          } catch (error) {
+            console.error('Failed to update completion status:', error);
+          }
+
           setActiveSection(-1); // Mark as complete
         }
 
@@ -848,116 +876,116 @@ const TheoryStep = ({ material }) => {
                         <div className="h-4 bg-white/5 rounded-full w-5/6"></div>
                         <div className="h-4 bg-white/5 rounded-full w-4/6"></div>
                         <div className="h-4 bg-white/5 rounded-full w-3/6"></div>
-                      </div>
                     </div>
+                  </div>
 
                     {/* Loading Progress */}
                     <div className="fixed bottom-4 right-4 bg-black/80 backdrop-blur-sm p-4 rounded-xl border border-white/10">
                       <div className="flex items-center gap-3">
                         <div className="animate-spin w-5 h-5 border-2 border-white/10 border-t-blue-500 rounded-full"></div>
                         <span className="text-sm text-white/60">Loading next stage...</span>
+                  </div>
+                </div>
+              </div>
+                ) : (
+            <Suspense fallback={<ContentSkeleton />}>
+              {/* Stage Progress */}
+              <div className="max-w-4xl mx-auto mb-8">
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
+                    <RiLightbulbLine className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-white mb-2 truncate">{currentStage?.title}</h3>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300"
+                          style={{ 
+                            width: sortedContents.length 
+                              ? `${((activeContentIndex + 1) / sortedContents.length) * 100}%`
+                              : '0%'
+                          }}
+                        />
                       </div>
+                      <span className="text-sm font-medium text-white/60 whitespace-nowrap">
+                        {activeContentIndex + 1} / {sortedContents.length}
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <Suspense fallback={<ContentSkeleton />}>
-                    {/* Stage Progress */}
-                    <div className="max-w-4xl mx-auto mb-8">
-                      <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                          <RiLightbulbLine className="w-6 h-6 text-blue-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-white mb-2 truncate">{currentStage?.title}</h3>
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300"
-                                style={{ 
-                                  width: sortedContents.length 
-                                    ? `${((activeContentIndex + 1) / sortedContents.length) * 100}%`
-                                    : '0%'
-                                }}
-                              />
-                            </div>
-                            <span className="text-sm font-medium text-white/60 whitespace-nowrap">
-                              {activeContentIndex + 1} / {sortedContents.length}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                </div>
+              </div>
 
-                    {/* Content */}
-                    <div className="max-w-4xl mx-auto">
-                      {currentStage?.contents && (
-                        <ContentRenderer 
-                          contents={currentStage.contents}
-                          currentStage={currentStage}
-                          onNextStage={handleNext}
-                          currentContentIndex={activeContentIndex}
-                          onContentChange={setActiveContentIndex}
-                          savedContentIndex={materialProgress?.activeContentIndex}
-                          onProgressUpdate={handleProgressUpdate}
+              {/* Content */}
+              <div className="max-w-4xl mx-auto">
+                {currentStage?.contents && (
+                  <ContentRenderer 
+                    contents={currentStage.contents}
+                    currentStage={currentStage}
+                    onNextStage={handleNext}
+                    currentContentIndex={activeContentIndex}
+                    onContentChange={setActiveContentIndex}
+                    savedContentIndex={materialProgress?.activeContentIndex}
+                    onProgressUpdate={handleProgressUpdate}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -20 }}
                           transition={{ duration: 0.3 }}
-                        />
+                  />
+                )}
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="max-w-4xl mx-auto mt-8 mb-16">
+                <div className="flex justify-between items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                  <button
+                    onClick={handlePrevious}
+                    disabled={activeContentIndex === 0 && activeSection === 0}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
+                      activeContentIndex === 0 && activeSection === 0
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'hover:bg-white/5 active:bg-white/10 hover:shadow-lg'
+                    }`}
+                  >
+                    <FiArrowLeft className="w-5 h-5" />
+                    <span>Previous</span>
+                  </button>
+
+                  <div className="text-sm font-medium text-white/60">
+                    Stage {activeSection + 1} • Content {activeContentIndex + 1} / {sortedContents.length}
+                  </div>
+                  
+                  <button
+                    onClick={handleNext}
+                    disabled={false}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
+                      activeContentIndex === sortedContents.length - 1 && material?.stages ? (
+                        activeSection === material.stages.length - 1 ? (
+                          'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 active:from-green-700 active:to-emerald-700'
+                        ) : (
+                          'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
+                        )
+                      ) : (
+                        'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
+                      )
+                    } hover:shadow-lg`}
+                  >
+                    <span>
+                      {activeContentIndex === sortedContents.length - 1 && material?.stages ? (
+                        activeSection === material.stages.length - 1 ? (
+                          'Complete Material'
+                        ) : (
+                          'Next Stage'
+                        )
+                      ) : (
+                        'Next'
                       )}
-                    </div>
-
-                    {/* Navigation Buttons */}
-                    <div className="max-w-4xl mx-auto mt-8 mb-16">
-                      <div className="flex justify-between items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                        <button
-                          onClick={handlePrevious}
-                          disabled={activeContentIndex === 0 && activeSection === 0}
-                          className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
-                            activeContentIndex === 0 && activeSection === 0
-                              ? 'opacity-50 cursor-not-allowed'
-                              : 'hover:bg-white/5 active:bg-white/10 hover:shadow-lg'
-                          }`}
-                        >
-                          <FiArrowLeft className="w-5 h-5" />
-                          <span>Previous</span>
-                        </button>
-
-                        <div className="text-sm font-medium text-white/60">
-                          Stage {activeSection + 1} • Content {activeContentIndex + 1} / {sortedContents.length}
-                        </div>
-                        
-                        <button
-                          onClick={handleNext}
-                          disabled={false}
-                          className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
-                            activeContentIndex === sortedContents.length - 1 && material?.stages ? (
-                              activeSection === material.stages.length - 1 ? (
-                                'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 active:from-green-700 active:to-emerald-700'
-                              ) : (
-                                'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
-                              )
-                            ) : (
-                              'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
-                            )
-                          } hover:shadow-lg`}
-                        >
-                          <span>
-                            {activeContentIndex === sortedContents.length - 1 && material?.stages ? (
-                              activeSection === material.stages.length - 1 ? (
-                                'Complete Material'
-                              ) : (
-                                'Next Stage'
-                              )
-                            ) : (
-                              'Next'
-                            )}
-                          </span>
-                          <FiArrowLeft className="w-5 h-5 rotate-180" />
-                        </button>
-                      </div>
-                    </div>
-                  </Suspense>
+                    </span>
+                    <FiArrowLeft className="w-5 h-5 rotate-180" />
+                  </button>
+                </div>
+              </div>
+            </Suspense>
                 )}
               </motion.div>
             </AnimatePresence>
