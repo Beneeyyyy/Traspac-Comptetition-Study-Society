@@ -132,13 +132,15 @@ const IntroductionStep = ({ material, onComplete }) => {
       // Determine stage status
       const isCompleted = completedStages.has(index) || stageProgressData.progress === 100;
       const allPreviousCompleted = areAllPreviousStagesCompleted(index);
+      
+      // Next stage is the first uncompleted stage after the last completed stage
       const isNextStage = !isCompleted && allPreviousCompleted && (index === maxCompletedStage + 1 || index === 0);
-      // Current stage should be the next available stage
-      const isCurrent = isNextStage || index === activeStage;
-      // Lock stage if: not completed AND (after current stage OR previous stages not completed)
-      const isLocked = !isCompleted && (index > activeStage || !allPreviousCompleted);
-      // If stage is locked, it can't be current
-      const finalIsCurrent = isCurrent && !isLocked;
+      
+      // Stage is locked if not completed and not the next stage
+      const isLocked = !isCompleted && !isNextStage;
+      
+      // Current stage is ONLY the next stage
+      const isCurrent = isNextStage;
 
       console.log(`Stage ${index} Status:`, {
         isCompleted,
@@ -154,7 +156,7 @@ const IntroductionStep = ({ material, onComplete }) => {
       return {
         ...stage,
         isCompleted,
-        isCurrent: finalIsCurrent,
+        isCurrent,
         isLocked,
         progress: stageProgressData.progress || 0,
         time: stage.time || '15-20 menit'  // Default time if not specified

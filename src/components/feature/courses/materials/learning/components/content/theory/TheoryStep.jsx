@@ -275,8 +275,8 @@ const TheoryStep = ({ material }) => {
 
     if (activeContentIndex < sortedContents.length - 1) {
       setActiveContentIndex(activeContentIndex + 1);
-    } else if (material?.stages && activeSection < material.stages.length - 1) {
-      // Mark current stage as complete before moving to next stage
+    } else if (material?.stages) {
+      // Mark current stage as complete
       const newCompletedStages = new Set(completedStages);
       newCompletedStages.add(activeSection);
       setCompletedStages(newCompletedStages);
@@ -305,9 +305,16 @@ const TheoryStep = ({ material }) => {
             completedStages: Array.from(newCompletedStages)
           });
           
-          // Move to next stage
-          setActiveSection(activeSection + 1);
-          setActiveContentIndex(0);
+          // If not the last stage, move to next stage
+          if (activeSection < material.stages.length - 1) {
+            setActiveSection(activeSection + 1);
+            setActiveContentIndex(0);
+          } else {
+            // This is the last stage, mark as complete and deactivate current stage
+            console.log('🎉 Material completed!');
+            setActiveSection(-1); // Set to invalid index to make isCurrent false for all stages
+            // You might want to show a completion modal or message here
+          }
         }
       } catch (error) {
         console.error('❌ Error saving completion:', error);
@@ -466,18 +473,29 @@ const TheoryStep = ({ material }) => {
                   
                   <button
                     onClick={handleNext}
-                    disabled={activeContentIndex === sortedContents.length - 1 && (!material?.stages || activeSection === material.stages.length - 1)}
+                    disabled={false}
                     className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
-                      activeContentIndex === sortedContents.length - 1 && (!material?.stages || activeSection === material.stages.length - 1)
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:shadow-lg hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
-                    }`}
+                      activeContentIndex === sortedContents.length - 1 && material?.stages ? (
+                        activeSection === material.stages.length - 1 ? (
+                          'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 active:from-green-700 active:to-emerald-700'
+                        ) : (
+                          'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
+                        )
+                      ) : (
+                        'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
+                      )
+                    } hover:shadow-lg`}
                   >
                     <span>
-                      {activeContentIndex === sortedContents.length - 1 && material?.stages && activeSection < material.stages.length - 1 
-                        ? 'Next Stage' 
-                        : 'Next'
-                      }
+                      {activeContentIndex === sortedContents.length - 1 && material?.stages ? (
+                        activeSection === material.stages.length - 1 ? (
+                          'Complete Material'
+                        ) : (
+                          'Next Stage'
+                        )
+                      ) : (
+                        'Next'
+                      )}
                     </span>
                     <FiArrowLeft className="w-5 h-5 rotate-180" />
                   </button>
