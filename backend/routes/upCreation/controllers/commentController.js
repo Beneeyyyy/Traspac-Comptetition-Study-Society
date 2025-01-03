@@ -228,15 +228,7 @@ const commentController = {
         });
       }
 
-      // Delete any existing likes first
-      await prisma.creationLike.deleteMany({
-        where: {
-          userId: parseInt(userId),
-          creationId: comment.creationId,
-          commentId: parseInt(commentId)
-        }
-      });
-
+      // Check if like exists
       const existingLike = await prisma.creationLike.findFirst({
         where: {
           userId: parseInt(userId),
@@ -244,13 +236,16 @@ const commentController = {
         }
       });
 
+      // If like exists, delete it (unlike)
       if (existingLike) {
         await prisma.creationLike.delete({
           where: {
             id: existingLike.id
           }
         });
-      } else {
+      } 
+      // If no like exists, create it (like)
+      else {
         await prisma.creationLike.create({
           data: {
             userId: parseInt(userId),
@@ -260,6 +255,7 @@ const commentController = {
         });
       }
 
+      // Get updated like count
       const updatedComment = await prisma.creationComment.findUnique({
         where: {
           id: parseInt(commentId)
