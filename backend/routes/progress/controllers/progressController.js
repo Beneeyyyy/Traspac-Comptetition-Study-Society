@@ -232,29 +232,61 @@ const progressController = {
           const isStageCompleted = currentStageProgress === 100 && 
             !parsedCompletedStages.includes(parsedStageIndex);
 
+          console.log('🔍 Stage completion check:', {
+            stageIndex: parsedStageIndex,
+            currentProgress: currentStageProgress,
+            completedStages: parsedCompletedStages,
+            isStageCompleted,
+            currentTime: new Date().toISOString()
+          });
+
           // Create point record for newly completed stage
           if (isStageCompleted) {
-            console.log('🎯 Creating point record for completed stage:', {
+            // Calculate XP per stage
+            const totalStages = material.stages.length;
+            const stageXP = Math.floor(material.xp_reward / totalStages);
+            
+            console.log('🎯 Stage completion details:', {
               stageIndex: parsedStageIndex,
-              userId: parsedUserId,
               materialId: parsedMaterialId,
+              materialTitle: material.title,
+              totalXPReward: material.xp_reward,
+              totalStages,
+              xpPerStage: stageXP,
               categoryId: material.subcategory.categoryId,
               subcategoryId: material.subcategoryId,
-              xp: stageXP
+              currentTime: new Date().toISOString()
             });
 
             try {
+              // Create point record
               const point = await prisma.point.create({
                 data: {
                   userId: parsedUserId,
                   materialId: parsedMaterialId,
                   categoryId: material.subcategory.categoryId,
                   subcategoryId: material.subcategoryId,
-                  value: stageXP
+                  value: stageXP,
+                  createdAt: new Date() // Explicitly set creation time
+                },
+                include: {
+                  material: true,
+                  category: true,
+                  subcategory: true
                 }
               });
 
-              console.log('💰 Point record created:', point);
+              console.log('💰 Point record created:', {
+                pointId: point.id,
+                value: point.value,
+                userId: point.userId,
+                materialId: point.materialId,
+                materialTitle: point.material.title,
+                categoryId: point.categoryId,
+                categoryName: point.category.name,
+                createdAt: point.createdAt,
+                currentTime: new Date().toISOString()
+              });
 
               // Update user's total points and XP
               const updatedUser = await prisma.user.update({
@@ -272,7 +304,9 @@ const progressController = {
               console.log('👤 User stats updated:', {
                 userId: updatedUser.id,
                 totalPoints: updatedUser.totalPoints,
-                totalXP: updatedUser.totalXP
+                totalXP: updatedUser.totalXP,
+                addedXP: stageXP,
+                currentTime: new Date().toISOString()
               });
 
               // Create notification for stage completion
@@ -283,7 +317,14 @@ const progressController = {
 
               console.log('🔔 Notification created for stage completion');
             } catch (pointError) {
-              console.error('❌ Error creating point:', pointError);
+              console.error('❌ Error in point creation process:', {
+                error: pointError.message,
+                stack: pointError.stack,
+                userId: parsedUserId,
+                materialId: parsedMaterialId,
+                stageXP,
+                currentTime: new Date().toISOString()
+              });
               throw new Error(`Failed to create point: ${pointError.message}`);
             }
           }

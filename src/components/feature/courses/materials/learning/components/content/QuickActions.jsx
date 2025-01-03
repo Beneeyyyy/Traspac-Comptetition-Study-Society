@@ -6,19 +6,27 @@ const QuickActions = ({ onShowFeatures, onShowNotes, isDisabled }) => {
       <button
         onClick={onShowFeatures}
         disabled={isDisabled}
-        className="p-2.5 bg-white/[0.02] border border-white/[0.05] rounded-lg hover:bg-white/[0.05] disabled:opacity-50 disabled:hover:bg-white/[0.02] transition-colors shadow-lg backdrop-blur-sm"
+        className="p-2.5 bg-white/[0.02] border border-white/[0.05] rounded-lg hover:bg-white/[0.05] disabled:opacity-50 disabled:hover:bg-white/[0.02] transition-colors shadow-lg backdrop-blur-sm group relative"
         title="Fitur Pembelajaran"
       >
         <FiSettings className="w-5 h-5 text-white" />
+        {/* Tooltip */}
+        <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-white/10 backdrop-blur-md rounded text-xs text-white/80 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+          Fitur Pembelajaran
+        </div>
       </button>
 
       <button
         onClick={onShowNotes}
         disabled={isDisabled}
-        className="p-2.5 bg-white/[0.02] border border-white/[0.05] rounded-lg hover:bg-white/[0.05] disabled:opacity-50 disabled:hover:bg-white/[0.02] transition-colors shadow-lg backdrop-blur-sm"
+        className="p-2.5 bg-white/[0.02] border border-white/[0.05] rounded-lg hover:bg-white/[0.05] disabled:opacity-50 disabled:hover:bg-white/[0.02] transition-colors shadow-lg backdrop-blur-sm group relative"
         title="Catatan"
       >
         <FiEdit3 className="w-5 h-5 text-white" />
+        {/* Tooltip */}
+        <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-white/10 backdrop-blur-md rounded text-xs text-white/80 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+          Catatan
+        </div>
       </button>
     </div>
   );

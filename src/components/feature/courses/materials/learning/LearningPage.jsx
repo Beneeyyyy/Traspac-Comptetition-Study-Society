@@ -130,13 +130,17 @@ const LearningPage = () => {
   // Navigation handlers
   const handleNext = () => {
     if (currentStep < LEARNING_STEPS.length - 1) {
-      navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/learn/${materialId}/${LEARNING_STEPS[currentStep + 1].id}`);
+      // Force refresh when navigating to next step
+      const nextStep = LEARNING_STEPS[currentStep + 1].id;
+      window.location.href = `/courses/${categoryId}/subcategory/${subcategoryId}/learn/${materialId}/${nextStep}`;
     }
   };
 
   const handlePrevious = () => {
     if (currentStep > 0) {
-      navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/learn/${materialId}/${LEARNING_STEPS[currentStep - 1].id}`);
+      // Force refresh when navigating to previous step
+      const prevStep = LEARNING_STEPS[currentStep - 1].id;
+      window.location.href = `/courses/${categoryId}/subcategory/${subcategoryId}/learn/${materialId}/${prevStep}`;
     }
   };
 

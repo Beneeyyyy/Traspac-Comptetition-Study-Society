@@ -21,29 +21,34 @@ function Leaderboard() {
   useEffect(() => {
     const fetchTopLearners = async () => {
       try {
-        // Adjust the API endpoint based on active category and scope
-        const endpoint = `http://localhost:3000/api/points/leaderboard/${activeCategory}/${activeScope}`;
+        setIsLoading(true);
+        
+        // Build endpoint URL
+        let endpoint = `http://localhost:3000/api/points/leaderboard/${activeCategory}`;
+        if (activeScope !== 'all') {
+          endpoint += `/${activeScope}`;
+        }
+
+        console.log('🔄 Fetching leaderboard:', {
+          category: activeCategory,
+          scope: activeScope,
+          endpoint
+        });
+
         const response = await fetch(endpoint);
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
         
-        const transformedData = data.map(learner => ({
-          user: learner.user,
-          email: learner.email,
-          image: learner.image,
-          points: learner.totalPoint,
-          coursesCount: learner.coursesCount || 0,
-          timeSpent: learner.timeSpent || "0h 0m",
-          category: learner.category || "General",
-          school: learner.school || "Unknown",
-          region: learner.region || "Unknown"
-        }));
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to fetch leaderboard');
+        }
 
-        setTopLearners(transformedData);
+        console.log('✅ Leaderboard data:', data);
+        setTopLearners(data.data);
       } catch (error) {
-        console.error('Error fetching top learners:', error);
+        console.error('❌ Error fetching top learners:', error);
         setTopLearners([]);
       } finally {
         setIsLoading(false);

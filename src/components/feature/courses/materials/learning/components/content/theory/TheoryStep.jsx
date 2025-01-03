@@ -34,8 +34,9 @@ const TheoryStep = ({ material }) => {
   const mainContentRef = useRef(null);
   const [isStageLoading, setIsStageLoading] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
-    const hasShown = localStorage.getItem(WELCOME_MODAL_KEY);
-    return !hasShown;
+    // Check if user has seen the modal before
+    const hasSeenModal = localStorage.getItem(`welcome_modal_seen_${material?.id}`);
+    return !hasSeenModal;
   });
   
   const navigate = useNavigate();
@@ -185,51 +186,54 @@ const TheoryStep = ({ material }) => {
   }, [stageProgress, completedStages, earnedPoints, material?.id]);
 
   // Update progress when content changes
-  const handleProgressUpdate = useCallback((progress) => {
+  const handleProgressUpdate = useCallback(async (progress) => {
     if (!user?.id || !material?.id) return;
 
-    // Ensure we have valid objects for new users
-    const currentStageProgress = stageProgress[activeSection] || { progress: 0, contents: {} };
-    const currentContents = currentStageProgress.contents || {};
+    try {
+      // Ensure we have valid objects for new users
+      const currentStageProgress = stageProgress[activeSection] || { progress: 0, contents: {} };
+      const currentContents = currentStageProgress.contents || {};
 
-    // Update stage progress
-    const newStageProgress = {
-      ...stageProgress,
-      [activeSection]: {
-        progress,
-        contents: {
-          ...currentContents,
-          [activeContentIndex]: progress
+      // Update stage progress
+      const newStageProgress = {
+        ...stageProgress,
+        [activeSection]: {
+          progress,
+          contents: {
+            ...currentContents,
+            [activeContentIndex]: progress
+          }
         }
-      }
-    };
-    setStageProgress(newStageProgress);
+      };
 
-    console.log('📈 Progress update:', {
-      stage: activeSection,
-      content: activeContentIndex,
-      progress,
-      stageProgress: newStageProgress
-    });
+      console.log('📈 Progress update:', {
+        stage: activeSection,
+        content: activeContentIndex,
+        progress,
+        stageProgress: newStageProgress
+      });
 
-    // Save progress to backend
-    fetch(`http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        stageIndex: activeSection,
-        contentIndex: activeContentIndex,
-        contentProgress: progress,
-        completedStages: Array.from(completedStages)
-      })
-    })
-    .then(response => {
+      // Save progress to backend
+      const response = await fetch(
+        `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stageIndex: activeSection,
+            contentIndex: activeContentIndex,
+            contentProgress: progress,
+            completedStages: Array.from(completedStages)
+          })
+        }
+      );
+
       if (!response.ok) {
-        return response.json().then(err => Promise.reject(err));
+        throw new Error('Failed to save progress');
       }
-      return response.json();
-    })
-    .then(data => {
+
+      const data = await response.json();
+      
       if (data.success) {
         console.log('✅ Progress saved:', data);
         
@@ -247,83 +251,81 @@ const TheoryStep = ({ material }) => {
         // Check if stage is completed
         if (parsedStageProgress[activeSection]?.progress === 100 && 
             !completedStages.has(activeSection)) {
-          const newCompletedStages = new Set(completedStages);
-          newCompletedStages.add(activeSection);
-          setCompletedStages(newCompletedStages);
+          
+          try {
+            // Calculate XP reward per stage
+            const stageXP = Math.floor(material.xp_reward / material.stages.length);
+            const isLastStage = activeSection === material.stages.length - 1;
+            const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
+            const totalStageXP = stageXP + remainderXP;
 
-          // Calculate XP reward
-          const stageXP = Math.floor(material.xp_reward / material.stages.length);
-          const isLastStage = activeSection === material.stages.length - 1;
-          const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
-          const totalStageXP = stageXP + remainderXP;
+            alert(`Mencoba mencatat ${stageXP} point untuk stage ${activeSection + 1}...`);
 
-          console.log('⭐ Stage completed:', {
-            stage: activeSection,
-            xp: totalStageXP,
-            isLastStage,
-            totalXP: material.xp_reward
-          });
-
-          // Create point record
-          fetch('http://localhost:3000/api/points', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.id,
-              materialId: material.id,
-              categoryId: parseInt(categoryId),
-              subcategoryId: parseInt(subcategoryId),
-              value: totalStageXP,
-              stageIndex: activeSection
-            })
-          })
-          .then(response => {
-            if (!response.ok) {
-              return response.json().then(err => Promise.reject(err));
-            }
-            return response.json();
-          })
-          .then(data => {
-            if (data.success) {
-              console.log('💰 Stage Completion Check:', {
-                activeSection,
-                progress: parsedStageProgress[activeSection]?.progress,
-                isCompleted: completedStages.has(activeSection),
-                stageXP,
-                isLastStage,
-                remainderXP,
-                totalStageXP,
-                material: {
-                  id: material.id,
-                  totalXP: material.xp_reward,
-                  totalStages: material.stages.length
-                },
-                completedStages: Array.from(completedStages)
-              });
-              console.log('💰 Points awarded:', {
+            // Create point record with stage XP
+            const pointResponse = await fetch('http://localhost:3000/api/points', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: user.id,
+                materialId: material.id,
+                categoryId: parseInt(categoryId),
+                subcategoryId: parseInt(subcategoryId),
+                value: stageXP,
                 stageIndex: activeSection,
-                earnedPoints: totalStageXP,
-                response: data,
-                newTotalPoints: data.data.user.totalPoints,
-                completedStages: Array.from(completedStages)
-              });
-              setEarnedPoints(totalStageXP);
-            } else {
-              throw new Error(data.error || 'Failed to award points');
+                isLastStage,
+                remainderXP
+              })
+            });
+
+            if (!pointResponse.ok) {
+              const errorData = await pointResponse.json().catch(() => ({
+                error: `Server error: ${pointResponse.status} ${pointResponse.statusText}`
+              }));
+              const errorMessage = errorData.error || `Failed to create point record (${pointResponse.status})`;
+              alert(`❌ Gagal mencatat point! ${errorMessage}`);
+              throw new Error(errorMessage);
             }
-          })
-          .catch(error => {
-            console.error('❌ Error creating points:', error);
-            // Don't block the UI for points error
-          });
+
+            const pointData = await pointResponse.json();
+
+            if (!pointData.success) {
+              const errorMessage = pointData.error || pointData.message || 'Unknown error occurred';
+              alert(`❌ Gagal mencatat point! ${errorMessage}`);
+              console.error('Point creation failed:', {
+                response: pointData,
+                request: {
+                  userId: user.id,
+                  materialId: material.id,
+                  value: stageXP,
+                  stageIndex: activeSection
+                }
+              });
+              throw new Error(errorMessage);
+            }
+
+            alert(`✅ Point berhasil dicatat!\nStage ${activeSection + 1}\nPoint yang didapat: ${stageXP}\nTotal point: ${pointData.data.user.totalPoints}`);
+
+            // Only update completedStages after point is successfully created
+            const newCompletedStages = new Set(completedStages);
+            newCompletedStages.add(activeSection);
+            setCompletedStages(newCompletedStages);
+            
+            // Update earned points with stage XP
+            const newPoints = prev => prev + stageXP + (isLastStage ? remainderXP : 0);
+            setEarnedPoints(newPoints);
+          } catch (pointError) {
+            alert(`❌ Error saat mencatat point: ${pointError.message}`);
+            return;
+          }
         }
+      } else {
+        throw new Error(data.error || 'Failed to save progress');
       }
-    })
-    .catch(error => {
-      console.error('❌ Error saving progress:', error);
-      // Optionally show error to user
-      // toast.error('Failed to save progress. Please try again.');
-    });
+    } catch (error) {
+      console.error('❌ Error in progress update:', error);
+      // Show error to user
+      alert('Failed to save progress. Please try again.');
+    }
   }, [activeSection, activeContentIndex, completedStages, material, stageProgress, user?.id, categoryId, subcategoryId]);
 
   // Handle scroll behavior
@@ -355,10 +357,90 @@ const TheoryStep = ({ material }) => {
     window.location.href = `/courses/${categoryId}/subcategory/${subcategoryId}/materials`;
   };
 
+  // Fungsi untuk mencatat point
+  const recordStagePoints = async (stageIndex, material, user, categoryId, subcategoryId) => {
+    // Calculate XP reward per stage
+    const stageXP = Math.floor(material.xp_reward / material.stages.length);
+    const isLastStage = stageIndex === material.stages.length - 1;
+    const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
+
+    console.log('📝 Recording points:', {
+      stage: stageIndex + 1,
+      stageXP,
+      isLastStage,
+      remainderXP,
+      total: stageXP + (isLastStage ? remainderXP : 0)
+    });
+
+    // Create point record
+    const pointResponse = await fetch('http://localhost:3000/api/points', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        userId: user.id,
+        materialId: material.id,
+        categoryId: parseInt(categoryId),
+        subcategoryId: parseInt(subcategoryId),
+        value: stageXP,
+        isLastStage,
+        remainderXP
+      })
+    });
+
+    if (!pointResponse.ok) {
+      throw new Error(`Server error: ${pointResponse.status} ${pointResponse.statusText}`);
+    }
+
+    const pointData = await pointResponse.json();
+    
+    // Validate response
+    if (!pointData.id) {
+      console.error('Invalid point response:', pointData);
+      throw new Error('Failed to create point record: Invalid response');
+    }
+
+    return {
+      pointData,
+      stageXP,
+      totalXP: stageXP + (isLastStage ? remainderXP : 0)
+    };
+  };
+
+  // Fungsi untuk update progress stage
+  const updateStageProgress = async (stageIndex, contentIndex, user, material, completedStages) => {
+    const response = await fetch(
+      `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, 
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stageIndex,
+          contentIndex,
+          contentProgress: 100,
+          completedStages: Array.from(completedStages)
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to update progress: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to save progress');
+    }
+
+    return data;
+  };
+
   const handleNext = async () => {
     if (!currentStage?.contents?.length) return;
 
-    // Scroll to top with window instead of mainContentRef
+    // Scroll to top
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
@@ -374,57 +456,56 @@ const TheoryStep = ({ material }) => {
     if (material?.stages) {
       try {
         setIsStageLoading(true);
-        
-        // Create new completed stages set
+
+        // 1. Record points for completed stage
+        const { pointData, stageXP, totalXP } = await recordStagePoints(
+          activeSection,
+          material,
+          user,
+          categoryId,
+          subcategoryId
+        );
+
+        // Show success notification
+        alert(`✅ Point berhasil dicatat!\nStage ${activeSection + 1}\nPoint yang didapat: ${stageXP}\nTotal point: ${pointData.user?.totalPoints || 0}`);
+
+        // 2. Update completed stages
         const newCompletedStages = new Set(completedStages);
         newCompletedStages.add(activeSection);
 
-        // Save completion status to backend
-        const response = await fetch(
-          `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, 
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              stageIndex: activeSection,
-              contentIndex: activeContentIndex,
-              contentProgress: 100,
-              completedStages: Array.from(newCompletedStages)
-            })
-          }
+        // 3. Save progress
+        const progressData = await updateStageProgress(
+          activeSection,
+          activeContentIndex,
+          user,
+          material,
+          newCompletedStages
         );
 
-        if (!response.ok) {
-          throw new Error('Failed to save completion status');
-        }
-
-        const data = await response.json();
+        // 4. Update local state
+        setCompletedStages(newCompletedStages);
+        setEarnedPoints(prev => prev + totalXP);
         
-        if (data.success) {
-          console.log('✅ Stage completion saved:', {
-            stage: activeSection,
-            completedStages: Array.from(newCompletedStages)
-          });
-
-          // Update local state first
-          setCompletedStages(newCompletedStages);
-          
-          // If not the last stage, move to next stage
-          if (activeSection < material.stages.length - 1) {
-            setActiveSection(activeSection + 1);
-            setActiveContentIndex(0);
-          } else {
-            // This is the last stage, mark as complete
-            console.log('🎉 Material completed!');
-            setActiveSection(-1);
-          }
+        // 5. Navigate to next stage or complete
+        if (activeSection < material.stages.length - 1) {
+          setActiveSection(activeSection + 1);
+          setActiveContentIndex(0);
         } else {
-          throw new Error(data.error || 'Failed to save completion status');
+          setActiveSection(-1); // Mark as complete
         }
+
       } catch (error) {
-        console.error('❌ Error saving completion:', error);
-        // Show error message to user
-        // toast.error('Failed to save progress. Please try again.');
+        console.error('❌ Error in handleNext:', {
+          message: error.message,
+          stack: error.stack,
+          context: {
+            stage: activeSection,
+            content: activeContentIndex,
+            user: user?.id,
+            material: material?.id
+          }
+        });
+        alert('❌ Gagal menyimpan progress. Silakan coba lagi.');
       } finally {
         setIsStageLoading(false);
       }
@@ -510,61 +591,58 @@ const TheoryStep = ({ material }) => {
     }
   }, [showWelcomeModal]);
 
+  // Handle modal close
+  const handleCloseModal = () => {
+    setShowWelcomeModal(false);
+    // Save to localStorage that user has seen the modal for this material
+    if (material?.id) {
+      localStorage.setItem(`welcome_modal_seen_${material.id}`, 'true');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       {/* Welcome Modal */}
       <AnimatePresence>
         {showWelcomeModal && (
-          <div className="fixed inset-0 z-[100]">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setShowWelcomeModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed top-[20vh] left-[40%] -translate-x-1/2 w-full max-w-sm mx-4"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1A1B1E] rounded-xl p-6 max-w-md w-full mx-4 relative overflow-hidden"
             >
-              <div className="relative overflow-hidden bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl rounded-2xl border border-white/10">
-                {/* Decorative circles */}
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" />
-                <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
-                
-                <div className="relative p-8">
-                  {/* Icon container with glow effect */}
-                  <div className="relative mb-8">
-                    <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full" />
-                    <div className="relative flex items-center justify-center">
-                      <img src={iconCourse2} alt="Course Icon" className="w-32 h-32 transform hover:scale-110 transition-transform duration-300" />
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="text-center space-y-4">
-                    <h3 className="text-2xl font-semibold text-white bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-                      Good Luck Learning!
-                    </h3>
-                    <p className="text-white/70 text-sm leading-relaxed">
-                      Let's start your learning journey. We believe in you!
-                    </p>
-                    <button
-                      onClick={() => setShowWelcomeModal(false)}
-                      className="w-full px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium 
-                                 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700 
-                                 transform hover:-translate-y-0.5 active:translate-y-0
-                                 transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
-                    >
-                      Let's Begin!
-                    </button>
-                  </div>
-                </div>
+              {/* Decorative circles */}
+              <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full bg-blue-500/10" />
+              <div className="absolute -bottom-12 -left-12 w-24 h-24 rounded-full bg-purple-500/10" />
+              
+              {/* Content */}
+              <div className="relative text-center space-y-4">
+                <img 
+                  src="/iconCourse2.svg" 
+                  alt="Course Icon"
+                  className="w-16 h-16 mx-auto mb-4 animate-float"
+                />
+                <h3 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                  Good Luck Learning!
+                </h3>
+                <p className="text-white/60">
+                  Selamat belajar! Jangan lupa untuk selalu fokus dan mencatat poin-poin penting.
+                </p>
+                <button
+                  onClick={handleCloseModal}
+                  className="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium hover:from-blue-600 hover:to-purple-600 transition-colors"
+                >
+                  Let's Begin!
+                </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

@@ -1,7 +1,9 @@
 import { FiArrowLeft, FiClock, FiZap } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../../../../../../../../context/AuthContext';
 
 const TopNavigation = ({ section, onBack, show, material, earnedPoints, completedStages = [] }) => {
+  const { user } = useAuth();
   console.log('🔍 TopNavigation Props:', {
     material,
     earnedPoints,
@@ -26,44 +28,6 @@ const TopNavigation = ({ section, onBack, show, material, earnedPoints, complete
       return () => clearTimeout(timer);
     }
   }, [earnedPoints]);
-
-  // Calculate total earned XP from completed stages
-  const calculateEarnedXP = () => {
-    console.log('📊 Pre-calculation check:', {
-      material,
-      'material?.xp_reward': material?.xp_reward,
-      'material?.stages?.length': material?.stages?.length,
-      completedStages
-    });
-
-    if (!material) {
-      console.log('❌ No material data');
-      return 0;
-    }
-
-    if (!material.xp_reward) {
-      console.log('❌ No xp_reward in material');
-      return 0;
-    }
-
-    if (!material.stages?.length) {
-      console.log('❌ No stages in material');
-      return 0;
-    }
-    
-    const xpPerStage = Math.floor(material.xp_reward / material.stages.length);
-    const totalEarned = completedStages.length * xpPerStage;
-
-    console.log('✅ XP Calculation:', {
-      xpPerStage,
-      completedStagesCount: completedStages.length,
-      totalEarned
-    });
-
-    return totalEarned;
-  };
-
-  const earnedXP = calculateEarnedXP();
 
   return (
     <div className={`
@@ -114,7 +78,7 @@ const TopNavigation = ({ section, onBack, show, material, earnedPoints, complete
               </div>
               <div>
                 <p className="text-sm font-medium text-white">Stage XP</p>
-                <p className="text-sm text-white/60">{earnedXP} XP</p>
+                <p className="text-sm text-white/60">{earnedPoints} XP</p>
               </div>
             </div>
 
