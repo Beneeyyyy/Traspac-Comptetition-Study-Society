@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FiArrowLeft, FiMenu } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
 import { useAuth } from '../../../../../../../../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Lazy load components
 const TopNavigation = lazy(() => import('./components/TopNavigation'));
@@ -12,6 +13,8 @@ const ContentRenderer = lazy(() => import('./components/ContentRenderer'));
 const QuickTips = lazy(() => import('./components/QuickTips'));
 const QuickQuiz = lazy(() => import('./components/QuickQuiz'));
 const DiscussionPanel = lazy(() => import('../DiscussionPanel'));
+
+const STORAGE_KEY = 'material_progress_';
 
 const TheoryStep = ({ material }) => {
   const [searchParams] = useSearchParams();
@@ -27,6 +30,7 @@ const TheoryStep = ({ material }) => {
   const [stageProgress, setStageProgress] = useState({});
   const [earnedPoints, setEarnedPoints] = useState(0);
   const mainContentRef = useRef(null);
+  const [isStageLoading, setIsStageLoading] = useState(false);
   
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
@@ -129,6 +133,50 @@ const TheoryStep = ({ material }) => {
 
     loadProgress();
   }, [user?.id, material?.id]);
+
+  // Load progress from localStorage
+  useEffect(() => {
+    const loadLocalProgress = () => {
+      try {
+        const key = STORAGE_KEY + material?.id;
+        const savedProgress = localStorage.getItem(key);
+        if (savedProgress) {
+          const parsed = JSON.parse(savedProgress);
+          setStageProgress(parsed.stageProgress);
+          setCompletedStages(new Set(parsed.completedStages));
+          setEarnedPoints(parsed.earnedPoints);
+          console.log('📝 Loaded progress from localStorage:', parsed);
+        }
+      } catch (error) {
+        console.error('❌ Error loading progress from localStorage:', error);
+      }
+    };
+
+    loadLocalProgress();
+  }, [material?.id]);
+
+  // Save progress to localStorage
+  useEffect(() => {
+    const saveLocalProgress = () => {
+      try {
+        const key = STORAGE_KEY + material?.id;
+        const progress = {
+          stageProgress,
+          completedStages: Array.from(completedStages),
+          earnedPoints,
+          lastUpdated: new Date().toISOString()
+        };
+        localStorage.setItem(key, JSON.stringify(progress));
+        console.log('💾 Saved progress to localStorage:', progress);
+      } catch (error) {
+        console.error('❌ Error saving progress to localStorage:', error);
+      }
+    };
+
+    if (material?.id) {
+      saveLocalProgress();
+    }
+  }, [stageProgress, completedStages, earnedPoints, material?.id]);
 
   // Update progress when content changes
   const handleProgressUpdate = useCallback((progress) => {
@@ -304,6 +352,12 @@ const TheoryStep = ({ material }) => {
   const handleNext = async () => {
     if (!currentStage?.contents?.length) return;
 
+    // Scroll to top with window instead of mainContentRef
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+
     // If not at the last content of current stage
     if (activeContentIndex < sortedContents.length - 1) {
       setActiveContentIndex(activeContentIndex + 1);
@@ -313,6 +367,8 @@ const TheoryStep = ({ material }) => {
     // If at last content of current stage
     if (material?.stages) {
       try {
+        setIsStageLoading(true);
+        
         // Create new completed stages set
         const newCompletedStages = new Set(completedStages);
         newCompletedStages.add(activeSection);
@@ -352,26 +408,31 @@ const TheoryStep = ({ material }) => {
             setActiveSection(activeSection + 1);
             setActiveContentIndex(0);
           } else {
-            // This is the last stage, mark as complete and deactivate current stage
+            // This is the last stage, mark as complete
             console.log('🎉 Material completed!');
-            setActiveSection(-1); // Set to invalid index to make isCurrent false for all stages
+            setActiveSection(-1);
           }
         } else {
           throw new Error(data.error || 'Failed to save completion status');
         }
       } catch (error) {
         console.error('❌ Error saving completion:', error);
-        // Even if save fails, allow user to continue
-        if (activeSection < material.stages.length - 1) {
-          setActiveSection(activeSection + 1);
-          setActiveContentIndex(0);
-        }
+        // Show error message to user
+        // toast.error('Failed to save progress. Please try again.');
+      } finally {
+        setIsStageLoading(false);
       }
     }
   };
 
   const handlePrevious = () => {
     if (!currentStage?.contents?.length) return;
+
+    // Scroll to top with window instead of mainContentRef
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
 
     if (activeContentIndex > 0) {
       setActiveContentIndex(activeContentIndex - 1);
@@ -382,6 +443,29 @@ const TheoryStep = ({ material }) => {
       setActiveContentIndex(Math.max(0, prevContents.length - 1));
     }
   };
+
+  // Tambahkan useEffect untuk preloading
+  useEffect(() => {
+    const prefetchNextStage = async () => {
+      // Jika bukan stage terakhir
+      if (material?.stages && activeSection < material.stages.length - 1) {
+        try {
+          // Preload progress untuk stage berikutnya
+          const nextStageIndex = activeSection + 1;
+          console.log('🔄 Prefetching next stage:', nextStageIndex);
+          
+          await fetch(
+            `http://localhost:3000/api/progress/material/${user.id}/${material.id}`, 
+            { method: 'GET' }
+          );
+        } catch (error) {
+          console.error('❌ Error prefetching next stage:', error);
+        }
+      }
+    };
+
+    prefetchNextStage();
+  }, [activeSection, material?.stages, material?.id, user?.id]);
 
   // Sebelum render TopNavigation
   console.log('🎯 Pre-render check:', {
@@ -432,6 +516,12 @@ const TheoryStep = ({ material }) => {
                 completedStages={completedStages}
                 stageProgress={stageProgress}
                 onSectionChange={(index) => {
+                  // Scroll to top with window
+                  window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                  });
+                  
                   setActiveSection(index);
                   setActiveContentIndex(0);
                   setShowLeftSidebar(false);
@@ -452,122 +542,143 @@ const TheoryStep = ({ material }) => {
         {/* Main Content */}
         <main className="flex-1 min-w-0">
           <div ref={mainContentRef} className="h-full px-4 lg:px-8 py-6">
-            {/* Welcome Message */}
-            {activeSection === 0 && currentStage?.order === 1 && (
-              <div className="max-w-2xl mx-auto mb-12">
-                <div className="flex flex-col items-center gap-6 text-center p-8 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/10">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-3xl rounded-full"></div>
-                    <div className="relative h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                      <RiBookLine className="w-8 h-8 text-blue-400" />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeSection}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="relative"
+              >
+                {isStageLoading ? (
+                  <div className="max-w-4xl mx-auto space-y-8">
+                    {/* Title Skeleton */}
+                    <div className="animate-pulse space-y-4">
+                      <div className="h-8 bg-white/5 rounded-lg w-3/4"></div>
+                      <div className="h-2 bg-white/5 rounded-full w-1/2"></div>
                     </div>
-                  </div>
-                  <div className="space-y-3">
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                      Selamat datang di pembelajaran {material.title}!
-                    </h2>
-                    <p className="text-white/60">
-                      Mari kita mulai petualangan belajar yang menyenangkan. Setiap langkah membawamu lebih dekat ke penguasaan materi!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <Suspense fallback={<ContentSkeleton />}>
-              {/* Stage Progress */}
-              <div className="max-w-4xl mx-auto mb-8">
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                    <RiLightbulbLine className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-white mb-2 truncate">{currentStage?.title}</h3>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300"
-                          style={{ 
-                            width: sortedContents.length 
-                              ? `${((activeContentIndex + 1) / sortedContents.length) * 100}%`
-                              : '0%'
-                          }}
-                        />
+                    
+                    {/* Content Skeleton */}
+                    <div className="animate-pulse space-y-6">
+                      <div className="h-48 bg-white/5 rounded-lg"></div>
+                      <div className="space-y-3">
+                        <div className="h-4 bg-white/5 rounded-full w-5/6"></div>
+                        <div className="h-4 bg-white/5 rounded-full w-4/6"></div>
+                        <div className="h-4 bg-white/5 rounded-full w-3/6"></div>
                       </div>
-                      <span className="text-sm font-medium text-white/60 whitespace-nowrap">
-                        {activeContentIndex + 1} / {sortedContents.length}
-                      </span>
+                    </div>
+
+                    {/* Loading Progress */}
+                    <div className="fixed bottom-4 right-4 bg-black/80 backdrop-blur-sm p-4 rounded-xl border border-white/10">
+                      <div className="flex items-center gap-3">
+                        <div className="animate-spin w-5 h-5 border-2 border-white/10 border-t-blue-500 rounded-full"></div>
+                        <span className="text-sm text-white/60">Loading next stage...</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                ) : (
+                  <Suspense fallback={<ContentSkeleton />}>
+                    {/* Stage Progress */}
+                    <div className="max-w-4xl mx-auto mb-8">
+                      <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
+                          <RiLightbulbLine className="w-6 h-6 text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-white mb-2 truncate">{currentStage?.title}</h3>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300"
+                                style={{ 
+                                  width: sortedContents.length 
+                                    ? `${((activeContentIndex + 1) / sortedContents.length) * 100}%`
+                                    : '0%'
+                                }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium text-white/60 whitespace-nowrap">
+                              {activeContentIndex + 1} / {sortedContents.length}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Content */}
-              <div className="max-w-4xl mx-auto">
-                {currentStage?.contents && (
-                  <ContentRenderer 
-                    contents={currentStage.contents}
-                    currentStage={currentStage}
-                    onNextStage={handleNext}
-                    currentContentIndex={activeContentIndex}
-                    onContentChange={setActiveContentIndex}
-                    savedContentIndex={materialProgress?.activeContentIndex}
-                    onProgressUpdate={handleProgressUpdate}
-                  />
-                )}
-              </div>
-
-              {/* Navigation Buttons */}
-              <div className="max-w-4xl mx-auto mt-8 mb-16">
-                <div className="flex justify-between items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                  <button
-                    onClick={handlePrevious}
-                    disabled={activeContentIndex === 0 && activeSection === 0}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
-                      activeContentIndex === 0 && activeSection === 0
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-white/5 active:bg-white/10 hover:shadow-lg'
-                    }`}
-                  >
-                    <FiArrowLeft className="w-5 h-5" />
-                    <span>Previous</span>
-                  </button>
-
-                  <div className="text-sm font-medium text-white/60">
-                    Stage {activeSection + 1} • Content {activeContentIndex + 1} / {sortedContents.length}
-                  </div>
-                  
-                  <button
-                    onClick={handleNext}
-                    disabled={false}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
-                      activeContentIndex === sortedContents.length - 1 && material?.stages ? (
-                        activeSection === material.stages.length - 1 ? (
-                          'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 active:from-green-700 active:to-emerald-700'
-                        ) : (
-                          'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
-                        )
-                      ) : (
-                        'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
-                      )
-                    } hover:shadow-lg`}
-                  >
-                    <span>
-                      {activeContentIndex === sortedContents.length - 1 && material?.stages ? (
-                        activeSection === material.stages.length - 1 ? (
-                          'Complete Material'
-                        ) : (
-                          'Next Stage'
-                        )
-                      ) : (
-                        'Next'
+                    {/* Content */}
+                    <div className="max-w-4xl mx-auto">
+                      {currentStage?.contents && (
+                        <ContentRenderer 
+                          contents={currentStage.contents}
+                          currentStage={currentStage}
+                          onNextStage={handleNext}
+                          currentContentIndex={activeContentIndex}
+                          onContentChange={setActiveContentIndex}
+                          savedContentIndex={materialProgress?.activeContentIndex}
+                          onProgressUpdate={handleProgressUpdate}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{ duration: 0.3 }}
+                        />
                       )}
-                    </span>
-                    <FiArrowLeft className="w-5 h-5 rotate-180" />
-                  </button>
-                </div>
-              </div>
-            </Suspense>
+                    </div>
+
+                    {/* Navigation Buttons */}
+                    <div className="max-w-4xl mx-auto mt-8 mb-16">
+                      <div className="flex justify-between items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                        <button
+                          onClick={handlePrevious}
+                          disabled={activeContentIndex === 0 && activeSection === 0}
+                          className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
+                            activeContentIndex === 0 && activeSection === 0
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'hover:bg-white/5 active:bg-white/10 hover:shadow-lg'
+                          }`}
+                        >
+                          <FiArrowLeft className="w-5 h-5" />
+                          <span>Previous</span>
+                        </button>
+
+                        <div className="text-sm font-medium text-white/60">
+                          Stage {activeSection + 1} • Content {activeContentIndex + 1} / {sortedContents.length}
+                        </div>
+                        
+                        <button
+                          onClick={handleNext}
+                          disabled={false}
+                          className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 ${
+                            activeContentIndex === sortedContents.length - 1 && material?.stages ? (
+                              activeSection === material.stages.length - 1 ? (
+                                'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 active:from-green-700 active:to-emerald-700'
+                              ) : (
+                                'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
+                              )
+                            ) : (
+                              'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700'
+                            )
+                          } hover:shadow-lg`}
+                        >
+                          <span>
+                            {activeContentIndex === sortedContents.length - 1 && material?.stages ? (
+                              activeSection === material.stages.length - 1 ? (
+                                'Complete Material'
+                              ) : (
+                                'Next Stage'
+                              )
+                            ) : (
+                              'Next'
+                            )}
+                          </span>
+                          <FiArrowLeft className="w-5 h-5 rotate-180" />
+                        </button>
+                      </div>
+                    </div>
+                  </Suspense>
+                )}
+              </motion.div>
+            </AnimatePresence>
 
             {/* Discussion Panel */}
             <div className="max-w-4xl mx-auto">
