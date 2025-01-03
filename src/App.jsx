@@ -26,6 +26,7 @@ import Signup from './components/feature/auth/Signup'
 function AppContent() {
   const location = useLocation()
   const isAuthPage = ['/login', '/signup'].includes(location.pathname)
+  const isCommunityPage = location.pathname.startsWith('/community')
   
   return (
     <div className="min-h-screen">
@@ -64,9 +65,6 @@ function AppContent() {
           <Route path="/admin/subcategories" element={<SubcategoryManagement />} />
           <Route path="/admin/materials" element={<MaterialManagement />} />
           
-          {/* Test Routes */}
-        
-          
           {/* Catch-all route */}
           <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Routes>
@@ -77,15 +75,15 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <CommunityProvider>
-          <MotionConfig reducedMotion="user">
+    <MotionConfig reducedMotion="user">
+      <Router>
+        <AuthProvider>
+          <CommunityProvider>
             <AppContent />
-          </MotionConfig>
-        </CommunityProvider>
-      </AuthProvider>
-    </Router>
+          </CommunityProvider>
+        </AuthProvider>
+      </Router>
+    </MotionConfig>
   )
 }
 

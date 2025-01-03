@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { FiImage, FiX, FiMessageSquare, FiLink, FiHash } from 'react-icons/fi'
+import { FiImage, FiX, FiMessageSquare, FiLink, FiHash, FiLoader } from 'react-icons/fi'
 import { useCommunity } from '../../../context/CommunityContext'
 
 const CreatePost = () => {
@@ -10,6 +10,8 @@ const CreatePost = () => {
   const [images, setImages] = useState([])
   const [tags, setTags] = useState([])
   const [tagInput, setTagInput] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState(null)
   const fileInputRef = useRef(null)
 
   const handleImageUpload = (e) => {
@@ -46,7 +48,6 @@ const CreatePost = () => {
   const handleTagInputChange = (e) => {
     const value = e.target.value
     if (value.endsWith(' ')) {
-      // Jika user mengetik spasi, coba tambahkan tag
       setTagInput(value.trim())
       addTag()
     } else {
@@ -58,23 +59,32 @@ const CreatePost = () => {
     setTags(prev => prev.filter(tag => tag !== tagToRemove))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !content.trim()) return
+    
+    setIsSubmitting(true)
+    setError(null)
 
-    addQuestion({
-      title: title.trim(),
-      content: content.trim(),
-      images: images.map(img => img.preview),
-      tags: tags.length > 0 ? tags : ['general']
-    })
+    try {
+      await addQuestion({
+        title: title.trim(),
+        content: content.trim(),
+        images: images.map(img => img.preview),
+        tags: tags.length > 0 ? tags : ['general']
+      })
 
-    // Reset form
-    setTitle('')
-    setContent('')
-    setImages([])
-    setTags([])
-    setTagInput('')
-    setIsExpanded(false)
+      // Reset form
+      setTitle('')
+      setContent('')
+      setImages([])
+      setTags([])
+      setTagInput('')
+      setIsExpanded(false)
+    } catch (err) {
+      setError(err.message || 'Gagal membuat pertanyaan. Silakan coba lagi.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -107,6 +117,13 @@ const CreatePost = () => {
               onClick={() => setIsExpanded(true)}
               className="w-full px-4 py-2.5 bg-white/[0.03] hover:bg-white/[0.05] border border-white/10 rounded-xl text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-colors resize-none"
             />
+
+            {/* Error Message */}
+            {error && (
+              <div className="text-red-400 text-sm">
+                {error}
+              </div>
+            )}
 
             {/* Tags Input */}
             {isExpanded && (
@@ -206,6 +223,7 @@ const CreatePost = () => {
                       setImages([])
                       setTags([])
                       setTagInput('')
+                      setError(null)
                     }}
                     className="px-4 py-2 text-sm text-white/60 hover:text-white/90 transition-colors"
                   >
@@ -213,15 +231,19 @@ const CreatePost = () => {
                   </button>
                   <button
                     onClick={handleSubmit}
-                    disabled={!title.trim() || !content.trim()}
+                    disabled={!title.trim() || !content.trim() || isSubmitting}
                     className={`px-5 py-2 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2
-                      ${title.trim() && content.trim()
+                      ${title.trim() && content.trim() && !isSubmitting
                         ? 'bg-blue-500 hover:bg-blue-600'
                         : 'bg-blue-500/50 cursor-not-allowed'
                       }`}
                   >
-                    <FiMessageSquare className="text-base" />
-                    Kirim Pertanyaan
+                    {isSubmitting ? (
+                      <FiLoader className="text-base animate-spin" />
+                    ) : (
+                      <FiMessageSquare className="text-base" />
+                    )}
+                    {isSubmitting ? 'Mengirim...' : 'Kirim Pertanyaan'}
                   </button>
                 </div>
               </div>

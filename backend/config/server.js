@@ -17,6 +17,7 @@ const progressRoutes = require('../routes/progress/progressRoutes');
 const stageProgressRoutes = require('../routes/progress/stageProgressRoutes');
 const notificationRoutes = require('../routes/progress/routes/notificationRoutes');
 const discussionRoutes = require('../routes/coursesManagement/routes/discussionRoutes');
+const forumRoutes = require('../routes/community/forum/routes/forumRoutes');
 
 
 
@@ -87,6 +88,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/stage-progress', stageProgressRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/discussions', discussionRoutes);
+app.use('/api/forum', forumRoutes);
 
 // Global error handling
 app.use((err, req, res, next) => {

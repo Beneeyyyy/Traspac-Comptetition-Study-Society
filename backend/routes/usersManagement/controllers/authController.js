@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const uploadImage = require('../../../utils/uploadImage');
 
 const prisma = new PrismaClient();
 
@@ -100,7 +101,7 @@ const signup = async (req, res) => {
       bio,
       interests,
       currentGoal,
-      image
+      profilePicture
     } = req.body;
     console.log('Signup attempt for email:', email);
 
@@ -119,6 +120,19 @@ const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     console.log('Password hashed successfully');
 
+    // Upload profile picture to Cloudinary if provided
+    console.log('Processing profile picture...');
+    let imageUrl = null;
+    if (profilePicture) {
+      try {
+        imageUrl = await uploadImage(profilePicture);
+        console.log('Profile picture uploaded successfully:', imageUrl);
+      } catch (uploadError) {
+        console.error('Error uploading profile picture:', uploadError);
+        // Continue with signup even if image upload fails
+      }
+    }
+
     console.log('Creating user...');
     const user = await prisma.user.create({
       data: {
@@ -130,7 +144,7 @@ const signup = async (req, res) => {
         bio,
         interests: interests || [],
         currentGoal,
-        image,
+        image: imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0D8ABC&color=fff`,
         totalPoints: 0,
         level: 1,
         rank: 'Pemula'

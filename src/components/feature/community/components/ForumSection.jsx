@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react'
+import React, { Suspense, lazy, useState, useMemo, useCallback } from 'react'
 import { FiSearch, FiFilter, FiTrendingUp, FiClock, FiMessageSquare, FiHeart } from 'react-icons/fi'
 import { useDebounce } from '../../../../hooks/useDebounce'
 import QuestionCardSkeleton from './forumComponents/skeletons/QuestionCardSkeleton'
@@ -10,15 +10,15 @@ const QuestionCard = lazy(() => import('./forumComponents/Post/QuestionCard'))
 
 const ForumSection = () => {
   const { questions = [], isLoading } = useCommunity() || {}
-  const [searchQuery, setSearchQuery] = React.useState('')
-  const [selectedFilter, setSelectedFilter] = React.useState('all')
-  const [expandedQuestion, setExpandedQuestion] = React.useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedFilter, setSelectedFilter] = useState('all')
+  const [expandedQuestion, setExpandedQuestion] = useState(null)
 
   // Debounce search query to prevent excessive filtering
   const debouncedSearch = useDebounce(searchQuery, 300)
 
   // Memoize filters to prevent unnecessary re-renders
-  const filters = React.useMemo(() => [
+  const filters = useMemo(() => [
     { id: 'all', label: 'Semua', icon: FiFilter },
     { id: 'trending', label: 'Trending', icon: FiTrendingUp },
     { id: 'recent', label: 'Terbaru', icon: FiClock },
@@ -27,7 +27,7 @@ const ForumSection = () => {
   ], [])
 
   // Memoize filtered questions
-  const filteredQuestions = React.useMemo(() => {
+  const filteredQuestions = useMemo(() => {
     if (!questions || !debouncedSearch) return questions || []
     return questions.filter(question => 
       question.title?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
@@ -37,12 +37,12 @@ const ForumSection = () => {
   }, [questions, debouncedSearch])
 
   // Memoize search handler
-  const handleSearch = React.useCallback((e) => {
+  const handleSearch = useCallback((e) => {
     setSearchQuery(e.target.value)
   }, [])
 
   // Memoize filter handler
-  const handleFilterChange = React.useCallback((filterId) => {
+  const handleFilterChange = useCallback((filterId) => {
     setSelectedFilter(filterId)
   }, [])
 
@@ -106,9 +106,9 @@ const ForumSection = () => {
         {isLoading ? (
           // Show skeleton loading while fetching data
           <>
-            <QuestionCardSkeleton />
-            <QuestionCardSkeleton />
-            <QuestionCardSkeleton />
+            <QuestionCardSkeleton key="skeleton-1" />
+            <QuestionCardSkeleton key="skeleton-2" />
+            <QuestionCardSkeleton key="skeleton-3" />
           </>
         ) : !filteredQuestions || filteredQuestions.length === 0 ? (
           // Show empty state when no questions match the filter

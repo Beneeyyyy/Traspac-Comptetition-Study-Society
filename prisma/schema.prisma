@@ -130,6 +130,12 @@ model User {
   discussions     Discussion[]
   replies         Reply[]
   likes           Like[]
+  
+  // Forum relations
+  forumPosts    ForumPost[]
+  forumAnswers  ForumAnswer[]
+  forumComments ForumComment[]
+  forumVotes    ForumVote[]
 }
 
 model Point {
@@ -252,4 +258,77 @@ model Like {
   @@index([userId])
   @@index([discussionId])
   @@index([replyId])
+}
+
+// Forum Models
+model ForumPost {
+  id            Int       @id @default(autoincrement())
+  title         String    
+  content       String    
+  images        String[]  
+  userId        Int       
+  tags          String[]  
+  viewCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id])
+  answers       ForumAnswer[]
+  votes         ForumVote[]
+  comments      ForumComment[]
+}
+
+model ForumAnswer {
+  id            Int       @id @default(autoincrement())
+  content       String    
+  images        String[]  
+  userId        Int       
+  postId        Int       
+  isAccepted    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id])
+  post          ForumPost @relation(fields: [postId], references: [id])
+  votes         ForumVote[]
+  comments      ForumComment[]
+}
+
+model ForumComment {
+  id            Int       @id @default(autoincrement())
+  content       String
+  userId        Int
+  postId        Int?      
+  answerId      Int?      
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User       @relation(fields: [userId], references: [id])
+  post          ForumPost? @relation(fields: [postId], references: [id])
+  answer        ForumAnswer? @relation(fields: [answerId], references: [id])
+  votes         ForumVote[]
+}
+
+model ForumVote {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  postId        Int?      
+  answerId      Int?      
+  commentId     Int?      
+  isUpvote      Boolean   
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  user          User       @relation(fields: [userId], references: [id])
+  post          ForumPost? @relation(fields: [postId], references: [id])
+  answer        ForumAnswer? @relation(fields: [answerId], references: [id])
+  comment       ForumComment? @relation(fields: [commentId], references: [id])
+
+  // Unique constraints
+  @@unique([userId, postId])
+  @@unique([userId, answerId])
+  @@unique([userId, commentId])
 }

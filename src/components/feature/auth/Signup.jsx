@@ -109,17 +109,18 @@ const Signup = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        alert('Image size should be less than 5MB');
+        setError('Image size should be less than 5MB');
         return;
       }
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
-        setFormData({
-          ...formData,
-          profilePicture: reader.result
-        });
+        const base64String = reader.result;
+        setImagePreview(base64String);
+        setFormData(prev => ({
+          ...prev,
+          profilePicture: base64String
+        }));
       };
       reader.readAsDataURL(file);
     }
@@ -150,7 +151,11 @@ const Signup = () => {
         profilePicture: formData.profilePicture
       };
 
-      console.log('Sending signup data:', { ...userData, password: '[REDACTED]' });
+      console.log('Sending signup data:', { 
+        ...userData, 
+        password: '[REDACTED]',
+        profilePicture: formData.profilePicture ? '[BASE64_STRING]' : null 
+      });
 
       // Send request to backend
       const response = await fetch('http://localhost:3000/api/auth/signup', {

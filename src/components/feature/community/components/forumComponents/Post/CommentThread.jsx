@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FiMessageSquare, FiSend, FiX, FiLoader } from 'react-icons/fi'
-import { useCommunity } from '../../context/CommunityContext'
+import { useCommunity } from '../../../context/CommunityContext'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const MAX_COMMENT_LENGTH = 500
@@ -71,8 +71,8 @@ const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubm
         <div className="relative flex gap-3">
           <div className="relative">
             <img
-              src={comment.user.avatar}
-              alt={comment.user.name}
+              src={comment.user?.image || '/avatars/default.png'}
+              alt={comment.user?.name || 'User'}
               className="w-7 h-7 rounded-full ring-1 ring-white/10 hover:ring-white/20 transition-all"
             />
             {/* Vertical line extension below avatar for replies */}
@@ -84,13 +84,13 @@ const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubm
             {/* Comment Header */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-medium text-white/90 hover:text-white transition-colors">
-                {comment.user.name}
+                {comment.user?.name || 'Anonymous'}
               </span>
               <span className="px-2 py-0.5 bg-white/[0.03] text-white/40 rounded-lg text-xs border border-white/5">
-                Komentar
+                {comment.user?.rank || 'Member'}
               </span>
               <span className="text-xs text-white/40">
-                {comment.timeAgo}
+                {comment.timeAgo || 'Just now'}
               </span>
             </div>
             <div className="space-y-2">

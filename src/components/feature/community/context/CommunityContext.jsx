@@ -1,6 +1,18 @@
-import React, { createContext, useContext, useReducer, useMemo } from 'react'
+import React, { createContext, useContext, useReducer, useMemo, useEffect } from 'react'
+import axios from 'axios'
+import { useAuth } from '../../../../context/AuthContext'
 
 const CommunityContext = createContext()
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: 'http://localhost:3000/api',
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+})
 
 export const useCommunity = () => {
   const context = useContext(CommunityContext)
@@ -10,107 +22,145 @@ export const useCommunity = () => {
   return context
 }
 
-const initialStudyGroups = [
-  {
-    id: 1,
-    name: "Kelompok Belajar Matematika",
-    topic: "Matematika",
-    description: "Grup diskusi untuk membahas soal-soal matematika dan persiapan ujian",
-    members: 128,
-    activeMembers: 45,
-    lastActive: "Baru saja",
-    topics: ["Aljabar", "Geometri", "Kalkulus"],
-    schedule: "Setiap Senin & Rabu",
-    nextMeeting: "Senin, 19:00 WIB",
-    image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb",
-    recentDiscussions: [
-      "Pembahasan soal UTBK 2023",
-      "Tips mengerjakan soal cerita",
-      "Latihan soal Integral"
-    ],
-    isMember: false
-  },
-  {
-    id: 2,
-    name: "Grup Bahasa Inggris",
-    topic: "Bahasa",
-    description: "Praktik speaking dan listening bersama native speaker",
-    members: 95,
-    activeMembers: 32,
-    lastActive: "5 menit yang lalu",
-    topics: ["Speaking", "TOEFL", "Grammar"],
-    schedule: "Setiap Selasa & Jumat",
-    nextMeeting: "Selasa, 20:00 WIB",
-    image: "https://images.unsplash.com/photo-1571260899304-425eee4c7efc",
-    recentDiscussions: [
-      "English Speaking Club",
-      "IELTS Writing Tips",
-      "Daily Conversation Practice"
-    ],
-    isMember: false
-  },
-  {
-    id: 3,
-    name: "Komunitas Fisika",
-    topic: "Fisika",
-    description: "Diskusi konsep fisika dan eksperimen virtual bersama",
-    members: 76,
-    activeMembers: 28,
-    lastActive: "15 menit yang lalu",
-    topics: ["Mekanika", "Listrik", "Termodinamika"],
-    schedule: "Setiap Kamis",
-    nextMeeting: "Kamis, 19:30 WIB",
-    image: "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa",
-    recentDiscussions: [
-      "Pembahasan Soal Olimpiade",
-      "Praktikum Virtual",
-      "Q&A Konsep Dasar"
-    ],
-    isMember: false
-  }
-]
-
 const initialState = {
-  communities: initialStudyGroups,
-  currentUser: {
-    name: 'You',
-    image: 'https://ui-avatars.com/api/?name=You&background=6366F1&color=fff',
-    role: 'Member'
-  }
+  questions: [],
+  isLoading: false,
+  error: null,
+  currentUser: null
 }
 
 const communityReducer = (state, action) => {
   switch (action.type) {
-    case 'CREATE_STUDY_GROUP':
+    case 'SET_CURRENT_USER':
       return {
         ...state,
-        communities: [...state.communities, action.payload]
+        currentUser: action.payload
       }
-    case 'JOIN_STUDY_GROUP':
+    case 'FETCH_QUESTIONS_START':
       return {
         ...state,
-        communities: state.communities.map(group =>
-          group.id === action.payload.groupId
-            ? { ...group, isMember: true, members: group.members + 1 }
-            : group
+        isLoading: true,
+        error: null
+      }
+    case 'FETCH_QUESTIONS_SUCCESS':
+      return {
+        ...state,
+        questions: action.payload,
+        isLoading: false
+      }
+    case 'FETCH_QUESTIONS_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+        isLoading: false
+      }
+    case 'REFRESH_QUESTION_SUCCESS':
+      return {
+        ...state,
+        questions: state.questions.map(question =>
+          question.id === action.payload.id
+            ? action.payload
+            : question
         )
       }
-    case 'LEAVE_STUDY_GROUP':
+    case 'ADD_QUESTION_SUCCESS':
       return {
         ...state,
-        communities: state.communities.map(group =>
-          group.id === action.payload.groupId
-            ? { ...group, isMember: false, members: Math.max(0, group.members - 1) }
-            : group
+        questions: [action.payload, ...state.questions]
+      }
+    case 'ADD_ANSWER_SUCCESS':
+      return {
+        ...state,
+        questions: state.questions.map(question =>
+          question.id === action.payload.questionId
+            ? { 
+                ...question, 
+                answers: [
+                  ...(question.answers || []),
+                  {
+                    ...action.payload.answer,
+                    questionId: question.id,
+                    createdAt: new Date().toISOString()
+                  }
+                ]
+              }
+            : question
         )
       }
-    case 'ADD_QUESTION':
-    case 'ADD_ANSWER':
-    case 'ADD_COMMENT':
-    case 'UPDATE_VOTE':
-    case 'ENROLL_IN_MATERIAL':
-    case 'UNENROLL_FROM_MATERIAL':
-      return state
+    case 'ADD_COMMENT_SUCCESS':
+      return {
+        ...state,
+        questions: state.questions.map(question => {
+          if (action.payload.questionId === question.id) {
+            // If answerId exists, add comment to the answer
+            if (action.payload.answerId) {
+              return {
+                ...question,
+                answers: (question.answers || []).map(answer => 
+                  answer.id === action.payload.answerId
+                    ? {
+                        ...answer,
+                        comments: [...(answer.comments || []), action.payload.comment]
+                      }
+                    : answer
+                )
+              }
+            }
+            // Otherwise add comment to the question
+            return {
+              ...question,
+              comments: [...(question.comments || []), action.payload.comment]
+            }
+          }
+          return question
+        })
+      }
+    case 'UPDATE_VOTE_SUCCESS':
+      return {
+        ...state,
+        questions: state.questions.map(question => {
+          if (action.payload.type === 'question' && question.id === action.payload.id) {
+            return {
+              ...question,
+              upvoteCount: action.payload.upvoteCount,
+              downvoteCount: action.payload.downvoteCount,
+              userVote: action.payload.userVote
+            }
+          }
+          if (action.payload.type === 'answer') {
+            return {
+              ...question,
+              answers: (question.answers || []).map(answer => 
+                answer.id === action.payload.id
+                  ? {
+                      ...answer,
+                      upvoteCount: action.payload.upvoteCount,
+                      downvoteCount: action.payload.downvoteCount,
+                      userVote: action.payload.userVote
+                    }
+                  : answer
+              )
+            }
+          }
+          return question
+        })
+      }
+    case 'ACCEPT_ANSWER_SUCCESS':
+      return {
+        ...state,
+        questions: state.questions.map(question => {
+          if (question.id === action.payload.questionId) {
+            return {
+              ...question,
+              answers: (question.answers || []).map(answer => ({
+                ...answer,
+                isAccepted: answer.id === action.payload.answerId
+              }))
+            }
+          }
+          return question
+        })
+      }
     default:
       return state
   }
@@ -118,106 +168,155 @@ const communityReducer = (state, action) => {
 
 export const CommunityProvider = ({ children }) => {
   const [state, dispatch] = useReducer(communityReducer, initialState)
+  const { user: authUser } = useAuth() // Get user from AuthContext
+
+  // Set current user from AuthContext
+  useEffect(() => {
+    if (authUser) {
+      dispatch({ type: 'SET_CURRENT_USER', payload: authUser })
+    }
+  }, [authUser])
+
+  // Fetch questions when component mounts
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      dispatch({ type: 'FETCH_QUESTIONS_START' })
+      try {
+        const response = await api.get('/forum/posts')
+        // Extract posts array from response data
+        const posts = response.data?.data?.posts || []
+        dispatch({ type: 'FETCH_QUESTIONS_SUCCESS', payload: posts })
+      } catch (error) {
+        console.error('Error fetching questions:', error)
+        dispatch({ type: 'FETCH_QUESTIONS_ERROR', payload: error.message })
+      }
+    }
+    fetchQuestions()
+  }, [])
 
   const value = useMemo(() => ({
-    state,
-    dispatch,
-    addQuestion: (question) => {
-      dispatch({ 
-        type: 'ADD_QUESTION', 
-        payload: {
-          id: Date.now(),
-          user: {
-            name: 'You',
-            avatar: '/avatars/default.png',
-            badge: 'Member'
-          },
-          votes: 0,
-          answers: [],
-          views: 0,
-          timeAgo: 'Baru saja',
-          ...question
-        }
-      })
+    ...state,
+    refreshQuestion: async (questionId) => {
+      try {
+        const response = await api.get(`/forum/posts/${questionId}`)
+        const updatedQuestion = response.data?.data
+        
+        dispatch({
+          type: 'REFRESH_QUESTION_SUCCESS',
+          payload: updatedQuestion
+        })
+        
+        return updatedQuestion
+      } catch (error) {
+        console.error('Error refreshing question:', error)
+        throw error
+      }
     },
-    addAnswer: (questionId, answer) => {
-      dispatch({
-        type: 'ADD_ANSWER',
-        payload: {
-          questionId,
-          answer: {
-            id: Date.now(),
-            user: {
-              name: 'You',
-              avatar: '/avatars/default.png',
-              badge: 'Member'
-            },
-            votes: 0,
-            comments: [],
-            timeAgo: 'Baru saja',
-            ...answer
+    addAnswer: async (questionId, answer) => {
+      try {
+        const response = await api.post(`/forum/posts/${questionId}/answers`, {
+          content: answer.content,
+          images: answer.images || []
+        })
+
+        // Refresh question data to get the latest answers
+        await value.refreshQuestion(questionId)
+
+        return response.data?.data
+      } catch (error) {
+        console.error('Error adding answer:', error)
+        throw error
+      }
+    },
+    addQuestion: async (question) => {
+      try {
+        const response = await api.post('/forum/posts', {
+          ...question,
+          userId: 1 // TODO: Get from auth context
+        })
+        dispatch({ type: 'ADD_QUESTION_SUCCESS', payload: response.data })
+        return response.data
+      } catch (error) {
+        console.error('Error adding question:', error)
+        throw error
+      }
+    },
+    acceptAnswer: async (questionId, answerId) => {
+      try {
+        const response = await api.post(`/forum/posts/${questionId}/answers/${answerId}/accept`)
+        dispatch({
+          type: 'ACCEPT_ANSWER_SUCCESS',
+          payload: { questionId, answerId }
+        })
+        return response.data
+      } catch (error) {
+        console.error('Error accepting answer:', error)
+        throw error
+      }
+    },
+    addComment: async (questionId, answerId, comment) => {
+      try {
+        const endpoint = answerId 
+          ? `/forum/answers/${answerId}/comments`
+          : `/forum/posts/${questionId}/comments`
+        
+        const response = await api.post(endpoint, {
+          content: comment.content,
+          parentId: comment.parentId
+        })
+        
+        dispatch({
+          type: 'ADD_COMMENT_SUCCESS',
+          payload: { 
+            questionId, 
+            answerId,
+            comment: {
+              ...response.data?.data,
+              timeAgo: 'Just now',
+              user: response.data?.data?.user || {
+                name: 'You',
+                image: '/avatars/default.png',
+                rank: 'Member'
+              }
+            }
           }
+        })
+        return response.data
+      } catch (error) {
+        console.error('Error adding comment:', error)
+        throw error
+      }
+    },
+    updateVote: async (type, id, isUpvote) => {
+      try {
+        // Map type 'question' to 'posts' for backend compatibility
+        const mappedType = type === 'question' ? 'posts' : type === 'answer' ? 'answers' : type
+        
+        // Fix: Use correct endpoint format
+        const endpoint = `/forum/${mappedType}/${id}/vote`
+        
+        console.log('Sending vote request to:', endpoint)
+        const response = await api.post(endpoint, { isUpvote })
+        
+        // Transform response for frontend
+        const transformedData = {
+          type,
+          id: parseInt(id),
+          upvoteCount: response.data?.data?.upvotes || 0,
+          downvoteCount: response.data?.data?.downvotes || 0,
+          userVote: response.data?.data?.userVote || null
         }
-      })
-    },
-    addComment: (questionId, answerId, comment, parentId = null) => {
-      dispatch({
-        type: 'ADD_COMMENT',
-        payload: {
-          questionId,
-          answerId,
-          comment: {
-            id: Date.now(),
-            user: {
-              name: 'You',
-              avatar: '/avatars/default.png',
-              badge: 'Member'
-            },
-            parentId,
-            timeAgo: 'Baru saja',
-            ...comment
-          }
-        }
-      })
-    },
-    updateVote: (type, id, value) => {
-      dispatch({
-        type: 'UPDATE_VOTE',
-        payload: { type, id, value }
-      })
-    },
-    createStudyGroup: (groupData) => {
-      dispatch({
-        type: 'CREATE_STUDY_GROUP',
-        payload: {
-          id: Date.now(),
-          ...groupData
-        }
-      })
-    },
-    joinStudyGroup: (groupId) => {
-      dispatch({
-        type: 'JOIN_STUDY_GROUP',
-        payload: { groupId }
-      })
-    },
-    leaveStudyGroup: (groupId) => {
-      dispatch({
-        type: 'LEAVE_STUDY_GROUP',
-        payload: { groupId }
-      })
-    },
-    enrollInMaterial: (groupId, materialId) => {
-      dispatch({
-        type: 'ENROLL_IN_MATERIAL',
-        payload: { groupId, materialId }
-      })
-    },
-    unenrollFromMaterial: (groupId, materialId) => {
-      dispatch({
-        type: 'UNENROLL_FROM_MATERIAL',
-        payload: { groupId, materialId }
-      })
+        
+        dispatch({
+          type: 'UPDATE_VOTE_SUCCESS',
+          payload: transformedData
+        })
+        
+        return transformedData
+      } catch (error) {
+        console.error('Error updating vote:', error.response || error)
+        throw error
+      }
     }
   }), [state])
 

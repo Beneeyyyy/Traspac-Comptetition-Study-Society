@@ -1,55 +1,25 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../../context/AuthContext'
 
 const Navbar = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [user, setUser] = useState(null)
+  const { user, loading, logout } = useAuth()
   const navigate = useNavigate()
-
-  // Check authentication status when component mounts
-  useEffect(() => {
-    checkAuthStatus()
-  }, [])
-
-  const checkAuthStatus = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/api/auth/check-auth', {
-        credentials: 'include'
-      })
-      const data = await response.json()
-      
-      if (response.ok) {
-        setIsAuthenticated(true)
-        setUser(data.user)
-      } else {
-        setIsAuthenticated(false)
-        setUser(null)
-      }
-    } catch (error) {
-      console.error('Error checking auth status:', error)
-      setIsAuthenticated(false)
-      setUser(null)
-    }
-  }
 
   const handleSignOut = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/signout', {
-        method: 'POST',
-        credentials: 'include'
-      })
-
-      if (response.ok) {
-        setIsAuthenticated(false)
-        setUser(null)
-        setShowProfileMenu(false)
-        navigate('/login')
-      }
+      await logout()
+      setShowProfileMenu(false)
+      navigate('/login')
     } catch (error) {
       console.error('Error signing out:', error)
     }
+  }
+
+  if (loading) {
+    return null // or return a loading spinner
   }
 
   return (
@@ -63,7 +33,7 @@ const Navbar = () => {
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-6">
-            {isAuthenticated ? (
+            {user ? (
               <>
                 <Link to="/dashboard" className="text-white/60 hover:text-white transition-colors">
                   Dashboard
@@ -98,14 +68,14 @@ const Navbar = () => {
 
           {/* Auth Buttons or Profile */}
           <div className="relative">
-            {isAuthenticated ? (
+            {user ? (
               <button 
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-white/20 transition-all"
               >
                 <img 
-                  src={user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=0D8ABC&color=fff`}
-                  alt={`${user?.name || 'User'}'s profile`}
+                  src={user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=0D8ABC&color=fff`}
+                  alt={`${user.name || 'User'}'s profile`}
                   className="w-full h-full object-cover"
                 />
               </button>
@@ -127,7 +97,7 @@ const Navbar = () => {
             )}
 
             <AnimatePresence>
-              {showProfileMenu && isAuthenticated && (
+              {showProfileMenu && user && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
