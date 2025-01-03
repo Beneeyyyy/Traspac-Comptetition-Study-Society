@@ -15,7 +15,7 @@ if (token) {
   axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
 
-const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId }) => {
+const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId, depth = 0 }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isLikeAnimating, setIsLikeAnimating] = useState(false);
@@ -30,20 +30,24 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
     try {
       const response = await axios.post(
         `/api/creations/${creationId}/comments/${comment.id}/replies`,
-        { content: replyContent }
+        { content: replyContent },
+        { withCredentials: true }
       );
 
       if (response.data.success) {
         // Add the new reply to the replies state
-        setReplies(prev => [...prev, response.data.data]);
-        // Show replies if they're not already shown
-        setShowReplies(true);
+        const newReply = response.data.data;
+        setReplies(prev => [...prev, newReply]);
+        setShowReplies(true); // Show replies after adding new one
+        
         // Clear the reply form
         setReplyContent('');
         setShowReplyForm(false);
+        
         // Update the reply count in the parent comment
         if (comment._count) {
-          comment._count.replies = (comment._count.replies || 0) + 1;
+          const newReplyCount = (comment._count.replies || 0) + 1;
+          comment._count.replies = newReplyCount;
         }
       }
     } catch (error) {
@@ -78,7 +82,8 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
           `/api/creations/${creationId}/comments/${comment.id}/replies`
         );
         if (response.data.success) {
-          setReplies(response.data.data);
+          // Limit to 5 replies
+          setReplies(response.data.data.slice(0, 5));
         }
       } catch (error) {
         console.error('Error loading replies:', error);
@@ -93,6 +98,10 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
     try {
       await axios.delete(`/api/creations/${creationId}/comments/replies/${replyId}`);
       setReplies(prev => prev.filter(reply => reply.id !== replyId));
+      // Update the reply count in the parent comment
+      if (comment._count) {
+        comment._count.replies = (comment._count.replies || 0) - 1;
+      }
     } catch (error) {
       console.error('Error deleting reply:', error);
     }
@@ -142,13 +151,15 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
                 {comment.likeCount || 0}
               </span>
             </button>
-            <button
-              onClick={() => setShowReplyForm(!showReplyForm)}
-              className="text-gray-400 hover:text-blue-500"
-            >
-              Reply
-            </button>
-            {(comment._count?.replies > 0 || replies.length > 0) && (
+            {depth < 3 && ( // Limit reply depth to 3 levels
+              <button
+                onClick={() => setShowReplyForm(!showReplyForm)}
+                className="text-gray-400 hover:text-blue-500"
+              >
+                Reply
+              </button>
+            )}
+            {comment._count?.replies > 0 && (
               <button
                 onClick={loadReplies}
                 className="text-gray-400 hover:text-blue-500 flex items-center gap-1"
@@ -156,11 +167,11 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
                 {isLoadingReplies ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-                    <span>Loading replies...</span>
+                    <span>Loading...</span>
                   </div>
                 ) : (
                   <>
-                    {showReplies ? 'Hide' : 'Show'} {replies.length || comment._count?.replies} {(replies.length || comment._count?.replies) === 1 ? 'reply' : 'replies'}
+                    {showReplies ? 'Close' : 'Show'} {comment._count.replies} {comment._count.replies === 1 ? 'reply' : 'replies'}
                   </>
                 )}
               </button>
@@ -199,54 +210,23 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
 
       {/* Show replies */}
       {showReplies && (
-        <div className="ml-8 space-y-4">
+        <div className={`ml-8 space-y-4 ${depth > 0 ? 'border-l border-gray-700 pl-4' : ''}`}>
           {isLoadingReplies ? (
             <div className="flex justify-center py-2">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
             </div>
           ) : (
             replies.map((reply) => (
-              <div key={reply.id} className="flex gap-3">
-                <img
-                  src={reply.user?.image || 'https://ui-avatars.com/api/?background=0D8ABC&color=fff'}
-                  alt={reply.user?.name || 'User'}
-                  className="w-8 h-8 rounded-full"
-                />
-                <div className="flex-1">
-                  <div className="bg-gray-800/50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-white">{reply.user?.name || 'Anonymous'}</span>
-                      <div className="flex items-center gap-2">
-                        {currentUserId === reply.userId && (
-                          <button
-                            onClick={() => handleDeleteReply(reply.id)}
-                            className="text-gray-400 hover:text-red-500 text-sm"
-                          >
-                            Delete
-                          </button>
-                        )}
-                        <span className="text-gray-500 text-sm">
-                          {new Date(reply.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-gray-300">{reply.content}</p>
-                  </div>
-                  <div className="flex items-center gap-4 mt-2 text-sm">
-                    <button
-                      onClick={() => onLike(reply.id)}
-                      className={`flex items-center gap-1 transition-all duration-200 ${
-                        reply.isLiked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'
-                      }`}
-                    >
-                      <FiHeart 
-                        className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`}
-                      />
-                      <span>{reply.likeCount || 0}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <Comment
+                key={reply.id}
+                comment={reply}
+                onReply={onReply}
+                onLike={onLike}
+                onDelete={handleDeleteReply}
+                currentUserId={currentUserId}
+                creationId={creationId}
+                depth={depth + 1}
+              />
             ))
           )}
         </div>
@@ -270,23 +250,37 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await axios.get(`/api/creations/${work.id}/comments`);
-        console.log('Comments response:', response.data);
+        const response = await axios.get(`/api/creations/${work.id}/comments`, {
+          withCredentials: true
+        });
         
         if (response.data.success) {
-          // Log each comment's structure
-          response.data.data.forEach(comment => {
-            console.log('Comment structure:', {
-              id: comment.id,
-              content: comment.content,
-              user: comment.user,
-              _count: comment._count,
-              isLiked: comment.isLiked,
-              likeCount: comment.likeCount
-            });
+          // Process the comments to ensure all required fields are present
+          const processedComments = response.data.data.map(comment => {
+            // Calculate actual reply count from replies array if available
+            const replyCount = comment.replies?.length || comment._count?.replies || 0;
+            
+            return {
+              ...comment,
+              isLiked: comment.isLiked || false,
+              likeCount: comment.likeCount || 0,
+              _count: {
+                ...comment._count,
+                replies: replyCount
+              },
+              replies: (comment.replies || []).map(reply => ({
+                ...reply,
+                isLiked: reply.isLiked || false,
+                likeCount: reply.likeCount || 0,
+                _count: {
+                  ...reply._count,
+                  replies: reply._count?.replies || 0
+                }
+              }))
+            };
           });
           
-          setComments(response.data.data);
+          setComments(processedComments);
         } else {
           console.error('Failed to fetch comments:', response.data.error);
         }
@@ -364,10 +358,19 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
 
   const handleCommentLike = async (commentId) => {
     try {
-      // Find the comment to update
-      const commentToUpdate = comments.find(c => c.id === commentId) || 
-        comments.flatMap(c => c.replies || []).find(r => r.id === commentId);
+      // Find the comment to update (either in main comments or in replies)
+      const findCommentInReplies = (comments) => {
+        for (const comment of comments) {
+          if (comment.id === commentId) return comment;
+          if (comment.replies) {
+            const found = comment.replies.find(r => r.id === commentId);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
 
+      const commentToUpdate = findCommentInReplies(comments);
       if (!commentToUpdate) return;
 
       // Optimistic update
@@ -375,25 +378,24 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
       const prevCount = commentToUpdate.likeCount;
 
       // Update state optimistically
-      setComments(prevComments => 
-        prevComments.map(comment => {
-          if (comment.id === commentId) {
+      const updateCommentLikes = (comments, targetId, newLikeStatus, newLikeCount) => {
+        return comments.map(comment => {
+          if (comment.id === targetId) {
             return {
               ...comment,
-              isLiked: !wasLiked,
-              likeCount: wasLiked ? prevCount - 1 : prevCount + 1
+              isLiked: newLikeStatus,
+              likeCount: newLikeCount
             };
           }
-          // Check replies
           if (comment.replies) {
             return {
               ...comment,
               replies: comment.replies.map(reply => {
-                if (reply.id === commentId) {
+                if (reply.id === targetId) {
                   return {
                     ...reply,
-                    isLiked: !wasLiked,
-                    likeCount: wasLiked ? prevCount - 1 : prevCount + 1
+                    isLiked: newLikeStatus,
+                    likeCount: newLikeCount
                   };
                 }
                 return reply;
@@ -401,74 +403,44 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
             };
           }
           return comment;
-        })
+        });
+      };
+
+      setComments(prevComments => 
+        updateCommentLikes(
+          prevComments,
+          commentId,
+          !wasLiked,
+          wasLiked ? prevCount - 1 : prevCount + 1
+        )
       );
 
       // Make API call
-      const response = await axios.post(`/api/creations/${work.id}/comments/${commentId}/like`);
-      console.log('Like response:', response.data);
+      const response = await axios.post(
+        `/api/creations/${work.id}/comments/${commentId}/like`,
+        {},
+        { withCredentials: true }
+      );
 
       if (response.data.success) {
         // Update with server data to ensure consistency
         setComments(prevComments => 
-          prevComments.map(comment => {
-            if (comment.id === commentId) {
-              return {
-                ...comment,
-                ...response.data.data,
-                isLiked: response.data.data.isLiked,
-                likeCount: response.data.data.likeCount
-              };
-            }
-            // Check replies
-            if (comment.replies) {
-              return {
-                ...comment,
-                replies: comment.replies.map(reply => {
-                  if (reply.id === commentId) {
-                    return {
-                      ...reply,
-                      ...response.data.data,
-                      isLiked: response.data.data.isLiked,
-                      likeCount: response.data.data.likeCount
-                    };
-                  }
-                  return reply;
-                })
-              };
-            }
-            return comment;
-          })
+          updateCommentLikes(
+            prevComments,
+            commentId,
+            response.data.data.isLiked,
+            response.data.data.likeCount
+          )
         );
       } else {
         // Revert on error
         setComments(prevComments => 
-          prevComments.map(comment => {
-            if (comment.id === commentId) {
-              return {
-                ...comment,
-                isLiked: wasLiked,
-                likeCount: prevCount
-              };
-            }
-            // Check replies
-            if (comment.replies) {
-              return {
-                ...comment,
-                replies: comment.replies.map(reply => {
-                  if (reply.id === commentId) {
-                    return {
-                      ...reply,
-                      isLiked: wasLiked,
-                      likeCount: prevCount
-                    };
-                  }
-                  return reply;
-                })
-              };
-            }
-            return comment;
-          })
+          updateCommentLikes(
+            prevComments,
+            commentId,
+            wasLiked,
+            prevCount
+          )
         );
       }
     } catch (error) {
