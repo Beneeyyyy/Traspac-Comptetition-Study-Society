@@ -60,12 +60,31 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
     const wasLiked = comment.isLiked;
     const prevCount = comment.likeCount;
 
+    // Update local state optimistically
+    comment.isLiked = !wasLiked;
+    comment.likeCount = wasLiked ? prevCount - 1 : prevCount + 1;
+
     // Animate heart
     setIsLikeAnimating(true);
     setTimeout(() => setIsLikeAnimating(false), 1000);
 
     try {
-      await onLike(comment.id);
+      // Make API call
+      const response = await axios.post(
+        `/api/creations/${creationId}/comments/${comment.id}/like`,
+        {},
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        // Update with server data to ensure consistency
+        comment.isLiked = response.data.data.isLiked;
+        comment.likeCount = response.data.data.likeCount;
+      } else {
+        // Revert on error
+        comment.isLiked = wasLiked;
+        comment.likeCount = prevCount;
+      }
     } catch (error) {
       // Revert on error
       comment.isLiked = wasLiked;
@@ -363,8 +382,14 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
         for (const comment of comments) {
           if (comment.id === commentId) return comment;
           if (comment.replies) {
-            const found = comment.replies.find(r => r.id === commentId);
-            if (found) return found;
+            for (const reply of comment.replies) {
+              if (reply.id === commentId) return reply;
+              // Check nested replies if they exist
+              if (reply.replies) {
+                const found = reply.replies.find(r => r.id === commentId);
+                if (found) return found;
+              }
+            }
           }
         }
         return null;
@@ -396,6 +421,22 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
                     ...reply,
                     isLiked: newLikeStatus,
                     likeCount: newLikeCount
+                  };
+                }
+                // Check nested replies
+                if (reply.replies) {
+                  return {
+                    ...reply,
+                    replies: reply.replies.map(nestedReply => {
+                      if (nestedReply.id === targetId) {
+                        return {
+                          ...nestedReply,
+                          isLiked: newLikeStatus,
+                          likeCount: newLikeCount
+                        };
+                      }
+                      return nestedReply;
+                    })
                   };
                 }
                 return reply;
