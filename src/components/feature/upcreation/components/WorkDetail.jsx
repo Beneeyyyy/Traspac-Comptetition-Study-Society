@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiHeart, FiMessageSquare, FiEye, FiShare2, FiMoreVertical } from 'react-icons/fi';
-import axios from 'axios';
 import { useAuth } from '../../../../context/AuthContext';
 
 // Configure axios defaults
@@ -15,18 +15,40 @@ if (token) {
   axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
 
-const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
+const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isLikeAnimating, setIsLikeAnimating] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const [replies, setReplies] = useState([]);
+  const [isLoadingReplies, setIsLoadingReplies] = useState(false);
 
   const handleSubmitReply = async (e) => {
     e.preventDefault();
     if (!replyContent.trim()) return;
 
-    await onReply(comment.id, replyContent);
-    setReplyContent('');
-    setShowReplyForm(false);
+    try {
+      const response = await axios.post(
+        `/api/creations/${creationId}/comments/${comment.id}/replies`,
+        { content: replyContent }
+      );
+
+      if (response.data.success) {
+        // Add the new reply to the replies state
+        setReplies(prev => [...prev, response.data.data]);
+        // Show replies if they're not already shown
+        setShowReplies(true);
+        // Clear the reply form
+        setReplyContent('');
+        setShowReplyForm(false);
+        // Update the reply count in the parent comment
+        if (comment._count) {
+          comment._count.replies = (comment._count.replies || 0) + 1;
+        }
+      }
+    } catch (error) {
+      console.error('Error adding reply:', error);
+    }
   };
 
   const handleLike = async () => {
@@ -48,18 +70,46 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
     }
   };
 
+  const loadReplies = async () => {
+    if (!showReplies) {
+      setIsLoadingReplies(true);
+      try {
+        const response = await axios.get(
+          `/api/creations/${creationId}/comments/${comment.id}/replies`
+        );
+        if (response.data.success) {
+          setReplies(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error loading replies:', error);
+      } finally {
+        setIsLoadingReplies(false);
+      }
+    }
+    setShowReplies(!showReplies);
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    try {
+      await axios.delete(`/api/creations/${creationId}/comments/replies/${replyId}`);
+      setReplies(prev => prev.filter(reply => reply.id !== replyId));
+    } catch (error) {
+      console.error('Error deleting reply:', error);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-3">
         <img
-          src={comment.user.image}
-          alt={comment.user.name}
+          src={comment.user?.image || 'https://ui-avatars.com/api/?background=0D8ABC&color=fff'}
+          alt={comment.user?.name || 'User'}
           className="w-8 h-8 rounded-full"
         />
         <div className="flex-1">
           <div className="bg-gray-800/50 rounded-lg p-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="font-medium text-white">{comment.user.name}</span>
+              <span className="font-medium text-white">{comment.user?.name || 'Anonymous'}</span>
               <div className="flex items-center gap-2">
                 {currentUserId === comment.userId && (
                   <button
@@ -98,6 +148,23 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
             >
               Reply
             </button>
+            {(comment._count?.replies > 0 || replies.length > 0) && (
+              <button
+                onClick={loadReplies}
+                className="text-gray-400 hover:text-blue-500 flex items-center gap-1"
+              >
+                {isLoadingReplies ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                    <span>Loading replies...</span>
+                  </div>
+                ) : (
+                  <>
+                    {showReplies ? 'Hide' : 'Show'} {replies.length || comment._count?.replies} {(replies.length || comment._count?.replies) === 1 ? 'reply' : 'replies'}
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           {showReplyForm && (
@@ -119,7 +186,8 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                  disabled={!replyContent.trim()}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Reply
                 </button>
@@ -129,19 +197,58 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
         </div>
       </div>
 
-      {/* Render replies */}
-      {comment.replies?.length > 0 && (
+      {/* Show replies */}
+      {showReplies && (
         <div className="ml-8 space-y-4">
-          {comment.replies.map((reply) => (
-            <Comment
-              key={reply.id}
-              comment={reply}
-              onReply={onReply}
-              onLike={onLike}
-              onDelete={onDelete}
-              currentUserId={currentUserId}
-            />
-          ))}
+          {isLoadingReplies ? (
+            <div className="flex justify-center py-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            </div>
+          ) : (
+            replies.map((reply) => (
+              <div key={reply.id} className="flex gap-3">
+                <img
+                  src={reply.user?.image || 'https://ui-avatars.com/api/?background=0D8ABC&color=fff'}
+                  alt={reply.user?.name || 'User'}
+                  className="w-8 h-8 rounded-full"
+                />
+                <div className="flex-1">
+                  <div className="bg-gray-800/50 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-white">{reply.user?.name || 'Anonymous'}</span>
+                      <div className="flex items-center gap-2">
+                        {currentUserId === reply.userId && (
+                          <button
+                            onClick={() => handleDeleteReply(reply.id)}
+                            className="text-gray-400 hover:text-red-500 text-sm"
+                          >
+                            Delete
+                          </button>
+                        )}
+                        <span className="text-gray-500 text-sm">
+                          {new Date(reply.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-gray-300">{reply.content}</p>
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-sm">
+                    <button
+                      onClick={() => onLike(reply.id)}
+                      className={`flex items-center gap-1 transition-all duration-200 ${
+                        reply.isLiked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'
+                      }`}
+                    >
+                      <FiHeart 
+                        className={`w-4 h-4 ${reply.isLiked ? 'fill-current' : ''}`}
+                      />
+                      <span>{reply.likeCount || 0}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
@@ -167,14 +274,16 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
         console.log('Comments response:', response.data);
         
         if (response.data.success) {
-          // Log each comment's like status
+          // Log each comment's structure
           response.data.data.forEach(comment => {
-            console.log(`Comment ${comment.id} isLiked:`, comment.isLiked);
-            if (comment.replies) {
-              comment.replies.forEach(reply => {
-                console.log(`Reply ${reply.id} isLiked:`, reply.isLiked);
-              });
-            }
+            console.log('Comment structure:', {
+              id: comment.id,
+              content: comment.content,
+              user: comment.user,
+              _count: comment._count,
+              isLiked: comment.isLiked,
+              likeCount: comment.likeCount
+            });
           });
           
           setComments(response.data.data);
@@ -196,7 +305,7 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
     if (work.id && user?.id) {
       fetchComments();
     }
-  }, [work.id, user?.id]); // Add user?.id as dependency
+  }, [work.id, user?.id]);
 
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -230,18 +339,23 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
         { withCredentials: true }
       );
 
-      // Update comments state to include the new reply
-      const updatedComments = comments.map(comment => {
-        if (comment.id === commentId) {
-          return {
-            ...comment,
-            replies: [...(comment.replies || []), response.data]
-          };
-        }
-        return comment;
-      });
-
-      setComments(updatedComments);
+      if (response.data.success) {
+        // Update comments state to include the new reply
+        setComments(prevComments => 
+          prevComments.map(comment => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                _count: {
+                  ...comment._count,
+                  replies: (comment._count?.replies || 0) + 1
+                }
+              };
+            }
+            return comment;
+          })
+        );
+      }
     } catch (err) {
       console.error('Error adding reply:', err);
       setError('Failed to add reply');
@@ -507,6 +621,7 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
                       onLike={handleCommentLike}
                       onDelete={handleDeleteComment}
                       currentUserId={currentUserId}
+                      creationId={work.id}
                     />
                   ))
                 )}
