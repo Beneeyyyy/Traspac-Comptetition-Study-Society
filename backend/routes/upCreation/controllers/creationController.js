@@ -289,8 +289,7 @@ const toggleLike = async (req, res) => {
     const existingLike = await prisma.creationLike.findFirst({
       where: {
         userId: parseInt(userId),
-        creationId: parseInt(id),
-        commentId: null
+        creationId: parseInt(id)
       }
     });
 
@@ -309,26 +308,10 @@ const toggleLike = async (req, res) => {
       });
     }
 
-    const updatedCreation = await prisma.creation.findUnique({
+    // Get updated like count
+    const likeCount = await prisma.creationLike.count({
       where: {
-        id: parseInt(id)
-      },
-      include: {
-        creationLikes: {
-          where: {
-            userId: parseInt(userId),
-            commentId: null
-          }
-        },
-        _count: {
-          select: {
-            creationLikes: {
-              where: {
-                commentId: null
-              }
-            }
-          }
-        }
+        creationId: parseInt(id)
       }
     });
 
@@ -336,7 +319,7 @@ const toggleLike = async (req, res) => {
       success: true,
       data: {
         liked: !existingLike,
-        likeCount: updatedCreation._count.creationLikes
+        likeCount
       }
     });
   } catch (error) {

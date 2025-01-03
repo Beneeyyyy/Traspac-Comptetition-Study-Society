@@ -143,6 +143,7 @@ model User {
   creations     Creation[]
   creationComments  CreationComment[]
   creationLikes     CreationLike[]
+  commentLikes      CreationCommentLike[]
 }
 
 model Point {
@@ -376,19 +377,29 @@ model CreationComment {
   creation      Creation  @relation(fields: [creationId], references: [id])
   parent        CreationComment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies       CreationComment[] @relation("CommentReplies")
-  likes         CreationLike[]
+  likes         CreationCommentLike[]
 }
 
 model CreationLike {
   id          Int       @id @default(autoincrement())
   userId      Int
   creationId  Int
-  commentId   Int?
   createdAt   DateTime  @default(now())
   
   user        User      @relation(fields: [userId], references: [id])
   creation    Creation  @relation(fields: [creationId], references: [id])
-  comment     CreationComment? @relation(fields: [commentId], references: [id])
 
-  @@unique([userId, creationId, commentId])
+  @@unique([userId, creationId])
+}
+
+model CreationCommentLike {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  commentId   Int
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id])
+  comment     CreationComment @relation(fields: [commentId], references: [id])
+
+  @@unique([userId, commentId])
 }

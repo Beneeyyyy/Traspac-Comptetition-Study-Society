@@ -257,9 +257,14 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
 const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [work, setWork] = useState(initialWork);
+  const [work, setWork] = useState({
+    ...initialWork,
+    liked: initialWork.liked || false,
+    likeCount: initialWork.likeCount || 0
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isLikeAnimating, setIsLikeAnimating] = useState(false);
 
   const { user } = useAuth();
   const currentUserId = user?.id;
@@ -506,19 +511,56 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
 
   const handleLikeCreation = async () => {
     try {
-      const response = await axios.post(`/api/creations/${work.id}/like`);
-      console.log('Creation like response:', response.data);
+      // Optimistic update
+      const wasLiked = work.liked;
+      const prevLikeCount = work.likeCount || 0;
+
+      // Update state optimistically
+      setWork(prev => ({
+        ...prev,
+        liked: !wasLiked,
+        likeCount: wasLiked ? prevLikeCount - 1 : prevLikeCount + 1
+      }));
+
+      // Animate heart
+      setIsLikeAnimating(true);
+      setTimeout(() => setIsLikeAnimating(false), 1000);
+
+      // Make API call
+      const response = await axios.post(
+        `/api/creations/${work.id}/like`,
+        {},
+        { 
+          withCredentials: true,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
 
       if (response.data.success) {
+        // Update with server data to ensure consistency
         setWork(prev => ({
           ...prev,
           liked: response.data.data.liked,
-          likes: response.data.data.likeCount
+          likeCount: response.data.data.likeCount
+        }));
+      } else {
+        // Revert on error
+        setWork(prev => ({
+          ...prev,
+          liked: wasLiked,
+          likeCount: prevLikeCount
         }));
       }
     } catch (error) {
       console.error('Error liking creation:', error);
-      setError('Failed to like creation');
+      // Revert on error
+      setWork(prev => ({
+        ...prev,
+        liked: wasLiked,
+        likeCount: prevLikeCount
+      }));
     }
   };
 
@@ -584,14 +626,16 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
               <div className="flex items-center gap-6 text-gray-400">
                 <button
                   onClick={handleLikeCreation}
-                  className={`flex items-center gap-2 transition-colors duration-200 ${
+                  className={`flex items-center gap-2 transition-all duration-200 ${
                     work.liked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'
                   }`}
                 >
                   <FiHeart 
-                    className={`w-5 h-5 ${work.liked ? 'fill-current' : ''}`} 
+                    className={`w-5 h-5 transform transition-all duration-200 ${
+                      work.liked ? 'fill-current scale-110' : ''
+                    } ${isLikeAnimating ? 'scale-150' : ''}`}
                   />
-                  <span>{work.likes}</span>
+                  <span>{work.likeCount || 0}</span>
                 </button>
                 <div className="flex items-center gap-2">
                   <FiMessageSquare className="w-5 h-5" />

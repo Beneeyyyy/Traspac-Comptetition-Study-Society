@@ -7,22 +7,17 @@ const commentController = {
       const { id } = req.params;
       const userId = req.user?.id;
 
-      console.log('=== getComments START ===');
-      console.log('User ID:', userId);
-      console.log('Creation ID:', id);
-
-      if (!userId) {
-        return res.status(401).json({
+      if (!id) {
+        return res.status(400).json({
           success: false,
-          error: 'User not authenticated'
+          error: 'Creation ID is required'
         });
       }
 
-      // Get comments with replies and like status
       const comments = await prisma.creationComment.findMany({
         where: {
           creationId: parseInt(id),
-          parentId: null
+          parentId: null // Only get top-level comments
         },
         include: {
           user: {
@@ -31,6 +26,17 @@ const commentController = {
               name: true,
               image: true,
               rank: true
+            }
+          },
+          likes: {
+            where: userId ? {
+              userId: parseInt(userId)
+            } : undefined
+          },
+          _count: {
+            select: {
+              likes: true,
+              replies: true
             }
           },
           replies: {
@@ -44,25 +50,15 @@ const commentController = {
                 }
               },
               likes: {
-                where: {
+                where: userId ? {
                   userId: parseInt(userId)
-                }
+                } : undefined
               },
               _count: {
                 select: {
                   likes: true
                 }
               }
-            }
-          },
-          likes: {
-            where: {
-              userId: parseInt(userId)
-            }
-          },
-          _count: {
-            select: {
-              likes: true
             }
           }
         },
@@ -71,23 +67,32 @@ const commentController = {
         }
       });
 
+      // Format comments to include like status
       const formattedComments = comments.map(comment => ({
         ...comment,
-        isLiked: comment.likes.length > 0,
+        isLiked: comment.likes?.length > 0,
         likeCount: comment._count.likes,
         replies: comment.replies.map(reply => ({
           ...reply,
-          isLiked: reply.likes.length > 0,
+          isLiked: reply.likes?.length > 0,
           likeCount: reply._count.likes
         }))
       }));
+
+      // Remove raw likes data
+      formattedComments.forEach(comment => {
+        delete comment.likes;
+        comment.replies.forEach(reply => {
+          delete reply.likes;
+        });
+      });
 
       res.json({
         success: true,
         data: formattedComments
       });
     } catch (error) {
-      console.error('Error in getComments:', error);
+      console.error('Error getting comments:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to get comments'
@@ -215,21 +220,8 @@ const commentController = {
         });
       }
 
-      // First get the comment to get its creationId
-      const comment = await prisma.creationComment.findUnique({
-        where: { id: parseInt(commentId) },
-        select: { creationId: true }
-      });
-
-      if (!comment) {
-        return res.status(404).json({
-          success: false,
-          error: 'Comment not found'
-        });
-      }
-
       // Check if like exists
-      const existingLike = await prisma.creationLike.findFirst({
+      const existingLike = await prisma.creationCommentLike.findFirst({
         where: {
           userId: parseInt(userId),
           commentId: parseInt(commentId)
@@ -238,7 +230,7 @@ const commentController = {
 
       // If like exists, delete it (unlike)
       if (existingLike) {
-        await prisma.creationLike.delete({
+        await prisma.creationCommentLike.delete({
           where: {
             id: existingLike.id
           }
@@ -246,31 +238,18 @@ const commentController = {
       } 
       // If no like exists, create it (like)
       else {
-        await prisma.creationLike.create({
+        await prisma.creationCommentLike.create({
           data: {
             userId: parseInt(userId),
-            commentId: parseInt(commentId),
-            creationId: comment.creationId
+            commentId: parseInt(commentId)
           }
         });
       }
 
       // Get updated like count
-      const updatedComment = await prisma.creationComment.findUnique({
+      const likeCount = await prisma.creationCommentLike.count({
         where: {
-          id: parseInt(commentId)
-        },
-        include: {
-          likes: {
-            where: {
-              userId: parseInt(userId)
-            }
-          },
-          _count: {
-            select: {
-              likes: true
-            }
-          }
+          commentId: parseInt(commentId)
         }
       });
 
@@ -278,7 +257,7 @@ const commentController = {
         success: true,
         data: {
           isLiked: !existingLike,
-          likeCount: updatedComment._count.likes
+          likeCount
         }
       });
     } catch (error) {
@@ -337,6 +316,65 @@ const commentController = {
       res.status(500).json({
         success: false,
         error: 'Failed to delete comment'
+      });
+    }
+  },
+
+  getReplies: async (req, res) => {
+    try {
+      const { commentId } = req.params;
+      const userId = req.user?.id;
+
+      const replies = await prisma.creationComment.findMany({
+        where: {
+          parentId: parseInt(commentId)
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true
+            }
+          },
+          likes: userId ? {
+            where: {
+              userId: parseInt(userId)
+            }
+          } : false,
+          _count: {
+            select: {
+              likes: true,
+              replies: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      // Format replies to include like status
+      const formattedReplies = replies.map(reply => ({
+        ...reply,
+        isLiked: reply.likes?.length > 0,
+        likeCount: reply._count.likes
+      }));
+
+      // Remove raw likes data
+      formattedReplies.forEach(reply => {
+        delete reply.likes;
+      });
+
+      res.json({
+        success: true,
+        data: formattedReplies
+      });
+    } catch (error) {
+      console.error('Error getting replies:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get replies'
       });
     }
   }
