@@ -1,5 +1,6 @@
 import { useState, Suspense, lazy, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import axios from 'axios'
 import Footer from '../../layouts/Footer'
 import SearchBar from './components/SearchBar'
 import CategoryFilter from './components/CategoryFilter'
@@ -10,26 +11,42 @@ const WorkCard = lazy(() => import('./components/WorkCard'))
 const WorkDetail = lazy(() => import('./components/WorkDetail'))
 const UploadForm = lazy(() => import('./components/UploadForm'))
 
+// Set axios default base URL
+axios.defaults.baseURL = 'http://localhost:3000';
+
 const UpCreation = () => {
   const [isUploadMode, setIsUploadMode] = useState(false)
   const [selectedWork, setSelectedWork] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [isLoading, setIsLoading] = useState(true)
-  const [studentWorks, setStudentWorks] = useState([])
+  const [creations, setCreations] = useState([])
+  const [error, setError] = useState(null)
 
-  // Load works from localStorage
+  // Load creations from API
   useEffect(() => {
-    const loadWorks = () => {
-      const savedWorks = JSON.parse(localStorage.getItem('studentWorks') || '[]')
-      setStudentWorks(savedWorks)
-      setIsLoading(false)
+    const fetchCreations = async () => {
+      try {
+        setIsLoading(true)
+        const response = await axios.get('/api/creations', {
+          params: {
+            category: selectedCategory !== 'All' ? selectedCategory : undefined,
+            search: searchQuery || undefined
+          },
+          withCredentials: true
+        })
+        setCreations(response.data)
+        setError(null)
+      } catch (err) {
+        console.error('Error fetching creations:', err)
+        setError('Failed to load creations')
+      } finally {
+        setIsLoading(false)
+      }
     }
 
-    // Simulate loading delay
-    const timer = setTimeout(loadWorks, 1000)
-    return () => clearTimeout(timer)
-  }, [isUploadMode]) // Reload when upload mode changes
+    fetchCreations()
+  }, [isUploadMode, selectedCategory, searchQuery])
 
   const categories = [
     'Web Development',
@@ -40,17 +57,6 @@ const UpCreation = () => {
     'Writing',
     'Other'
   ]
-
-  const filteredWorks = studentWorks.filter(work => {
-    if (selectedCategory !== 'All' && work.category !== selectedCategory) return false
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      return work.title.toLowerCase().includes(query) ||
-             work.author.toLowerCase().includes(query) ||
-             work.tags.some(tag => tag.toLowerCase().includes(query))
-    }
-    return true
-  })
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
@@ -75,6 +81,12 @@ const UpCreation = () => {
             categories={categories}
           />
 
+          {error && (
+            <div className="text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
+              {error}
+            </div>
+          )}
+
           <AnimatePresence mode="wait">
             {!isUploadMode ? (
               <div className="relative">
@@ -82,19 +94,29 @@ const UpCreation = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 auto-rows-[200px] gap-1`}
+                  className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 auto-rows-[200px] gap-4"
                 >
                   {isLoading ? (
                     // Skeleton loading
                     Array.from({ length: 8 }).map((_, index) => (
                       <SkeletonCard key={index} index={index} />
                     ))
+                  ) : creations.length === 0 ? (
+                    <div className="col-span-full text-center py-12 text-gray-400">
+                      No creations found
+                    </div>
                   ) : (
                     // Actual content
-                    filteredWorks.map((work, index) => (
-                      <Suspense key={work.id} fallback={<SkeletonCard index={index} />}>
+                    creations.map((creation, index) => (
+                      <Suspense key={creation.id} fallback={<SkeletonCard index={index} />}>
                         <WorkCard
-                          work={work}
+                          work={{
+                            ...creation,
+                            authorAvatar: creation.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(creation.author)}&background=0D8ABC&color=fff`,
+                            badge: creation.user?.school?.name,
+                            comments: creation._count?.comments || 0,
+                            files: creation.image ? [{ type: 'image/jpeg', data: creation.image }] : []
+                          }}
                           index={index}
                           selectedWork={selectedWork}
                           setSelectedWork={setSelectedWork}

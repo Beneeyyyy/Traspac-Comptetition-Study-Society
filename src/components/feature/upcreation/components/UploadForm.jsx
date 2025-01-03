@@ -1,405 +1,236 @@
-import { useState } from 'react'
-import { FiUpload, FiX, FiGithub, FiImage, FiVideo, FiFile } from 'react-icons/fi'
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-const UploadForm = ({ setIsUploadMode, categories }) => {
-  const [files, setFiles] = useState([])
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [projectUrl, setProjectUrl] = useState('')
-  const [tags, setTags] = useState([])
-  const [currentTag, setCurrentTag] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState(null)
+// Set axios default base URL
+axios.defaults.baseURL = 'http://localhost:3000';
 
-  const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files || [])
-    if (selectedFiles.length === 0) return
+const UploadForm = ({ setIsUploadMode }) => {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    tags: [],
+    image: null,
+    fileUrl: ''
+  });
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    const maxSize = 5 * 1024 * 1024 // 5MB
-    
-    // Validate file size
-    const validFiles = selectedFiles.filter(file => {
-      if (file.size > maxSize) {
-        setError(`File ${file.name} is too large. Maximum size is 5MB`)
-        return false
+  const categories = [
+    'Web Development',
+    'Mobile Development',
+    'UI/UX Design',
+    'Data Science',
+    'Digital Art',
+    'Writing',
+    'Other'
+  ];
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 15 * 1024 * 1024) { // 15MB limit
+        setError('Image size should not exceed 15MB');
+        return;
       }
-      return true
-    })
 
-    const newFiles = validFiles.map(file => ({
-      file,
-      preview: URL.createObjectURL(file)
-    }))
-
-    setFiles(prevFiles => [...prevFiles, ...newFiles])
-  }
-
-  const handleDrop = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const droppedFiles = Array.from(e.dataTransfer.files || [])
-    if (droppedFiles.length === 0) return
-
-    const maxSize = 5 * 1024 * 1024 // 5MB
-    
-    const validFiles = droppedFiles.filter(file => {
-      if (file.size > maxSize) {
-        setError(`File ${file.name} is too large. Maximum size is 5MB`)
-        return false
-      }
-      return true
-    })
-
-    const newFiles = validFiles.map(file => ({
-      file,
-      preview: URL.createObjectURL(file)
-    }))
-
-    setFiles(prevFiles => [...prevFiles, ...newFiles])
-  }
-
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  const handleDragEnter = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  const handleDragLeave = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  const removeFile = (index) => {
-    const newFiles = [...files]
-    URL.revokeObjectURL(newFiles[index].preview)
-    newFiles.splice(index, 1)
-    setFiles(newFiles)
-  }
-
-  const handleTagAdd = (e) => {
-    e.preventDefault()
-    if (currentTag && !tags.includes(currentTag)) {
-      setTags([...tags, currentTag])
-      setCurrentTag('')
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+        setFormData(prev => ({ ...prev, image: reader.result }));
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
-  const removeTag = (tagToRemove) => {
-    setTags(tags.filter(tag => tag !== tagToRemove))
-  }
-
-  const getFileIcon = (type) => {
-    if (type.startsWith('image/')) return FiImage
-    if (type.startsWith('video/')) return FiVideo
-    return FiFile
-  }
+  const handleTagsChange = (e) => {
+    const tags = e.target.value.split(',').map(tag => tag.trim());
+    setFormData(prev => ({ ...prev, tags }));
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
-    
-    // Validation
-    if (!title.trim()) {
-      setError('Title is required')
-      return
-    }
-    if (!description.trim()) {
-      setError('Description is required')
-      return
-    }
-    if (!category) {
-      setError('Category is required')
-      return
-    }
-    if (files.length === 0) {
-      setError('At least one file is required')
-      return
-    }
-
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
     try {
-      // Convert files to base64 for localStorage
-      const filePromises = files.map(fileObj => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onloadend = () => {
-            resolve({
-              name: fileObj.file.name,
-              type: fileObj.file.type,
-              size: fileObj.file.size,
-              data: reader.result
-            })
-          }
-          reader.onerror = reject
-          reader.readAsDataURL(fileObj.file)
-        })
-      })
+      const response = await axios.post('/api/creations', formData, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-      const processedFiles = await Promise.all(filePromises)
-
-      // Create new work object
-      const newWork = {
-        id: Date.now(),
-        title,
-        description,
-        category,
-        projectUrl,
-        tags,
-        files: processedFiles,
-        author: "Current User", // Normally would come from auth
-        authorAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e",
-        badge: "Creator",
-        views: 0,
-        likes: 0,
-        comments: 0,
-        createdAt: new Date().toISOString()
+      if (response.data) {
+        setIsUploadMode(false);
+        navigate('/upcreation');
       }
-
-      // Get existing works from localStorage
-      const existingWorks = JSON.parse(localStorage.getItem('studentWorks') || '[]')
-      
-      // Add new work
-      const updatedWorks = [newWork, ...existingWorks]
-      
-      // Save to localStorage
-      localStorage.setItem('studentWorks', JSON.stringify(updatedWorks))
-
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Clear form
-      setTitle('')
-      setDescription('')
-      setCategory('')
-      setProjectUrl('')
-      setTags([])
-      setFiles([])
-      
-      // Close upload mode
-      setIsUploadMode(false)
     } catch (err) {
-      setError('Failed to save project. Please try again.')
-      console.error('Error saving project:', err)
+      console.error('Upload error:', err);
+      setError(err.response?.data?.error || 'Failed to upload creation');
     } finally {
-      setIsSubmitting(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-[#1F2937] border border-[#374151] rounded-xl p-8 shadow-xl">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-semibold bg-gradient-to-r from-white to-white/80 text-transparent bg-clip-text">Share Your Work</h2>
-        <button
-          type="button"
-          onClick={() => setIsUploadMode(false)}
-          className="p-2 hover:bg-[#374151] rounded-lg transition-colors"
-        >
-          <FiX className="w-5 h-5" />
-        </button>
-      </div>
-
+    <div className="bg-[#1F2937] border border-[#374151] rounded-xl p-8 shadow-xl max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold mb-6 text-white">Upload Your Creation</h2>
+      
       {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
+        <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded-lg mb-4">
           {error}
         </div>
       )}
 
-      {/* Upload Section */}
-      <div className="mb-8">
-        <input
-          type="file"
-          onChange={handleFileChange}
-          multiple
-          className="hidden"
-          id="file-upload"
-          accept="image/*,video/*,application/pdf,.doc,.docx"
-        />
-        <label
-          htmlFor="file-upload"
-          className="block cursor-pointer"
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-        >
-          <div className="border-2 border-dashed border-[#374151] rounded-xl p-8 text-center hover:border-[#2563EB] transition-colors">
-            <div className="w-16 h-16 rounded-full bg-[#374151] flex items-center justify-center mx-auto mb-4">
-              <FiUpload className="text-2xl text-[#94A3B8]" />
-            </div>
-            <p className="text-[#94A3B8] mb-2">Drag and drop your files here</p>
-            <p className="text-sm text-[#64748B] mb-4">Support for images, videos, documents (Max 5MB per file)</p>
-            <button 
-              type="button" 
-              onClick={() => document.getElementById('file-upload').click()}
-              className="px-6 py-2.5 bg-[#2563EB] text-white rounded-lg hover:bg-[#1D4ED8] transition-colors shadow-lg shadow-blue-500/20"
-            >
-              Select Files
-            </button>
-          </div>
-        </label>
-
-        {/* File Preview */}
-        {files.length > 0 && (
-          <div className="mt-4 space-y-3">
-            {files.map((file, index) => {
-              const FileIcon = getFileIcon(file.file.type)
-              return (
-                <div key={index} className="flex items-center gap-4 p-3 rounded-lg bg-[#374151] group">
-                  <div className="w-12 h-12 rounded-lg bg-[#374151] flex items-center justify-center">
-                    {file.file.type.startsWith('image/') ? (
-                      <img
-                        src={file.preview}
-                        alt=""
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <FileIcon className="w-6 h-6 text-[#94A3B8]" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{file.file.name}</p>
-                    <p className="text-xs text-[#64748B]">{(file.file.size / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(index)}
-                    className="p-2 rounded-lg hover:bg-[#374151] text-[#94A3B8] hover:text-[#2563EB] transition-colors"
-                  >
-                    <FiX className="w-5 h-5" />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Details Form */}
-      <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Title */}
         <div>
-          <label className="block text-sm font-medium text-[#94A3B8] mb-2">Title <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Title *
+          </label>
           <input
             type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Give your work a title"
-            className="w-full bg-[#374151] border border-[#4B5563] rounded-lg px-4 py-3 text-white placeholder:text-[#64748B] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
             required
+            value={formData.title}
+            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+            className="w-full bg-[#374151] border border-[#4B5563] rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Give your creation a title"
           />
         </div>
 
+        {/* Description */}
         <div>
-          <label className="block text-sm font-medium text-[#94A3B8] mb-2">Description <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Description *
+          </label>
           <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Tell us about your work"
-            rows={4}
-            className="w-full bg-[#374151] border border-[#4B5563] rounded-lg px-4 py-3 text-white placeholder:text-[#64748B] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] resize-none"
             required
+            value={formData.description}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            className="w-full bg-[#374151] border border-[#4B5563] rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent h-32"
+            placeholder="Describe your creation"
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-[#94A3B8] mb-2">Category <span className="text-red-500">*</span></label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-[#374151] border border-[#4B5563] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
-              required
-            >
-              <option value="" className="bg-[#0A0A0B]">Select category</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat} className="bg-[#0A0A0B]">{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-[#94A3B8] mb-2">Project URL (Optional)</label>
-            <div className="flex items-center gap-2 bg-[#374151] border border-[#4B5563] rounded-lg px-4 py-3 focus-within:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]">
-              <FiGithub className="text-[#94A3B8]" />
-              <input
-                type="url"
-                value={projectUrl}
-                onChange={(e) => setProjectUrl(e.target.value)}
-                placeholder="https://github.com/username/project"
-                className="flex-1 bg-transparent text-white placeholder:text-[#64748B] focus:outline-none"
-              />
-            </div>
-          </div>
+        {/* Category */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Category
+          </label>
+          <select
+            value={formData.category}
+            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+            className="w-full bg-[#374151] border border-[#4B5563] rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Select a category</option>
+            {categories.map(category => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
         </div>
 
+        {/* Tags */}
         <div>
-          <label className="block text-sm font-medium text-[#94A3B8] mb-2">Tags</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={currentTag}
-              onChange={(e) => setCurrentTag(e.target.value)}
-              placeholder="Add tags to help others find your work"
-              className="flex-1 bg-[#374151] border border-[#4B5563] rounded-lg px-4 py-2 text-white placeholder:text-[#64748B] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleTagAdd(e)
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleTagAdd}
-              className="px-4 py-2 bg-[#2563EB] text-white rounded-lg hover:bg-[#1D4ED8] transition-colors shadow-lg shadow-blue-500/20 font-medium"
-            >
-              Add
-            </button>
-          </div>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-[#374151] border border-[#4B5563] rounded-full text-sm"
-                >
-                  {tag}
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Tags (comma separated)
+          </label>
+          <input
+            type="text"
+            value={formData.tags.join(', ')}
+            onChange={handleTagsChange}
+            className="w-full bg-[#374151] border border-[#4B5563] rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="web, design, portfolio"
+          />
+        </div>
+
+        {/* Image Upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Image
+          </label>
+          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-[#4B5563] rounded-lg">
+            <div className="space-y-1 text-center">
+              {imagePreview ? (
+                <div className="mb-4">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="mx-auto h-64 w-auto rounded-lg"
+                  />
                   <button
                     type="button"
-                    onClick={() => removeTag(tag)}
-                    className="text-[#94A3B8] hover:text-[#2563EB] transition-colors"
+                    onClick={() => {
+                      setImagePreview(null);
+                      setFormData(prev => ({ ...prev, image: null }));
+                    }}
+                    className="mt-2 text-sm text-red-500 hover:text-red-400"
                   >
-                    <FiX className="w-4 h-4" />
+                    Remove image
                   </button>
-                </span>
-              ))}
+                </div>
+              ) : (
+                <>
+                  <div className="flex text-sm text-gray-400">
+                    <label className="relative cursor-pointer rounded-md font-medium text-blue-500 hover:text-blue-400 focus-within:outline-none">
+                      <span>Upload a file</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="sr-only"
+                      />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, GIF up to 15MB
+                  </p>
+                </>
+              )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Submit Button */}
-      <div className="mt-8 flex justify-end">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={`px-8 py-3 bg-[#2563EB] text-white rounded-lg transition-all duration-300 font-medium ${
-            isSubmitting 
-              ? 'opacity-50 cursor-not-allowed'
-              : 'hover:bg-[#1D4ED8] shadow-lg shadow-blue-500/20'
-          }`}
-        >
-          {isSubmitting ? 'Uploading...' : 'Share Work'}
-        </button>
-      </div>
-    </form>
-  )
-}
+        {/* File URL (optional) */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Project URL (optional)
+          </label>
+          <input
+            type="url"
+            value={formData.fileUrl}
+            onChange={(e) => setFormData(prev => ({ ...prev, fileUrl: e.target.value }))}
+            className="w-full bg-[#374151] border border-[#4B5563] rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="https://your-project-url.com"
+          />
+        </div>
 
-export default UploadForm 
+        {/* Submit Button */}
+        <div className="flex gap-4">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isLoading ? 'Uploading...' : 'Upload Creation'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsUploadMode(false)}
+            className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default UploadForm; 

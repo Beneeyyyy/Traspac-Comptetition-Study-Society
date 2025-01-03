@@ -138,6 +138,11 @@ model User {
   forumAnswers  ForumAnswer[]
   forumComments ForumComment[]
   forumVotes    ForumVote[]
+  
+  // UpCreation relations
+  creations     Creation[]
+  creationComments  CreationComment[]
+  creationLikes     CreationLike[]
 }
 
 model Point {
@@ -333,4 +338,52 @@ model ForumVote {
   @@unique([userId, postId])
   @@unique([userId, answerId])
   @@unique([userId, commentId])
+}
+
+model Creation {
+  id            Int       @id @default(autoincrement())
+  title         String
+  description   String
+  category      String?   // Optional: Web Development, Mobile Development, etc.
+  author        String
+  tags          String[]
+  image         String?   // Thumbnail or preview image
+  fileUrl       String?   // URL to the actual work file/project
+  userId        Int
+  likes         Int       @default(0)
+  views         Int       @default(0)
+  status        String    @default("published") // Status: draft, published, archived
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id])
+  comments      CreationComment[]
+  creationLikes CreationLike[]
+}
+
+model CreationComment {
+  id            Int       @id @default(autoincrement())
+  content       String
+  userId        Int
+  creationId    Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id])
+  creation      Creation  @relation(fields: [creationId], references: [id])
+}
+
+model CreationLike {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  creationId    Int
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id])
+  creation      Creation  @relation(fields: [creationId], references: [id])
+
+  @@unique([userId, creationId])
 }
