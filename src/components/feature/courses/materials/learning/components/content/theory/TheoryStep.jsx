@@ -39,11 +39,13 @@ const TheoryStep = ({ material }) => {
   useEffect(() => {
     if (!material?.id) return;
     
-    console.log('📚 Material data loaded:', {
+    console.log('📚 Material initialization:', {
+      raw: material,
       id: material.id,
       title: material.title,
       xp_reward: material.xp_reward,
-      stages: material.stages?.length
+      stages: material.stages?.length,
+      hasXpReward: 'xp_reward' in material
     });
 
     // Get stage from URL query parameter
@@ -229,7 +231,28 @@ const TheoryStep = ({ material }) => {
           })
           .then(data => {
             if (data.success) {
-              console.log('💰 Points awarded:', data);
+              console.log('💰 Stage Completion Check:', {
+                activeSection,
+                progress: parsedStageProgress[activeSection]?.progress,
+                isCompleted: completedStages.has(activeSection),
+                stageXP,
+                isLastStage,
+                remainderXP,
+                totalStageXP,
+                material: {
+                  id: material.id,
+                  totalXP: material.xp_reward,
+                  totalStages: material.stages.length
+                },
+                completedStages: Array.from(completedStages)
+              });
+              console.log('💰 Points awarded:', {
+                stageIndex: activeSection,
+                earnedPoints: totalStageXP,
+                response: data,
+                newTotalPoints: data.data.user.totalPoints,
+                completedStages: Array.from(completedStages)
+              });
               setEarnedPoints(totalStageXP);
             } else {
               throw new Error(data.error || 'Failed to award points');
@@ -360,6 +383,23 @@ const TheoryStep = ({ material }) => {
     }
   };
 
+  // Sebelum render TopNavigation
+  console.log('🎯 Pre-render check:', {
+    material: {
+      id: material?.id,
+      xp_reward: material?.xp_reward,
+      stages: material?.stages?.length,
+      full: material
+    },
+    earnedPoints,
+    completedStages: Array.from(completedStages),
+    currentStage: {
+      id: currentStage?.id,
+      title: currentStage?.title,
+      order: currentStage?.order
+    }
+  });
+
   return (
     <div className="min-h-screen bg-black">
       {/* Top Navigation - Fixed */}
@@ -370,6 +410,7 @@ const TheoryStep = ({ material }) => {
           show={showNav}
           material={material}
           earnedPoints={earnedPoints}
+          completedStages={Array.from(completedStages)}
         />
       </div>
 

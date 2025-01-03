@@ -74,6 +74,7 @@ const getMaterialById = async (req, res) => {
       category: material.subcategory.category.name,
       description: material.description || "",
       total_xp: material.xp_reward || 0,
+      xp_reward: material.xp_reward || 0,
       total_stages: material.stages.length,
       estimated_time: `${material.estimated_time || 90} Menit`,
       stages: material.stages.map((stage, index) => ({

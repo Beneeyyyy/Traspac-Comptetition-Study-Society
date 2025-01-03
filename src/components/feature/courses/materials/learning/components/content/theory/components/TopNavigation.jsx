@@ -1,8 +1,14 @@
-import { FiArrowLeft, FiClock, FiAward, FiZap } from 'react-icons/fi';
-import { RiBrainLine } from 'react-icons/ri';
+import { FiArrowLeft, FiClock, FiZap } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
 
-const TopNavigation = ({ section, onBack, show, material, earnedPoints }) => {
+const TopNavigation = ({ section, onBack, show, material, earnedPoints, completedStages = [] }) => {
+  console.log('🔍 TopNavigation Props:', {
+    material,
+    earnedPoints,
+    completedStages,
+    section
+  });
+
   const [showPointNotification, setShowPointNotification] = useState(false);
   const [lastEarnedPoints, setLastEarnedPoints] = useState(0);
 
@@ -21,24 +27,43 @@ const TopNavigation = ({ section, onBack, show, material, earnedPoints }) => {
     }
   }, [earnedPoints]);
 
-  // Calculate stage XP
-  const calculateStageXP = () => {
-    if (!material?.xp_reward || !material?.stages?.length) return 0;
-    
-    const baseXP = Math.floor(material.xp_reward / material.stages.length);
-    const remainder = material.xp_reward % material.stages.length;
-    
-    // Get current stage index
-    const stageIndex = section?.order ? section.order - 1 : 0;
-    
-    // Add remainder to last stage
-    if (stageIndex === material.stages.length - 1) {
-      return baseXP + remainder;
+  // Calculate total earned XP from completed stages
+  const calculateEarnedXP = () => {
+    console.log('📊 Pre-calculation check:', {
+      material,
+      'material?.xp_reward': material?.xp_reward,
+      'material?.stages?.length': material?.stages?.length,
+      completedStages
+    });
+
+    if (!material) {
+      console.log('❌ No material data');
+      return 0;
     }
-    return baseXP;
+
+    if (!material.xp_reward) {
+      console.log('❌ No xp_reward in material');
+      return 0;
+    }
+
+    if (!material.stages?.length) {
+      console.log('❌ No stages in material');
+      return 0;
+    }
+    
+    const xpPerStage = Math.floor(material.xp_reward / material.stages.length);
+    const totalEarned = completedStages.length * xpPerStage;
+
+    console.log('✅ XP Calculation:', {
+      xpPerStage,
+      completedStagesCount: completedStages.length,
+      totalEarned
+    });
+
+    return totalEarned;
   };
 
-  const stageXP = calculateStageXP();
+  const earnedXP = calculateEarnedXP();
 
   return (
     <div className={`
@@ -57,7 +82,7 @@ const TopNavigation = ({ section, onBack, show, material, earnedPoints }) => {
         <div className="flex items-center gap-3">
           <FiZap className="w-5 h-5 text-yellow-400" />
           <span className="text-yellow-400 font-medium">
-            +{stageXP} XP Diperoleh!
+            +{earnedPoints} XP Diperoleh!
           </span>
         </div>
       </div>
@@ -77,7 +102,6 @@ const TopNavigation = ({ section, onBack, show, material, earnedPoints }) => {
               <h2 className="font-medium text-white">
                 {section?.title || 'Loading...'}
               </h2>
-            
             </div>
           </div>
 
@@ -90,7 +114,7 @@ const TopNavigation = ({ section, onBack, show, material, earnedPoints }) => {
               </div>
               <div>
                 <p className="text-sm font-medium text-white">Stage XP</p>
-                <p className="text-sm text-white/60">{stageXP} XP</p>
+                <p className="text-sm text-white/60">{earnedXP} XP</p>
               </div>
             </div>
 
@@ -102,17 +126,6 @@ const TopNavigation = ({ section, onBack, show, material, earnedPoints }) => {
               <div>
                 <p className="text-sm font-medium text-white">Estimasi</p>
                 <p className="text-sm text-white/60">{material?.estimated_time || 0} menit</p>
-              </div>
-            </div>
-
-            {/* Total XP Reward */}
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center">
-                <FiAward className="w-4 h-4 text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">Total XP</p>
-                <p className="text-sm text-white/60">{material?.xp_reward || 0} XP</p>
               </div>
             </div>
           </div>
