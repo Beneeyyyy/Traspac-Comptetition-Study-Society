@@ -9,7 +9,8 @@ const {
   deleteCreation,
   toggleLike,
   addComment,
-  deleteComment
+  deleteComment,
+  getComments
 } = require('../controllers/creationController');
 
 // Public routes
@@ -25,6 +26,7 @@ router.delete('/:id', requireAuth, deleteCreation);
 router.post('/:id/like', requireAuth, toggleLike);
 
 // Comment routes
+router.get('/:id/comments', getComments);
 router.post('/:id/comments', requireAuth, addComment);
 router.delete('/:id/comments/:commentId', requireAuth, deleteComment);
 

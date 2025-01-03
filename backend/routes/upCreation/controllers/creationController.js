@@ -361,6 +361,79 @@ const deleteComment = async (req, res) => {
   }
 };
 
+// Get comments for a creation
+const getComments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Fetching comments for creation:', id);
+
+    // First check if creation exists
+    const creation = await prisma.creation.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!creation) {
+      console.log('Creation not found:', id);
+      return res.status(404).json({ error: 'Creation not found' });
+    }
+
+    console.log('Found creation, fetching comments...');
+
+    const comments = await prisma.creationComment.findMany({
+      where: { 
+        creationId: parseInt(id),
+        parentId: null // Only get top-level comments
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true
+          }
+        },
+        replies: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        _count: {
+          select: {
+            likes: true,
+            replies: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    console.log(`Found ${comments.length} comments`);
+    res.json(comments);
+  } catch (error) {
+    console.error('Detailed error in getComments:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
+    res.status(500).json({ 
+      error: 'Failed to get comments',
+      details: error.message 
+    });
+  }
+};
+
 module.exports = {
   getCreations,
   getCreationById,
@@ -369,5 +442,6 @@ module.exports = {
   deleteCreation,
   toggleLike,
   addComment,
-  deleteComment
+  deleteComment,
+  getComments
 }; 

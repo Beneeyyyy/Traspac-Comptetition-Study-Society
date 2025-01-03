@@ -367,23 +367,30 @@ model CreationComment {
   content       String
   userId        Int
   creationId    Int
+  parentId      Int?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   // Relations
   user          User      @relation(fields: [userId], references: [id])
   creation      Creation  @relation(fields: [creationId], references: [id])
+  parent        CreationComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies       CreationComment[] @relation("CommentReplies")
+  likes         CreationLike[]    @relation("CommentLikes")
 }
 
 model CreationLike {
   id            Int       @id @default(autoincrement())
   userId        Int
   creationId    Int
+  commentId     Int?
   createdAt     DateTime  @default(now())
 
   // Relations
   user          User      @relation(fields: [userId], references: [id])
   creation      Creation  @relation(fields: [creationId], references: [id])
+  comment       CreationComment? @relation("CommentLikes", fields: [commentId], references: [id])
 
   @@unique([userId, creationId])
+  @@unique([userId, commentId])
 }

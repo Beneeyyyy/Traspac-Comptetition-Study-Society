@@ -1,325 +1,404 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { FiX, FiGithub, FiHeart, FiMessageSquare, FiEye, FiSend, FiChevronDown, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiX, FiHeart, FiMessageSquare, FiEye, FiShare2, FiMoreVertical } from 'react-icons/fi';
+import axios from 'axios';
+import { useAuth } from '../../../../context/AuthContext';
+
+// Configure axios defaults
+axios.defaults.baseURL = 'http://localhost:3000';
+axios.defaults.withCredentials = true;
+
+const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyContent, setReplyContent] = useState('');
+  const [isLiked, setIsLiked] = useState(false);
+
+  const handleSubmitReply = async (e) => {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+
+    await onReply(comment.id, replyContent);
+    setReplyContent('');
+    setShowReplyForm(false);
+  };
+
+  const handleLike = async () => {
+    await onLike(comment.id);
+    setIsLiked(!isLiked);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3">
+        <img
+          src={comment.user.image}
+          alt={comment.user.name}
+          className="w-8 h-8 rounded-full"
+        />
+        <div className="flex-1">
+          <div className="bg-gray-800/50 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium text-white">{comment.user.name}</span>
+              <div className="flex items-center gap-2">
+                {currentUserId === comment.userId && (
+                  <button
+                    onClick={() => onDelete(comment.id)}
+                    className="text-gray-400 hover:text-red-500 text-sm"
+                  >
+                    Delete
+                  </button>
+                )}
+                <span className="text-gray-500 text-sm">
+                  {new Date(comment.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+            <p className="text-gray-300">{comment.content}</p>
+          </div>
+          <div className="flex items-center gap-4 mt-2 text-sm">
+            <button
+              onClick={handleLike}
+              className={`flex items-center gap-1 ${isLiked ? 'text-pink-500' : 'text-gray-400'} hover:text-pink-500`}
+            >
+              <FiHeart className="w-4 h-4" />
+              <span>{comment._count?.likes || 0}</span>
+            </button>
+            <button
+              onClick={() => setShowReplyForm(!showReplyForm)}
+              className="text-gray-400 hover:text-blue-500"
+            >
+              Reply
+            </button>
+          </div>
+
+          {showReplyForm && (
+            <form onSubmit={handleSubmitReply} className="mt-3">
+              <textarea
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Write a reply..."
+                className="w-full bg-gray-800/30 border border-gray-700 rounded-lg p-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows="2"
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReplyForm(false)}
+                  className="px-3 py-1 text-sm text-gray-400 hover:text-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Reply
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+
+      {/* Nested Comments */}
+      {comment.replies?.length > 0 && (
+        <div className="ml-10 space-y-4 border-l-2 border-gray-800 pl-4">
+          {comment.replies.map((reply) => (
+            <Comment
+              key={reply.id}
+              comment={reply}
+              onReply={onReply}
+              onLike={onLike}
+              onDelete={onDelete}
+              currentUserId={currentUserId}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const WorkDetail = ({ work, setSelectedWork }) => {
-  const [comment, setComment] = useState('')
-  const [isLiked, setIsLiked] = useState(() => {
-    const likedWorks = JSON.parse(localStorage.getItem('likedWorks') || '[]')
-    return likedWorks.includes(work.id)
-  })
-  const [showComments, setShowComments] = useState(true)
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [isLiked, setIsLiked] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Filter only image files
-  const imageFiles = work.files.filter(file => file.type.startsWith('image/'))
-  
-  const handlePrevImage = (e) => {
-    e.stopPropagation()
-    setCurrentImageIndex((prev) => (prev === 0 ? imageFiles.length - 1 : prev - 1))
-  }
+  const { user } = useAuth();
+  const currentUserId = user?.id;
 
-  const handleNextImage = (e) => {
-    e.stopPropagation()
-    setCurrentImageIndex((prev) => (prev === imageFiles.length - 1 ? 0 : prev + 1))
-  }
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await axios.get(`/api/creations/${work.id}/comments`, {
+          withCredentials: true
+        });
+        setComments(response.data);
+      } catch (err) {
+        console.error('Error fetching comments:', err);
+        // Don't show error for 404 (no comments yet)
+        if (err.response?.status === 404) {
+          setComments([]);
+        } else {
+          setError('Failed to load comments. Please try again later.');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleLike = () => {
-    const likedWorks = JSON.parse(localStorage.getItem('likedWorks') || '[]')
-    const works = JSON.parse(localStorage.getItem('studentWorks') || '[]')
-    const workIndex = works.findIndex(w => w.id === work.id)
-    
-    if (workIndex === -1) return
-
-    if (isLiked) {
-      works[workIndex].likes--
-      const newLikedWorks = likedWorks.filter(id => id !== work.id)
-      localStorage.setItem('likedWorks', JSON.stringify(newLikedWorks))
-    } else {
-      works[workIndex].likes++
-      likedWorks.push(work.id)
-      localStorage.setItem('likedWorks', JSON.stringify(likedWorks))
+    if (work.id) {
+      fetchComments();
     }
+  }, [work.id]);
 
-    localStorage.setItem('studentWorks', JSON.stringify(works))
-    setIsLiked(!isLiked)
-    work.likes = works[workIndex].likes // Update current view
-  }
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
 
-  const handleComment = (e) => {
-    e.preventDefault()
-    if (!comment.trim()) return
+    try {
+      setError(null);
+      const response = await axios.post(
+        `/api/creations/${work.id}/comments`,
+        { content: newComment },
+        { withCredentials: true }
+      );
 
-    const works = JSON.parse(localStorage.getItem('studentWorks') || '[]')
-    const workIndex = works.findIndex(w => w.id === work.id)
-    
-    if (workIndex === -1) return
-
-    const newComment = {
-      id: Date.now(),
-      text: comment,
-      author: "Current User",
-      authorAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e",
-      createdAt: new Date().toISOString()
+      setComments([response.data, ...comments]);
+      setNewComment('');
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      setError('Failed to add comment. Please try again.');
     }
+  };
 
-    if (!works[workIndex].commentList) {
-      works[workIndex].commentList = []
+  const handleReply = async (commentId, content) => {
+    try {
+      setError(null);
+      const response = await axios.post(
+        `/api/creations/${work.id}/comments/${commentId}/replies`,
+        { content },
+        { withCredentials: true }
+      );
+
+      // Update comments state to include the new reply
+      const updatedComments = comments.map(comment => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            replies: [...(comment.replies || []), response.data]
+          };
+        }
+        return comment;
+      });
+
+      setComments(updatedComments);
+    } catch (err) {
+      console.error('Error adding reply:', err);
+      setError('Failed to add reply');
     }
+  };
 
-    works[workIndex].commentList.unshift(newComment)
-    works[workIndex].comments = works[workIndex].commentList.length
+  const handleLikeComment = async (commentId) => {
+    try {
+      await axios.post(
+        `/api/creations/${work.id}/comments/${commentId}/like`,
+        {},
+        { withCredentials: true }
+      );
 
-    localStorage.setItem('studentWorks', JSON.stringify(works))
-    work.commentList = works[workIndex].commentList // Update current view
-    work.comments = works[workIndex].comments
-    setComment('')
-  }
+      // Update comment likes in state
+      const updatedComments = comments.map(comment => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            _count: {
+              ...comment._count,
+              likes: comment._count.likes + 1
+            }
+          };
+        }
+        return comment;
+      });
+
+      setComments(updatedComments);
+    } catch (err) {
+      console.error('Error liking comment:', err);
+      setError('Failed to like comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await axios.delete(
+        `/api/creations/${work.id}/comments/${commentId}`,
+        { withCredentials: true }
+      );
+
+      // Remove comment from state
+      setComments(comments.filter(comment => comment.id !== commentId));
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+      setError('Failed to delete comment');
+    }
+  };
+
+  const handleLikeCreation = async () => {
+    try {
+      await axios.post(
+        `/api/creations/${work.id}/like`,
+        {},
+        { withCredentials: true }
+      );
+      setIsLiked(!isLiked);
+    } catch (err) {
+      console.error('Error liking creation:', err);
+      setError('Failed to like creation');
+    }
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          setSelectedWork(null)
-        }
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+      onClick={() => setSelectedWork(null)}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      
       <motion.div
-        initial={{ scale: 0.95 }}
+        initial={{ scale: 0.9 }}
         animate={{ scale: 1 }}
-        exit={{ scale: 0.95 }}
-        className="relative w-full max-w-[700px] max-h-[85vh] bg-black/50 border border-[#374151] shadow-2xl rounded-xl overflow-hidden flex flex-col"
+        exit={{ scale: 0.9 }}
+        className="relative w-full max-w-6xl bg-[#1F2937] rounded-xl shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
       >
-        {/* Header with Preview */}
-        <div className="relative shrink-0">
-          {work.files && work.files.length > 0 ? (
-            <div className="aspect-video relative group">
-              <img
-                src={work.files[currentImageIndex].data}
-                alt={work.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              
-              {/* Navigation Buttons */}
-              {work.files.length > 1 && (
-                <>
-                  <button
-                    onClick={handlePrevImage}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-colors opacity-0 group-hover:opacity-100"
-                  >
-                    <FiChevronLeft className="w-5 h-5 text-white" />
-                  </button>
-                  <button
-                    onClick={handleNextImage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-colors opacity-0 group-hover:opacity-100"
-                  >
-                    <FiChevronRight className="w-5 h-5 text-white" />
-                  </button>
+        {/* Close Button */}
+        <button
+          onClick={() => setSelectedWork(null)}
+          className="absolute top-4 right-4 p-2 text-white/80 hover:text-white bg-black/20 rounded-full z-10"
+        >
+          <FiX className="w-6 h-6" />
+        </button>
 
-                  {/* Image Counter */}
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/50 rounded-full backdrop-blur-sm text-xs text-white opacity-0 group-hover:opacity-100">
-                    {currentImageIndex + 1} / {work.files.length}
-                  </div>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="aspect-video bg-gradient-to-br from-[#2563EB] to-[#1D4ED8]" />
-          )}
+        <div className="flex flex-col md:flex-row h-[90vh]">
+          {/* Left Side - Image */}
+          <div className="w-full md:w-2/3 bg-black relative">
+            <img
+              src={work.files[0]?.data}
+              alt={work.title}
+              className="w-full h-full object-contain"
+            />
+          </div>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setSelectedWork(null)
-            }}
-            className="absolute top-3 right-3 p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
-          >
-            <FiX className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="p-4 space-y-4">
-            {/* User Info and Category */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
+          {/* Right Side - Details */}
+          <div className="w-full md:w-1/3 flex flex-col bg-[#1F2937] border-l border-gray-800">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-800">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
                   <img
                     src={work.authorAvatar}
                     alt={work.author}
-                    className="w-10 h-10 rounded-full border-2 border-[#374151]"
+                    className="w-10 h-10 rounded-full border-2 border-gray-800"
                   />
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-medium">{work.author}</span>
-                      {work.badge && (
-                        <span className="px-2 py-0.5 text-xs bg-[#2563EB] text-white rounded-full">
-                          {work.badge}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-[#94A3B8]">Creator</span>
+                  <div>
+                    <h3 className="font-medium text-white">{work.author}</h3>
+                    {work.badge && (
+                      <span className="text-xs text-gray-400">{work.badge}</span>
+                    )}
                   </div>
                 </div>
-                <h3 className="text-xl font-semibold text-white">{work.title}</h3>
-              </div>
-              <span className="px-2.5 py-0.5 bg-[#374151] text-xs text-white/90 rounded-full h-fit shrink-0">
-                {work.category}
-              </span>
-            </div>
-
-            {/* Description */}
-            <div className="bg-[#374151] rounded-lg p-3">
-              <p className="text-sm text-[#94A3B8]">{work.description}</p>
-            </div>
-
-            {/* Project URL */}
-            {work.projectUrl && (
-              <a
-                href={work.projectUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 p-3 rounded-lg bg-[#374151] text-[#94A3B8] hover:text-white transition-colors"
-              >
-                <FiGithub className="w-4 h-4" />
-                <span className="text-sm truncate">{work.projectUrl}</span>
-              </a>
-            )}
-
-            {/* Stats and Tags */}
-            <div className="flex items-center justify-between py-1">
-              <div className="flex items-center gap-4 text-[#94A3B8]">
-                <button 
-                  onClick={handleLike}
-                  className="flex items-center gap-1.5 hover:text-[#2563EB] transition-colors"
-                >
-                  <FiHeart className={`w-4 h-4 ${isLiked ? 'fill-[#2563EB] text-[#2563EB]' : ''}`} />
-                  <span className="text-sm">{work.likes}</span>
+                <button className="p-2 text-gray-400 hover:text-white">
+                  <FiMoreVertical className="w-5 h-5" />
                 </button>
-                <div className="flex items-center gap-1.5">
-                  <FiMessageSquare className="w-4 h-4" />
-                  <span className="text-sm">{work.comments}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <FiEye className="w-4 h-4" />
-                  <span className="text-sm">{work.views}</span>
-                </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {work.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-0.5 bg-[#374151] text-xs text-[#94A3B8] rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
+
+              <h2 className="text-xl font-semibold text-white mb-2">{work.title}</h2>
+              <p className="text-gray-300 mb-4">{work.description}</p>
+
+              <div className="flex items-center gap-6 text-gray-400">
+                <button
+                  onClick={handleLikeCreation}
+                  className={`flex items-center gap-2 ${isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}
+                >
+                  <FiHeart className="w-5 h-5" />
+                  <span>{work.likes}</span>
+                </button>
+                <div className="flex items-center gap-2">
+                  <FiMessageSquare className="w-5 h-5" />
+                  <span>{comments.length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FiEye className="w-5 h-5" />
+                  <span>{work.views}</span>
+                </div>
+                <button className="ml-auto text-gray-400 hover:text-white">
+                  <FiShare2 className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
             {/* Comments Section */}
-            <div className="bg-[#374151] rounded-lg overflow-hidden">
-              <div 
-                className="flex items-center justify-between p-3 cursor-pointer hover:bg-[#2D3748] transition-colors"
-                onClick={() => setShowComments(!showComments)}
-              >
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-medium text-white">Comments</h4>
-                  <span className="text-xs text-[#94A3B8]">({work.comments})</span>
-                </div>
-                <motion.div
-                  animate={{ rotate: showComments ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <FiChevronDown className="w-4 h-4 text-[#94A3B8]" />
-                </motion.div>
-              </div>
-
-              {showComments && (
-                <div className="p-3">
-                  {/* Comment Form */}
-                  <form onSubmit={handleComment} className="flex gap-2 mb-4">
-                    <img
-                      src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e"
-                      alt="Current User"
-                      className="w-8 h-8 rounded-full border-2 border-[#2D3748] shrink-0"
-                    />
-                    <div className="flex-1 flex gap-2">
-                      <input
-                        type="text"
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Add a comment..."
-                        className="flex-1 bg-[#2D3748] border border-[#4B5563] rounded-lg px-3 py-1.5 text-sm text-white placeholder:text-[#64748B] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!comment.trim()}
-                        className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
-                      >
-                        <FiSend className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </form>
-
-                  {/* Comments List */}
-                  <div className="space-y-3 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-                    {work.commentList?.map((comment) => (
-                      <div key={comment.id} className="flex gap-2">
-                        <img
-                          src={comment.authorAvatar}
-                          alt={comment.author}
-                          className="w-8 h-8 rounded-full border-2 border-[#2D3748] shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-white">{comment.author}</span>
-                            <span className="text-xs text-[#64748B]">
-                              {new Date(comment.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-sm text-[#94A3B8] break-words">{comment.text}</p>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {(!work.commentList || work.commentList.length === 0) && (
-                      <p className="text-xs text-[#64748B] text-center py-3">No comments yet. Be the first to comment!</p>
-                    )}
-                  </div>
+            <div className="flex-1 overflow-y-auto">
+              {error && (
+                <div className="p-4 text-red-500 bg-red-500/10 border-b border-red-500/20">
+                  {error}
                 </div>
               )}
+
+              <div className="p-4 space-y-6">
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  </div>
+                ) : comments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                    <FiMessageSquare className="w-8 h-8 mb-2" />
+                    <p>No comments yet. Be the first to comment!</p>
+                  </div>
+                ) : (
+                  comments.map((comment) => (
+                    <Comment
+                      key={comment.id}
+                      comment={comment}
+                      onReply={handleReply}
+                      onLike={handleLikeComment}
+                      onDelete={handleDeleteComment}
+                      currentUserId={currentUserId}
+                    />
+                  ))
+                )}
+              </div>
             </div>
+
+            {/* Comment Input */}
+            <form onSubmit={handleAddComment} className="p-4 border-t border-gray-800">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Add a comment..."
+                className="w-full bg-gray-800/30 border border-gray-700 rounded-lg p-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows="2"
+              />
+              <div className="flex justify-end mt-2">
+                <button
+                  type="submit"
+                  disabled={!newComment.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Comment
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        <style jsx global>{`
-          .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-track {
-            background: #1F2937;
-            border-radius: 4px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #374151;
-            border-radius: 4px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #4B5563;
-          }
-        `}</style>
       </motion.div>
     </motion.div>
-  )
-}
+  );
+};
 
-export default WorkDetail 
+export default WorkDetail; 
