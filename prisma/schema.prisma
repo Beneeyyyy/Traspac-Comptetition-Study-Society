@@ -18,6 +18,7 @@ model School {
   level           String    // SD/SMP/SMA/SMK
   type            String    // Negeri/Swasta
   status          String    @default("active") // active/inactive
+  image           String    @default("https://ui-avatars.com/api/?background=0D8ABC&color=fff") // School logo/image
   
   // Metadata
   createdAt       DateTime  @default(now())

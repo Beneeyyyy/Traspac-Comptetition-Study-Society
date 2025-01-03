@@ -1,16 +1,23 @@
 import { motion } from 'framer-motion'
 
-export default function LeaderboardTitle({ activeCategory, activeScope }) {
+export default function LeaderboardTitle({ activeCategory, activeScope, selectedRegion }) {
   const getTitle = () => {
     if (activeCategory === 'weekly') {
       return 'Weekly Top Learners';
     }
     
     if (activeCategory === 'school') {
-      return `${activeScope === 'national' ? 'National' : 'Regional'} School Rankings`;
+      if (activeScope === 'national') {
+        return 'National School Rankings';
+      }
+      return selectedRegion ? `School Rankings - ${selectedRegion}` : 'Regional School Rankings';
     }
     
-    return `${activeScope === 'national' ? 'National' : 'Regional'} Top Learners`;
+    if (activeScope === 'national') {
+      return 'National Top Learners';
+    }
+    
+    return selectedRegion ? `Top Learners - ${selectedRegion}` : 'Regional Top Learners';
   };
 
   return (

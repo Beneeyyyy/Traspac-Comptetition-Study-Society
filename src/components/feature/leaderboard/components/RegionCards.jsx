@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion'
 
 const regions = [
-  { id: 'jakarta', name: 'Jakarta' },
-  { id: 'bandung', name: 'Bandung' },
-  { id: 'surabaya', name: 'Surabaya' },
-  { id: 'yogyakarta', name: 'Yogyakarta' },
-  { id: 'semarang', name: 'Semarang' },
-  { id: 'malang', name: 'Malang' },
-  { id: 'medan', name: 'Medan' },
+  { id: 'jakarta', name: 'Jakarta', province: 'DKI Jakarta' },
+  { id: 'bandung', name: 'Bandung', province: 'Jawa Barat' },
+  { id: 'surabaya', name: 'Surabaya', province: 'Jawa Timur' },
+  { id: 'yogyakarta', name: 'Yogyakarta', province: 'DI Yogyakarta' },
+  { id: 'semarang', name: 'Semarang', province: 'Jawa Tengah' },
+  { id: 'malang', name: 'Malang', province: 'Jawa Timur' },
+  { id: 'medan', name: 'Medan', province: 'Sumatera Utara' },
 ]
 
 export default function RegionCards({ onRegionSelect }) {
@@ -24,7 +24,7 @@ export default function RegionCards({ onRegionSelect }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: index * 0.1 }}
-          onClick={() => onRegionSelect(region.id)}
+          onClick={() => onRegionSelect(region.province)}
           className="relative group cursor-pointer"
         >
           <div className="absolute inset-0 bg-gradient-to-t from-blue-500/20 via-transparent to-transparent rounded-lg" />

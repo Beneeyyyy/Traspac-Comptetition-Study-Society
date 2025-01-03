@@ -1,879 +1,258 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-
 const prisma = new PrismaClient();
 
+const regions = [
+  'DKI Jakarta',
+  'Jawa Barat',
+  'Jawa Tengah',
+  'Jawa Timur',
+  'Bali'
+];
+
+const schoolNames = {
+  'DKI Jakarta': [
+    'SMA Negeri 1 Jakarta',
+    'SMA Negeri 8 Jakarta',
+    'SMA Negeri 28 Jakarta',
+    'SMA Negeri 35 Jakarta',
+    'SMA Negeri 70 Jakarta'
+  ],
+  'Jawa Barat': [
+    'SMA Negeri 1 Bandung',
+    'SMA Negeri 2 Bandung',
+    'SMA Negeri 3 Bandung',
+    'SMA Negeri 1 Bogor',
+    'SMA Negeri 1 Bekasi'
+  ],
+  'Jawa Tengah': [
+    'SMA Negeri 1 Semarang',
+    'SMA Negeri 2 Semarang',
+    'SMA Negeri 3 Semarang',
+    'SMA Negeri 1 Solo',
+    'SMA Negeri 1 Magelang'
+  ],
+  'Jawa Timur': [
+    'SMA Negeri 1 Surabaya',
+    'SMA Negeri 2 Surabaya',
+    'SMA Negeri 5 Surabaya',
+    'SMA Negeri 1 Malang',
+    'SMA Negeri 1 Sidoarjo'
+  ],
+  'Bali': [
+    'SMA Negeri 1 Denpasar',
+    'SMA Negeri 2 Denpasar',
+    'SMA Negeri 3 Denpasar',
+    'SMA Negeri 1 Kuta',
+    'SMA Negeri 1 Ubud'
+  ]
+};
+
+const categories = [
+  { name: 'Matematika', description: 'Pelajaran Matematika' },
+  { name: 'Fisika', description: 'Pelajaran Fisika' },
+  { name: 'Kimia', description: 'Pelajaran Kimia' },
+  { name: 'Biologi', description: 'Pelajaran Biologi' }
+];
+
+const subcategories = {
+  'Matematika': [
+    'Aljabar',
+    'Geometri',
+    'Trigonometri',
+    'Kalkulus'
+  ],
+  'Fisika': [
+    'Mekanika',
+    'Termodinamika',
+    'Gelombang',
+    'Listrik Magnet'
+  ],
+  'Kimia': [
+    'Kimia Organik',
+    'Kimia Anorganik',
+    'Termokimia',
+    'Elektrokimia'
+  ],
+  'Biologi': [
+    'Sel',
+    'Genetika',
+    'Ekologi',
+    'Evolusi'
+  ]
+};
+
+function generateRandomDate(start, end) {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+
 async function main() {
-  // Create admin user
-  const hashedPassword = await bcrypt.hash('admin123', 10);
-  const adminUser = await prisma.user.create({
-    data: {
-      name: 'Admin',
-      email: 'admin@example.com',
-      password: hashedPassword,
-      role: 'admin'
+  console.log('🌱 Starting seed...');
+
+  // Clear existing data
+  console.log('🧹 Clearing existing data...');
+  
+  // Delete in correct order to handle foreign key constraints
+  await prisma.point.deleteMany();
+  await prisma.materialProgress.deleteMany();
+  await prisma.forumVote.deleteMany();
+  await prisma.forumComment.deleteMany();
+  await prisma.forumAnswer.deleteMany();
+  await prisma.forumPost.deleteMany();
+  await prisma.like.deleteMany();
+  await prisma.reply.deleteMany();
+  await prisma.discussion.deleteMany();
+  await prisma.userAchievement.deleteMany();
+  await prisma.studyHistory.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.school.deleteMany();
+  await prisma.stage.deleteMany();
+  await prisma.material.deleteMany();
+  await prisma.subcategory.deleteMany();
+  await prisma.category.deleteMany();
+
+  console.log('✨ Existing data cleared');
+
+  // Create categories and subcategories
+  const createdCategories = {};
+  const createdSubcategories = {};
+  
+  for (const category of categories) {
+    const createdCategory = await prisma.category.create({
+      data: {
+        name: category.name,
+        description: category.description
+      }
+    });
+    createdCategories[category.name] = createdCategory;
+
+    // Create subcategories for this category
+    createdSubcategories[category.name] = [];
+    for (const subName of subcategories[category.name]) {
+      const subcategory = await prisma.subcategory.create({
+        data: {
+          name: subName,
+          description: `${subName} dalam ${category.name}`,
+          categoryId: createdCategory.id
+        }
+      });
+      createdSubcategories[category.name].push(subcategory);
     }
-  });
-
-  console.log('Admin user created:', adminUser.email);
-
-  // Create Programming Dasar Category
-  const programmingCategory = await prisma.category.create({
-    data: {
-      name: "Programming Dasar",
-      description: "Pelajari dasar-dasar pemrograman untuk memulai perjalanan coding Anda",
-      image: "https://example.com/programming-basic.jpg",
-      subcategories: {
-        create: [
-          {
-            name: "Pengenalan JavaScript",
-            description: "Fundamental JavaScript untuk pemula",
-            image: "https://example.com/js-basic.jpg",
-            materials: {
-              create: [
-                {
-                  title: "Pengenalan JavaScript untuk Pemula",
-                  description: "Pelajari dasar-dasar JavaScript, bahasa pemrograman yang powerful untuk web development. Kamu akan belajar konsep dasar, cara menulis kode, dan implementasi sederhana.",
-                  image: "https://example.com/js-intro.jpg",
-                  xp_reward: 100,
-                  estimated_time: 45,
-                  glossary: [
-                    { term: "Variable", definition: "Wadah untuk menyimpan data dalam program" },
-                    { term: "Function", definition: "Blok kode yang dapat digunakan ulang" },
-                    { term: "Console", definition: "Tool untuk debugging dan melihat output program" }
-                  ],
-                  stages: {
-                    create: [
-                      {
-                        title: "1. Konsep Dasar JavaScript",
-                        order: 1,
-                        contents: [
-                          {
-                            type: "text",
-                            content: `JavaScript adalah bahasa pemrograman yang telah mengubah wajah pengembangan web modern. Diciptakan oleh Brendan Eich pada tahun 1995, JavaScript awalnya dirancang sebagai bahasa sederhana untuk membuat website menjadi lebih interaktif.
-
-Mari kita pelajari konsep dasarnya:
-
-1. Variables dan Data Types
-   - var, let, const untuk deklarasi variabel
-   - String, Number, Boolean sebagai tipe data dasar
-   - Object dan Array untuk struktur data kompleks
-
-2. Functions dan Scope
-   - Function declaration dan expression
-   - Parameter dan return value
-   - Global scope vs local scope`,
-                            order: 1
-                          },
-                          {
-                            type: "image",
-                            content: "https://example.com/js-ecosystem.jpg",
-                            caption: "Ekosistem JavaScript Modern",
-                            order: 2
-                          },
-                          {
-                            type: "text",
-                            content: `<img src="https://example.com/js-concepts.jpg" alt="Konsep Dasar JavaScript">
-
-Di atas adalah visualisasi dari konsep-konsep dasar dalam JavaScript. Mari kita bahas satu per satu:
-
-1. Variables (Variabel)
-   - Tempat untuk menyimpan data
-   - Bisa diubah nilainya (kecuali const)
-   - Memiliki scope tertentu
-
-2. Data Types (Tipe Data)
-   - String: untuk teks
-   - Number: untuk angka
-   - Boolean: true/false
-   - Object: untuk data kompleks
-   - Array: untuk kumpulan data
-
-3. Control Flow
-   - if/else untuk percabangan
-   - loops untuk pengulangan
-   - switch untuk multiple conditions`,
-                            order: 3
-                          }
-                        ]
-                      },
-                      {
-                        title: "2. Praktik Dasar JavaScript",
-                        order: 2,
-                        contents: [
-                          {
-                            type: "text",
-                            content: `<img src="https://example.com/js-practice.jpg" alt="Praktik JavaScript">
-
-Mari kita praktikkan konsep-konsep yang sudah dipelajari. Dalam gambar di atas, kita bisa melihat beberapa contoh kode JavaScript dasar dan penggunaannya dalam situasi nyata.
-
-1. Deklarasi Variabel
-   - Gunakan let untuk variabel yang bisa berubah
-   - Gunakan const untuk nilai tetap
-   - Berikan nama yang deskriptif
-
-2. Penggunaan Function
-   - Buat function yang reusable
-   - Satu function untuk satu tugas
-   - Gunakan parameter bila perlu`,
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: `// Contoh Penggunaan Variabel
-let counter = 0;
-const MAX_VALUE = 100;
-
-// Contoh Function
-function increment() {
-  if (counter < MAX_VALUE) {
-    counter++;
-    return counter;
   }
-  return 'Maksimum tercapai';
-}`,
-                            language: "javascript",
-                            order: 2
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
+
+  console.log('📚 Created categories and subcategories');
+
+  // Create default material for each subcategory
+  console.log('📖 Creating default materials...');
+  const defaultMaterials = {};
+  
+  for (const category of categories) {
+    defaultMaterials[category.name] = [];
+    for (const subcategory of createdSubcategories[category.name]) {
+      const material = await prisma.material.create({
+        data: {
+          title: `Pengenalan ${subcategory.name}`,
+          description: `Materi dasar tentang ${subcategory.name}`,
+          subcategoryId: subcategory.id,
+          xp_reward: 100,
+          estimated_time: 30,
+          is_published: true
+        }
+      });
+      defaultMaterials[category.name].push(material);
     }
-  });
+  }
 
-  // Create Daataabase Category
-  const databaseCategory = await prisma.category.create({
-    data: {
-      name: "Database",
-      description: "Pelajari cara mengelola dan mengoptimalkan database",
-      image: "https://example.com/database.jpg",
-      subcategories: {
-        create: [
-          {
-            name: "SQL Dasar",
-            description: "Fundamental SQL dan database relasional",
-            image: "https://example.com/sql-basic.jpg",
-            materials: {
-              create: [
-                {
-                  title: "Pengenalan SQL dan Database",
-                  description: "Pelajari dasar-dasar SQL dan database relasional untuk mengelola data dengan efektif",
-                  image: "https://example.com/sql-intro.jpg",
-                  xp_reward: 120,
-                  estimated_time: 60,
-                  glossary: [
-                    { term: "Database", definition: "Kumpulan data terstruktur" },
-                    { term: "Query", definition: "Perintah untuk mengakses atau memanipulasi data" },
-                    { term: "Table", definition: "Struktur untuk menyimpan data dalam database" }
-                  ],
-                  stages: {
-                    create: [
-                      {
-                        title: "1. Pengenalan Database",
-                        order: 1,
-                        contents: [
-                          {
-                            type: "text",
-                            content: `<img src="https://example.com/database-structure.jpg" alt="Struktur Database Relasional">
+  console.log('✅ Created default materials');
 
-Database adalah sistem yang digunakan untuk menyimpan dan mengelola data secara terstruktur. Dalam gambar di atas, kita bisa melihat struktur dasar dari sebuah database relasional yang terdiri dari beberapa komponen penting:
+  // Create schools and users for each region
+  for (const region of regions) {
+    console.log(`🏫 Creating schools for ${region}...`);
+    
+    for (const schoolName of schoolNames[region]) {
+      // Create school
+      const school = await prisma.school.create({
+        data: {
+          npsn: Math.random().toString(36).substring(2, 10).toUpperCase(),
+          name: schoolName,
+          address: `Jalan ${schoolName.split(' ').pop()} No. ${Math.floor(Math.random() * 100) + 1}`,
+          city: region.split(' ').pop(),
+          province: region,
+          postalCode: Math.floor(Math.random() * 90000 + 10000).toString(),
+          level: 'SMA',
+          type: 'Negeri',
+          status: 'active',
+          image: `https://ui-avatars.com/api/?name=${encodeURIComponent(schoolName)}&background=0D8ABC&color=fff`
+        }
+      });
 
-1. Tables (Tabel)
-   - Merupakan kumpulan data yang tersusun dalam baris dan kolom
-   - Setiap tabel mewakili satu entitas (misalnya: Users, Products, Orders)
-   - Tabel-tabel ini saling terhubung membentuk relasi
-
-2. Columns (Kolom)
-   - Setiap kolom mewakili satu atribut atau field dari data
-   - Memiliki tipe data tertentu (string, number, date, dll)
-   - Contoh: dalam tabel Users, kolomnya bisa berupa id, name, email, dll
-
-3. Rows (Baris)
-   - Setiap baris mewakili satu record atau entry data
-   - Berisi nilai untuk setiap kolom yang ada
-   - Misalnya: satu baris dalam tabel Users berisi data lengkap satu pengguna
-
-4. Relationships (Relasi)
-   - Hubungan antar tabel ditunjukkan dengan garis penghubung
-   - Ada beberapa jenis relasi: one-to-one, one-to-many, many-to-many
-   - Relasi dibuat menggunakan foreign keys
-
-5. Primary Keys
-   - Kolom unik yang mengidentifikasi setiap record
-   - Biasanya berupa ID yang auto-increment
-   - Memastikan tidak ada duplikasi data
-
-6. Foreign Keys
-   - Kolom yang mereferensi primary key dari tabel lain
-   - Membentuk relasi antar tabel
-   - Menjaga integritas data
-
-Dengan struktur yang terorganisir seperti ini, database relasional memungkinkan kita untuk:
-- Menyimpan data secara efisien dan terstruktur
-- Menghindari redundansi data
-- Menjaga konsistensi data
-- Melakukan query data dengan mudah
-- Mengelola relasi antar data dengan baik
-- Memastikan integritas data terjaga`,
-                            order: 1
-                          }
-                        ]
-                      },
-                      {
-                        title: "2. Basic SQL Commands",
-                        order: 2,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Mari belajar perintah SQL dasar",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "SELECT * FROM users;\nINSERT INTO users (name, age) VALUES ('John', 25);",
-                            language: "sql",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "3. Latihan Query",
-                        order: 3,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Saatnya berlatih membuat query SQL",
-                            order: 1
-                          },
-                          {
-                            type: "exercise",
-                            content: "Buatlah query untuk menampilkan semua user berusia di atas 20 tahun",
-                            order: 2
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
+      // Create 5 students for each school
+      for (let i = 1; i <= 5; i++) {
+        const studentName = `${['Andi', 'Budi', 'Citra', 'Dewi', 'Eka'][i-1]} ${school.name.split(' ').pop()}`;
+        const randomId = Math.random().toString(36).substring(2, 8);
+        const user = await prisma.user.create({
+          data: {
+            name: studentName,
+            email: `${studentName.toLowerCase().replace(/\s+/g, '.')}${randomId}@student.com`,
+            password: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyuiXe/QLSUG6xNekdHgTGmrpHEfIoxm', // 'password123'
+            image: `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=0D8ABC&color=fff`,
+            schoolId: school.id,
+            totalStudyTime: Math.floor(Math.random() * 3000), // Random study time up to 3000 minutes
+            completedMaterials: Math.floor(Math.random() * 20), // Random completed materials up to 20
+            totalPoints: 0, // Will be updated as we add points
+            totalXP: Math.floor(Math.random() * 5000), // Random XP
+            rank: ['Pemula', 'Intermediate', 'Advanced'][Math.floor(Math.random() * 3)],
+            level: Math.floor(Math.random() * 10) + 1,
+            studyStreak: Math.floor(Math.random() * 30),
+            weeklyStudyTime: Math.floor(Math.random() * 600),
+            monthlyStudyTime: Math.floor(Math.random() * 2400),
+            lastStudyDate: new Date(),
+            bio: `Student at ${school.name}`,
+            currentGoal: "Becoming a better learner",
+            interests: ['Mathematics', 'Science', 'Programming'].slice(0, Math.floor(Math.random() * 3) + 1)
           }
-        ]
-      }
-    }
-  });
+        });
 
-  // Create Web Development Category
-  const webDevCategory = await prisma.category.create({
-    data: {
-      name: "Web Development",
-      description: "Pelajari pengembangan website modern dari dasar hingga mahir",
-      image: "https://example.com/web-dev.jpg",
-      subcategories: {
-        create: [
-          {
-            name: "HTML & CSS",
-            description: "Fundamental pembangunan website dengan HTML dan CSS",
-            image: "https://example.com/html-css.jpg",
-            materials: {
-              create: [
-                {
-                  title: "Dasar HTML5 Modern",
-                  description: "Pelajari HTML5 untuk membangun struktur website yang semantik dan accessible",
-                  image: "https://example.com/html5.jpg",
-                  xp_reward: 90,
-                  estimated_time: 40,
-                  glossary: [
-                    { term: "Semantic HTML", definition: "Tag HTML yang memiliki makna dan tujuan spesifik" },
-                    { term: "Accessibility", definition: "Membuat website dapat diakses oleh semua pengguna" }
-                  ],
-                  stages: {
-                    create: [
-                      {
-                        title: "1. Struktur Dasar HTML5",
-                        order: 1,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "HTML5 adalah versi terbaru dari HTML yang membawa banyak fitur modern.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "<!DOCTYPE html>\n<html lang=\"id\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Website Modern</title>\n</head>\n<body>\n  <header>...</header>\n  <main>...</main>\n  <footer>...</footer>\n</body>\n</html>",
-                            language: "html",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "2. Semantic Elements",
-                        order: 2,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Semantic elements membantu mesin dan developer memahami struktur konten.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "<article>\n  <h1>Judul Artikel</h1>\n  <section>\n    <h2>Sub Judul</h2>\n    <p>Konten...</p>\n  </section>\n</article>",
-                            language: "html",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "3. Praktik Forms",
-                        order: 3,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Mari buat form yang accessible dan user-friendly.",
-                            order: 1
-                          },
-                          {
-                            type: "exercise",
-                            content: "Buatlah form pendaftaran dengan field nama, email, dan pesan",
-                            order: 2
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          },
-          {
-            name: "React Modern",
-            description: "Pengembangan aplikasi web dengan React dan ekosistemnya",
-            image: "https://example.com/react.jpg",
-            materials: {
-              create: [
-                {
-                  title: "React Hooks dan Components",
-                  description: "Pelajari penggunaan React Hooks dan pembuatan komponen yang reusable",
-                  image: "https://example.com/react-hooks.jpg",
-                  xp_reward: 150,
-                  estimated_time: 60,
-                  glossary: [
-                    { term: "Hooks", definition: "Fungsi spesial untuk menggunakan state dan fitur React lainnya" },
-                    { term: "Component", definition: "Bagian UI yang dapat digunakan ulang" }
-                  ],
-                  stages: {
-                    create: [
-                      {
-                        title: "1. Pengenalan Hooks",
-                        order: 1,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "React Hooks memungkinkan kita menggunakan state dan fitur React lainnya dalam functional components.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "import { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  return (\n    <button onClick={() => setCount(count + 1)}>\n      Count: {count}\n    </button>\n  );\n}",
-                            language: "javascript",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "2. Custom Hooks",
-                        order: 2,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Buat dan gunakan custom hooks untuk logic yang reusable.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "function useWindowSize() {\n  const [size, setSize] = useState({ width: 0, height: 0 });\n  // ... implementation\n  return size;\n}",
-                            language: "javascript",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "3. Project Mini",
-                        order: 3,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Saatnya membuat project sederhana dengan React Hooks!",
-                            order: 1
-                          },
-                          {
-                            type: "exercise",
-                            content: "Buat aplikasi todo list dengan useState dan useEffect",
-                            order: 2
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-  });
+        // Create points for this user
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1); // Points from last month
 
-  // Create Mobile Development Category
-  const mobileDevCategory = await prisma.category.create({
-    data: {
-      name: "Mobile Development",
-      description: "Pelajari pengembangan aplikasi mobile untuk Android dan iOS",
-      image: "https://example.com/mobile-dev.jpg",
-      subcategories: {
-        create: [
-          {
-            name: "React Native Basics",
-            description: "Dasar-dasar pengembangan aplikasi mobile dengan React Native",
-            image: "https://example.com/react-native.jpg",
-            materials: {
-              create: [
-                {
-                  title: "Memulai dengan React Native",
-                  description: "Pelajari fundamental React Native untuk membuat aplikasi mobile cross-platform",
-                  image: "https://example.com/rn-start.jpg",
-                  xp_reward: 130,
-                  estimated_time: 55,
-                  glossary: [
-                    { term: "Cross-platform", definition: "Aplikasi yang dapat berjalan di berbagai platform" },
-                    { term: "Native Components", definition: "Komponen UI yang sesuai dengan platform" }
-                  ],
-                  stages: {
-                    create: [
-                      {
-                        title: "1. Setup Project",
-                        order: 1,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Persiapkan environment development React Native.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "npx react-native init MyFirstApp\ncd MyFirstApp\nnpx react-native start",
-                            language: "bash",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "2. Basic Components",
-                        order: 2,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Kenali komponen dasar React Native.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "import { View, Text, StyleSheet } from 'react-native';\n\nfunction Welcome() {\n  return (\n    <View style={styles.container}>\n      <Text>Welcome to React Native!</Text>\n    </View>\n  );\n}",
-                            language: "javascript",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "3. Layout dengan Flexbox",
-                        order: 3,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Belajar mengatur layout dengan Flexbox di React Native.",
-                            order: 1
-                          },
-                          {
-                            type: "exercise",
-                            content: "Buat layout untuk halaman profil pengguna",
-                            order: 2
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          },
-          {
-            name: "Flutter Fundamentals",
-            description: "Pengembangan aplikasi mobile dengan Flutter dan Dart",
-            image: "https://example.com/flutter.jpg",
-            materials: {
-              create: [
-                {
-                  title: "Dart dan Flutter untuk Pemula",
-                  description: "Pelajari bahasa Dart dan framework Flutter untuk membuat aplikasi mobile yang menarik",
-                  image: "https://example.com/flutter-basic.jpg",
-                  xp_reward: 140,
-                  estimated_time: 65,
-                  glossary: [
-                    { term: "Widget", definition: "Komponen UI dasar dalam Flutter" },
-                    { term: "Hot Reload", definition: "Fitur untuk melihat perubahan secara instan" }
-                  ],
-                  stages: {
-                    create: [
-                      {
-                        title: "1. Pengenalan Dart",
-                        order: 1,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Dart adalah bahasa pemrograman modern untuk Flutter.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "void main() {\n  var name = 'Flutter';\n  print('Hello, $name!');\n}",
-                            language: "dart",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "2. Widget Tree",
-                        order: 2,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Memahami hierarki widget dalam Flutter.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "class MyApp extends StatelessWidget {\n  @override\n  Widget build(BuildContext context) {\n    return MaterialApp(\n      home: Scaffold(\n        body: Center(\n          child: Text('Hello Flutter!')\n        )\n      )\n    );\n  }\n}",
-                            language: "dart",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "3. Stateful Widgets",
-                        order: 3,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Belajar membuat widget yang dapat berubah state-nya.",
-                            order: 1
-                          },
-                          {
-                            type: "exercise",
-                            content: "Buat counter app dengan StatefulWidget",
-                            order: 2
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-  });
+        // Create random points for each category
+        for (const category of categories) {
+          const numPoints = Math.floor(Math.random() * 10) + 5; // 5-15 point entries per category
+          
+          // Get random subcategory and material for this category
+          const categorySubcategories = createdSubcategories[category.name];
+          const categoryMaterials = defaultMaterials[category.name];
+          
+          for (let j = 0; j < numPoints; j++) {
+            // Randomly select subcategory and corresponding material
+            const randomIndex = Math.floor(Math.random() * categorySubcategories.length);
+            const selectedSubcategory = categorySubcategories[randomIndex];
+            const selectedMaterial = categoryMaterials[randomIndex];
 
-  // Create Data Science Category
-  const dataScienceCategory = await prisma.category.create({
-    data: {
-      name: "Data Science",
-      description: "Pelajari analisis data dan machine learning",
-      image: "https://example.com/data-science.jpg",
-      subcategories: {
-        create: [
-          {
-            name: "Python untuk Data Science",
-            description: "Fundamental Python untuk analisis data",
-            image: "https://example.com/python-ds.jpg",
-            materials: {
-              create: [
-                {
-                  title: "Analisis Data dengan Python",
-                  description: "Pelajari penggunaan Python dan libraries untuk analisis data",
-                  image: "https://example.com/python-analysis.jpg",
-                  xp_reward: 160,
-                  estimated_time: 70,
-                  glossary: [
-                    { term: "Pandas", definition: "Library Python untuk manipulasi data" },
-                    { term: "DataFrame", definition: "Struktur data 2D untuk analisis" }
-                  ],
-                  stages: {
-                    create: [
-                      {
-                        title: "1. Pengenalan Pandas",
-                        order: 1,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Pandas adalah library powerful untuk analisis data.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "import pandas as pd\n\ndf = pd.DataFrame({\n  'Name': ['John', 'Anna'],\n  'Age': [25, 28]\n})\nprint(df.describe())",
-                            language: "python",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "2. Data Cleaning",
-                        order: 2,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Belajar membersihkan dan mempersiapkan data.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "# Handle missing values\ndf.fillna(0)\n\n# Remove duplicates\ndf.drop_duplicates()",
-                            language: "python",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "3. Visualisasi Data",
-                        order: 3,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Membuat visualisasi data dengan matplotlib dan seaborn.",
-                            order: 1
-                          },
-                          {
-                            type: "exercise",
-                            content: "Buat visualisasi dari dataset penumpang Titanic",
-                            order: 2
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          },
-          {
-            name: "Machine Learning Basics",
-            description: "Dasar-dasar machine learning dengan scikit-learn",
-            image: "https://example.com/ml-basic.jpg",
-            materials: {
-              create: [
-                {
-                  title: "Supervised Learning",
-                  description: "Pelajari konsep dan implementasi supervised learning",
-                  image: "https://example.com/supervised.jpg",
-                  xp_reward: 180,
-                  estimated_time: 75,
-                  glossary: [
-                    { term: "Classification", definition: "Prediksi kategori/kelas" },
-                    { term: "Regression", definition: "Prediksi nilai kontinyu" }
-                  ],
-                  stages: {
-                    create: [
-                      {
-                        title: "1. Konsep Dasar",
-                        order: 1,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Memahami supervised learning dan komponennya.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "from sklearn.model_selection import train_test_split\nfrom sklearn.linear_model import LogisticRegression\n\nX_train, X_test, y_train, y_test = train_test_split(X, y)",
-                            language: "python",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "2. Model Training",
-                        order: 2,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Belajar melatih model machine learning.",
-                            order: 1
-                          },
-                          {
-                            type: "code",
-                            content: "model = LogisticRegression()\nmodel.fit(X_train, y_train)\npredictions = model.predict(X_test)",
-                            language: "python",
-                            order: 2
-                          }
-                        ]
-                      },
-                      {
-                        title: "3. Model Evaluation",
-                        order: 3,
-                        contents: [
-                          {
-                            type: "text",
-                            content: "Evaluasi performa model dengan berbagai metrik.",
-                            order: 1
-                          },
-                          {
-                            type: "exercise",
-                            content: "Evaluasi model klasifikasi dengan accuracy, precision, dan recall",
-                            order: 2
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-  });
-
-  // Create Theory Material
-  const theoryMaterial = await prisma.material.create({
-    data: {
-      title: "Pengenalan Segitiga",
-      description: "Pelajari konsep dasar segitiga dan penerapannya",
-      image: "https://example.com/triangle.jpg",
-      xp_reward: 100,
-      estimated_time: 45,
-      subcategoryId: 1,
-      stages: {
-        create: [
-          {
-            title: "1. Konsep Dasar Segitiga",
-            order: 1,
-            contents: [
-              {
-                type: "text",
-                content: "Segitiga adalah bangun datar dengan tiga sisi.",
-                order: 1
-              },
-              {
-                type: "image",
-                content: "https://example.com/triangle-basic.jpg",
-                caption: "Bagian Segitiga",
-                order: 2
-              },
-              {
-                type: "text",
-                content: "Jumlah sudut dalam segitiga selalu 180°.",
-                order: 3
-              },
-              {
-                type: "video",
-                content: "https://example.com/triangle-intro.mp4",
-                caption: "Visual Segitiga",
-                order: 4
+            await prisma.point.create({
+              data: {
+                userId: user.id,
+                categoryId: createdCategories[category.name].id,
+                subcategoryId: selectedSubcategory.id,
+                materialId: selectedMaterial.id,
+                value: Math.floor(Math.random() * 100) + 10, // Random points between 10-110
+                createdAt: generateRandomDate(startDate, new Date())
               }
-            ]
-          },
-          {
-            title: "2. Jenis Segitiga",
-            order: 2,
-            contents: [
-              {
-                type: "video",
-                content: "https://example.com/triangle-types.mp4",
-                caption: "Jenis-jenis Segitiga",
-                order: 1
-              },
-              {
-                type: "text",
-                content: "Berdasarkan sisi: sama sisi, sama kaki, dan sembarang.",
-                order: 2
-              },
-              {
-                type: "image",
-                content: "https://example.com/triangle-types.jpg",
-                caption: "Tipe Segitiga",
-                order: 3
-              },
-              {
-                type: "text",
-                content: "Berdasarkan sudut: lancip, siku-siku, dan tumpul.",
-                order: 4
-              },
-              {
-                type: "code",
-                content: `function cekJenisSegitiga(s1, s2, s3) {
-  if (s1 === s2 && s2 === s3) return "Sama Sisi";
-  if (s1 === s2 || s2 === s3 || s1 === s3) return "Sama Kaki";
-  return "Sembarang";
-}`,
-                language: "javascript",
-                order: 5
-              }
-            ]
-          },
-          {
-            title: "3. Sifat Segitiga",
-            order: 3,
-            contents: [
-              {
-                type: "text",
-                content: "Sifat utama: jumlah sudut 180° dan ketidaksamaan segitiga.",
-                order: 1
-              },
-              {
-                type: "image",
-                content: "https://example.com/triangle-properties.jpg",
-                caption: "Sifat Segitiga",
-                order: 2
-              },
-              {
-                type: "video",
-                content: "https://example.com/triangle-rules.mp4",
-                caption: "Aturan Segitiga",
-                order: 3
-              },
-              {
-                type: "code",
-                content: `function hitungLuas(alas, tinggi) {
-  return (alas * tinggi) / 2;
-}`,
-                language: "javascript",
-                order: 4
-              }
-            ]
+            });
           }
-        ]
+        }
       }
     }
-  });
+  }
 
-  console.log('Theory material created with stages');
-
-  console.log('Seeding completed!');
+  console.log('✅ Seed completed!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Error in seed:', e);
     process.exit(1);
   })
   .finally(async () => {

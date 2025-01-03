@@ -2,13 +2,19 @@ const express = require('express');
 const router = express.Router();
 const pointController = require('./controllers/pointController');
 
-// Create a new point record
+// Base point routes
 router.post('/', pointController.createPoint);
-
-// Get user's points history
 router.get('/user/:userId', pointController.getUserPoints);
-
-// Tambahkan route baru untuk mengambil point berdasarkan material dan user
 router.get('/material/:materialId/:userId', pointController.getMaterialPoints);
+
+// Leaderboard routes
+router.get('/leaderboard/:timeframe', pointController.getLeaderboard);
+router.get('/leaderboard/:timeframe/:scope', pointController.getLeaderboardByScope);
+
+// School rankings route
+router.get('/schools/rankings', pointController.getSchoolRankings);
+
+// Recalculate points route (changed to GET)
+router.get('/recalculate', pointController.recalculateUserPoints);
 
 module.exports = router; 
