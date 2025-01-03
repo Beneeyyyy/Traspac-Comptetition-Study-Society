@@ -55,7 +55,7 @@ const TheoryStep = ({ material }) => {
       console.log('📍 Setting initial stage from URL:', stageIndex);
     }
 
-    // Initialize stage progress
+    // Initialize stage progress for new users
     const initialProgress = {};
     material.stages?.forEach((_, index) => {
       initialProgress[index] = {
@@ -64,6 +64,9 @@ const TheoryStep = ({ material }) => {
       };
     });
     setStageProgress(initialProgress);
+
+    // Initialize completed stages as empty Set
+    setCompletedStages(new Set());
   }, [material]);
 
   // Load saved progress
@@ -129,13 +132,17 @@ const TheoryStep = ({ material }) => {
   const handleProgressUpdate = useCallback((progress) => {
     if (!user?.id || !material?.id) return;
 
+    // Ensure we have valid objects for new users
+    const currentStageProgress = stageProgress[activeSection] || { progress: 0, contents: {} };
+    const currentContents = currentStageProgress.contents || {};
+
     // Update stage progress
     const newStageProgress = {
       ...stageProgress,
       [activeSection]: {
         progress,
         contents: {
-          ...(stageProgress[activeSection]?.contents || {}),
+          ...currentContents,
           [activeContentIndex]: progress
         }
       }
@@ -267,43 +274,55 @@ const TheoryStep = ({ material }) => {
   }, [activeSection]);
 
   const handleBackToMaterials = () => {
-    navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/materials`);
+    // Force refresh when going back to materials
+    window.location.href = `/courses/${categoryId}/subcategory/${subcategoryId}/materials`;
   };
 
   const handleNext = async () => {
     if (!currentStage?.contents?.length) return;
 
+    // If not at the last content of current stage
     if (activeContentIndex < sortedContents.length - 1) {
       setActiveContentIndex(activeContentIndex + 1);
-    } else if (material?.stages) {
-      // Mark current stage as complete
-      const newCompletedStages = new Set(completedStages);
-      newCompletedStages.add(activeSection);
-      setCompletedStages(newCompletedStages);
+      return;
+    }
 
-      // Save completion status to backend
+    // If at last content of current stage
+    if (material?.stages) {
       try {
-        const response = await fetch(`http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stageIndex: activeSection,
-            contentIndex: activeContentIndex,
-            contentProgress: 100,
-            completedStages: Array.from(newCompletedStages)
-          })
-        });
+        // Create new completed stages set
+        const newCompletedStages = new Set(completedStages);
+        newCompletedStages.add(activeSection);
+
+        // Save completion status to backend
+        const response = await fetch(
+          `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, 
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              stageIndex: activeSection,
+              contentIndex: activeContentIndex,
+              contentProgress: 100,
+              completedStages: Array.from(newCompletedStages)
+            })
+          }
+        );
 
         if (!response.ok) {
           throw new Error('Failed to save completion status');
         }
 
         const data = await response.json();
+        
         if (data.success) {
           console.log('✅ Stage completion saved:', {
             stage: activeSection,
             completedStages: Array.from(newCompletedStages)
           });
+
+          // Update local state first
+          setCompletedStages(newCompletedStages);
           
           // If not the last stage, move to next stage
           if (activeSection < material.stages.length - 1) {
@@ -313,11 +332,17 @@ const TheoryStep = ({ material }) => {
             // This is the last stage, mark as complete and deactivate current stage
             console.log('🎉 Material completed!');
             setActiveSection(-1); // Set to invalid index to make isCurrent false for all stages
-            // You might want to show a completion modal or message here
           }
+        } else {
+          throw new Error(data.error || 'Failed to save completion status');
         }
       } catch (error) {
         console.error('❌ Error saving completion:', error);
+        // Even if save fails, allow user to continue
+        if (activeSection < material.stages.length - 1) {
+          setActiveSection(activeSection + 1);
+          setActiveContentIndex(0);
+        }
       }
     }
   };
