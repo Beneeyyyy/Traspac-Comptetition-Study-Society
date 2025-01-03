@@ -6,6 +6,7 @@ const uploadImage = require('../../../utils/uploadImage');
 const getCreations = async (req, res) => {
   try {
     const { category, search, status = 'published' } = req.query;
+    const userId = req.user?.id;
     
     const filters = {
       status,
@@ -42,6 +43,12 @@ const getCreations = async (req, res) => {
             }
           }
         },
+        creationLikes: userId ? {
+          where: {
+            userId,
+            commentId: null
+          }
+        } : false,
         _count: {
           select: {
             comments: true,
@@ -54,7 +61,19 @@ const getCreations = async (req, res) => {
       }
     });
 
-    res.json(creations);
+    // Format response to include like status
+    const formattedCreations = creations.map(creation => ({
+      ...creation,
+      liked: creation.creationLikes?.length > 0,
+      likeCount: creation._count.creationLikes
+    }));
+
+    // Remove raw likes data
+    formattedCreations.forEach(creation => {
+      delete creation.creationLikes;
+    });
+
+    res.json(formattedCreations);
   } catch (error) {
     console.error('Error getting creations:', error);
     res.status(500).json({ error: 'Failed to get creations' });
@@ -65,6 +84,7 @@ const getCreations = async (req, res) => {
 const getCreationById = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
     
     const creation = await prisma.creation.findUnique({
       where: { id: parseInt(id) },
@@ -96,12 +116,11 @@ const getCreationById = async (req, res) => {
             createdAt: 'desc'
           }
         },
-        _count: {
-          select: {
-            comments: true,
-            creationLikes: true
+        creationLikes: userId ? {
+          where: {
+            userId
           }
-        }
+        } : false
       }
     });
 
@@ -115,7 +134,14 @@ const getCreationById = async (req, res) => {
       data: { views: { increment: 1 } }
     });
 
-    res.json(creation);
+    // Format response
+    const response = {
+      ...creation,
+      liked: creation.creationLikes?.length > 0
+    };
+    delete response.creationLikes;
+
+    res.json(response);
   } catch (error) {
     console.error('Error getting creation:', error);
     res.status(500).json({ error: 'Failed to get creation' });
@@ -247,57 +273,139 @@ const deleteCreation = async (req, res) => {
   }
 };
 
-// Like/Unlike creation
+// Toggle like on creation
 const toggleLike = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id;
 
-    const existingLike = await prisma.creationLike.findUnique({
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+    }
+
+    const existingLike = await prisma.creationLike.findFirst({
       where: {
-        userId_creationId: {
-          userId,
-          creationId: parseInt(id)
-        }
+        userId: parseInt(userId),
+        creationId: parseInt(id),
+        commentId: null
       }
     });
 
     if (existingLike) {
-      // Unlike
-      await prisma.$transaction([
-        prisma.creationLike.delete({
-          where: {
-            userId_creationId: {
-              userId,
-              creationId: parseInt(id)
-            }
-          }
-        }),
-        prisma.creation.update({
-          where: { id: parseInt(id) },
-          data: { likes: { decrement: 1 } }
-        })
-      ]);
+      await prisma.creationLike.delete({
+        where: {
+          id: existingLike.id
+        }
+      });
     } else {
-      // Like
-      await prisma.$transaction([
-        prisma.creationLike.create({
-          data: {
-            userId,
-            creationId: parseInt(id)
-          }
-        }),
-        prisma.creation.update({
-          where: { id: parseInt(id) },
-          data: { likes: { increment: 1 } }
-        })
-      ]);
+      await prisma.creationLike.create({
+        data: {
+          userId: parseInt(userId),
+          creationId: parseInt(id)
+        }
+      });
     }
 
-    res.json({ message: existingLike ? 'Creation unliked' : 'Creation liked' });
+    const updatedCreation = await prisma.creation.findUnique({
+      where: {
+        id: parseInt(id)
+      },
+      include: {
+        creationLikes: {
+          where: {
+            userId: parseInt(userId),
+            commentId: null
+          }
+        },
+        _count: {
+          select: {
+            creationLikes: {
+              where: {
+                commentId: null
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        liked: !existingLike,
+        likeCount: updatedCreation._count.creationLikes
+      }
+    });
   } catch (error) {
-    console.error('Error toggling like:', error);
-    res.status(500).json({ error: 'Failed to toggle like' });
+    console.error('Error in toggleLike:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to toggle like'
+    });
+  }
+};
+
+// Like/Unlike comment
+const toggleCommentLike = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const userId = req.user.id;
+
+    // Check if comment exists and get its creation ID
+    const comment = await prisma.creationComment.findUnique({
+      where: { id: parseInt(commentId) },
+      select: {
+        id: true,
+        creationId: true
+      }
+    });
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    const existingLike = await prisma.creationLike.findFirst({
+      where: {
+        userId,
+        creationId: comment.creationId,
+        commentId: parseInt(commentId)
+      }
+    });
+
+    let liked = false;
+
+    if (existingLike) {
+      // Unlike
+      await prisma.creationLike.delete({
+        where: { id: existingLike.id }
+      });
+      liked = false;
+    } else {
+      // Like
+      await prisma.creationLike.create({
+        data: {
+          userId,
+          creationId: comment.creationId,
+          commentId: parseInt(commentId)
+        }
+      });
+      liked = true;
+    }
+
+    // Get updated like count
+    const likeCount = await prisma.creationLike.count({
+      where: {
+        commentId: parseInt(commentId)
+      }
+    });
+
+    res.json({ liked, likeCount });
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+    res.status(500).json({ error: 'Failed to toggle comment like' });
   }
 };
 
@@ -305,14 +413,36 @@ const toggleLike = async (req, res) => {
 const addComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const { content, parentId } = req.body;
     const userId = req.user.id;
 
+    // Check if creation exists
+    const creation = await prisma.creation.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!creation) {
+      return res.status(404).json({ error: 'Creation not found' });
+    }
+
+    // If parentId is provided, check if parent comment exists
+    if (parentId) {
+      const parentComment = await prisma.creationComment.findUnique({
+        where: { id: parseInt(parentId) }
+      });
+
+      if (!parentComment) {
+        return res.status(404).json({ error: 'Parent comment not found' });
+      }
+    }
+
+    // Create comment
     const comment = await prisma.creationComment.create({
       data: {
         content,
         userId,
-        creationId: parseInt(id)
+        creationId: parseInt(id),
+        parentId: parentId ? parseInt(parentId) : null
       },
       include: {
         user: {
@@ -320,6 +450,23 @@ const addComment = async (req, res) => {
             id: true,
             name: true,
             image: true
+          }
+        },
+        replies: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            likes: true,
+            replies: true
           }
         }
       }
@@ -365,22 +512,20 @@ const deleteComment = async (req, res) => {
 const getComments = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log('Fetching comments for creation:', id);
+    const userId = req.user?.id;
 
-    // First check if creation exists
+    // Check if creation exists
     const creation = await prisma.creation.findUnique({
       where: { id: parseInt(id) }
     });
 
     if (!creation) {
-      console.log('Creation not found:', id);
       return res.status(404).json({ error: 'Creation not found' });
     }
 
-    console.log('Found creation, fetching comments...');
-
+    // Get top-level comments with replies
     const comments = await prisma.creationComment.findMany({
-      where: { 
+      where: {
         creationId: parseInt(id),
         parentId: null // Only get top-level comments
       },
@@ -400,12 +545,24 @@ const getComments = async (req, res) => {
                 name: true,
                 image: true
               }
+            },
+            likes: userId ? {
+              where: { userId }
+            } : false,
+            _count: {
+              select: {
+                likes: true,
+                replies: true
+              }
             }
           },
           orderBy: {
             createdAt: 'desc'
           }
         },
+        likes: userId ? {
+          where: { userId }
+        } : false,
         _count: {
           select: {
             likes: true,
@@ -418,19 +575,30 @@ const getComments = async (req, res) => {
       }
     });
 
-    console.log(`Found ${comments.length} comments`);
-    res.json(comments);
+    // Format comments to include like status
+    const formattedComments = comments.map(comment => ({
+      ...comment,
+      liked: comment.likes?.length > 0,
+      likeCount: comment._count.likes,
+      replies: comment.replies.map(reply => ({
+        ...reply,
+        liked: reply.likes?.length > 0,
+        likeCount: reply._count.likes
+      }))
+    }));
+
+    // Remove raw likes data
+    formattedComments.forEach(comment => {
+      delete comment.likes;
+      comment.replies.forEach(reply => {
+        delete reply.likes;
+      });
+    });
+
+    res.json(formattedComments);
   } catch (error) {
-    console.error('Detailed error in getComments:', {
-      error: error.message,
-      stack: error.stack,
-      name: error.name,
-      code: error.code
-    });
-    res.status(500).json({ 
-      error: 'Failed to get comments',
-      details: error.message 
-    });
+    console.error('Error getting comments:', error);
+    res.status(500).json({ error: 'Failed to get comments' });
   }
 };
 
@@ -441,6 +609,7 @@ module.exports = {
   updateCreation,
   deleteCreation,
   toggleLike,
+  toggleCommentLike,
   addComment,
   deleteComment,
   getComments

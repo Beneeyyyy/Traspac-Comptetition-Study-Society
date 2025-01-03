@@ -7,11 +7,18 @@ import { useAuth } from '../../../../context/AuthContext';
 // Configure axios defaults
 axios.defaults.baseURL = 'http://localhost:3000';
 axios.defaults.withCredentials = true;
+axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+// Get token from localStorage
+const token = localStorage.getItem('token');
+if (token) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
 
 const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyContent, setReplyContent] = useState('');
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLikeAnimating, setIsLikeAnimating] = useState(false);
 
   const handleSubmitReply = async (e) => {
     e.preventDefault();
@@ -23,8 +30,22 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
   };
 
   const handleLike = async () => {
-    await onLike(comment.id);
-    setIsLiked(!isLiked);
+    // Optimistic update
+    const wasLiked = comment.isLiked;
+    const prevCount = comment.likeCount;
+
+    // Animate heart
+    setIsLikeAnimating(true);
+    setTimeout(() => setIsLikeAnimating(false), 1000);
+
+    try {
+      await onLike(comment.id);
+    } catch (error) {
+      // Revert on error
+      comment.isLiked = wasLiked;
+      comment.likeCount = prevCount;
+      console.error('Failed to toggle like:', error);
+    }
   };
 
   return (
@@ -58,10 +79,18 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
           <div className="flex items-center gap-4 mt-2 text-sm">
             <button
               onClick={handleLike}
-              className={`flex items-center gap-1 ${isLiked ? 'text-pink-500' : 'text-gray-400'} hover:text-pink-500`}
+              className={`flex items-center gap-1 transition-all duration-200 ${
+                comment.isLiked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'
+              }`}
             >
-              <FiHeart className="w-4 h-4" />
-              <span>{comment._count?.likes || 0}</span>
+              <FiHeart 
+                className={`w-4 h-4 transform transition-all duration-200 ${
+                  comment.isLiked ? 'fill-current scale-110' : ''
+                } ${isLikeAnimating ? 'scale-150' : ''}`}
+              />
+              <span className="transition-all duration-200">
+                {comment.likeCount || 0}
+              </span>
             </button>
             <button
               onClick={() => setShowReplyForm(!showReplyForm)}
@@ -77,20 +106,20 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
                 placeholder="Write a reply..."
-                className="w-full bg-gray-800/30 border border-gray-700 rounded-lg p-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-200 text-sm"
                 rows="2"
               />
               <div className="flex justify-end gap-2 mt-2">
                 <button
                   type="button"
                   onClick={() => setShowReplyForm(false)}
-                  className="px-3 py-1 text-sm text-gray-400 hover:text-gray-300"
+                  className="px-3 py-1 text-sm text-gray-400 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
                 >
                   Reply
                 </button>
@@ -100,9 +129,9 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
         </div>
       </div>
 
-      {/* Nested Comments */}
+      {/* Render replies */}
       {comment.replies?.length > 0 && (
-        <div className="ml-10 space-y-4 border-l-2 border-gray-800 pl-4">
+        <div className="ml-8 space-y-4">
           {comment.replies.map((reply) => (
             <Comment
               key={reply.id}
@@ -119,10 +148,10 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId }) => {
   );
 };
 
-const WorkDetail = ({ work, setSelectedWork }) => {
+const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [isLiked, setIsLiked] = useState(false);
+  const [work, setWork] = useState(initialWork);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -134,14 +163,27 @@ const WorkDetail = ({ work, setSelectedWork }) => {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await axios.get(`/api/creations/${work.id}/comments`, {
-          withCredentials: true
-        });
-        setComments(response.data);
-      } catch (err) {
-        console.error('Error fetching comments:', err);
-        // Don't show error for 404 (no comments yet)
-        if (err.response?.status === 404) {
+        const response = await axios.get(`/api/creations/${work.id}/comments`);
+        console.log('Comments response:', response.data);
+        
+        if (response.data.success) {
+          // Log each comment's like status
+          response.data.data.forEach(comment => {
+            console.log(`Comment ${comment.id} isLiked:`, comment.isLiked);
+            if (comment.replies) {
+              comment.replies.forEach(reply => {
+                console.log(`Reply ${reply.id} isLiked:`, reply.isLiked);
+              });
+            }
+          });
+          
+          setComments(response.data.data);
+        } else {
+          console.error('Failed to fetch comments:', response.data.error);
+        }
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+        if (error.response?.status === 404) {
           setComments([]);
         } else {
           setError('Failed to load comments. Please try again later.');
@@ -151,10 +193,10 @@ const WorkDetail = ({ work, setSelectedWork }) => {
       }
     };
 
-    if (work.id) {
+    if (work.id && user?.id) {
       fetchComments();
     }
-  }, [work.id]);
+  }, [work.id, user?.id]); // Add user?.id as dependency
 
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -167,11 +209,14 @@ const WorkDetail = ({ work, setSelectedWork }) => {
         { content: newComment },
         { withCredentials: true }
       );
+      console.log('Add comment response:', response.data);
 
-      setComments([response.data, ...comments]);
-      setNewComment('');
-    } catch (err) {
-      console.error('Error adding comment:', err);
+      if (response.data.success) {
+        setComments(prev => [response.data.data, ...prev]);
+        setNewComment('');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
       setError('Failed to add comment. Please try again.');
     }
   };
@@ -203,32 +248,117 @@ const WorkDetail = ({ work, setSelectedWork }) => {
     }
   };
 
-  const handleLikeComment = async (commentId) => {
+  const handleCommentLike = async (commentId) => {
     try {
-      await axios.post(
-        `/api/creations/${work.id}/comments/${commentId}/like`,
-        {},
-        { withCredentials: true }
+      // Find the comment to update
+      const commentToUpdate = comments.find(c => c.id === commentId) || 
+        comments.flatMap(c => c.replies || []).find(r => r.id === commentId);
+
+      if (!commentToUpdate) return;
+
+      // Optimistic update
+      const wasLiked = commentToUpdate.isLiked;
+      const prevCount = commentToUpdate.likeCount;
+
+      // Update state optimistically
+      setComments(prevComments => 
+        prevComments.map(comment => {
+          if (comment.id === commentId) {
+            return {
+              ...comment,
+              isLiked: !wasLiked,
+              likeCount: wasLiked ? prevCount - 1 : prevCount + 1
+            };
+          }
+          // Check replies
+          if (comment.replies) {
+            return {
+              ...comment,
+              replies: comment.replies.map(reply => {
+                if (reply.id === commentId) {
+                  return {
+                    ...reply,
+                    isLiked: !wasLiked,
+                    likeCount: wasLiked ? prevCount - 1 : prevCount + 1
+                  };
+                }
+                return reply;
+              })
+            };
+          }
+          return comment;
+        })
       );
 
-      // Update comment likes in state
-      const updatedComments = comments.map(comment => {
-        if (comment.id === commentId) {
-          return {
-            ...comment,
-            _count: {
-              ...comment._count,
-              likes: comment._count.likes + 1
-            }
-          };
-        }
-        return comment;
-      });
+      // Make API call
+      const response = await axios.post(`/api/creations/${work.id}/comments/${commentId}/like`);
+      console.log('Like response:', response.data);
 
-      setComments(updatedComments);
-    } catch (err) {
-      console.error('Error liking comment:', err);
-      setError('Failed to like comment');
+      if (response.data.success) {
+        // Update with server data to ensure consistency
+        setComments(prevComments => 
+          prevComments.map(comment => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                ...response.data.data,
+                isLiked: response.data.data.isLiked,
+                likeCount: response.data.data.likeCount
+              };
+            }
+            // Check replies
+            if (comment.replies) {
+              return {
+                ...comment,
+                replies: comment.replies.map(reply => {
+                  if (reply.id === commentId) {
+                    return {
+                      ...reply,
+                      ...response.data.data,
+                      isLiked: response.data.data.isLiked,
+                      likeCount: response.data.data.likeCount
+                    };
+                  }
+                  return reply;
+                })
+              };
+            }
+            return comment;
+          })
+        );
+      } else {
+        // Revert on error
+        setComments(prevComments => 
+          prevComments.map(comment => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                isLiked: wasLiked,
+                likeCount: prevCount
+              };
+            }
+            // Check replies
+            if (comment.replies) {
+              return {
+                ...comment,
+                replies: comment.replies.map(reply => {
+                  if (reply.id === commentId) {
+                    return {
+                      ...reply,
+                      isLiked: wasLiked,
+                      likeCount: prevCount
+                    };
+                  }
+                  return reply;
+                })
+              };
+            }
+            return comment;
+          })
+        );
+      }
+    } catch (error) {
+      console.error('Error liking comment:', error);
     }
   };
 
@@ -249,14 +379,18 @@ const WorkDetail = ({ work, setSelectedWork }) => {
 
   const handleLikeCreation = async () => {
     try {
-      await axios.post(
-        `/api/creations/${work.id}/like`,
-        {},
-        { withCredentials: true }
-      );
-      setIsLiked(!isLiked);
-    } catch (err) {
-      console.error('Error liking creation:', err);
+      const response = await axios.post(`/api/creations/${work.id}/like`);
+      console.log('Creation like response:', response.data);
+
+      if (response.data.success) {
+        setWork(prev => ({
+          ...prev,
+          liked: response.data.data.liked,
+          likes: response.data.data.likeCount
+        }));
+      }
+    } catch (error) {
+      console.error('Error liking creation:', error);
       setError('Failed to like creation');
     }
   };
@@ -323,9 +457,13 @@ const WorkDetail = ({ work, setSelectedWork }) => {
               <div className="flex items-center gap-6 text-gray-400">
                 <button
                   onClick={handleLikeCreation}
-                  className={`flex items-center gap-2 ${isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}
+                  className={`flex items-center gap-2 transition-colors duration-200 ${
+                    work.liked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'
+                  }`}
                 >
-                  <FiHeart className="w-5 h-5" />
+                  <FiHeart 
+                    className={`w-5 h-5 ${work.liked ? 'fill-current' : ''}`} 
+                  />
                   <span>{work.likes}</span>
                 </button>
                 <div className="flex items-center gap-2">
@@ -366,7 +504,7 @@ const WorkDetail = ({ work, setSelectedWork }) => {
                       key={comment.id}
                       comment={comment}
                       onReply={handleReply}
-                      onLike={handleLikeComment}
+                      onLike={handleCommentLike}
                       onDelete={handleDeleteComment}
                       currentUserId={currentUserId}
                     />

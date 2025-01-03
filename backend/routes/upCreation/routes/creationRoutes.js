@@ -1,33 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../../usersManagement/controllers/authController');
-const {
-  getCreations,
-  getCreationById,
-  createCreation,
-  updateCreation,
-  deleteCreation,
-  toggleLike,
-  addComment,
-  deleteComment,
-  getComments
-} = require('../controllers/creationController');
+const { authenticateToken } = require('../../usersManagement/controllers/authController');
+const creationController = require('../controllers/creationController');
+const commentController = require('../controllers/commentController');
 
-// Public routes
-router.get('/', getCreations);
-router.get('/:id', getCreationById);
+// Creation routes
+router.post('/', authenticateToken, creationController.createCreation);
+router.get('/', creationController.getCreations);
+router.get('/:id', creationController.getCreationById);
+router.delete('/:id', authenticateToken, creationController.deleteCreation);
+router.post('/:id/like', authenticateToken, creationController.toggleLike);
 
-// Protected routes
-router.post('/', requireAuth, createCreation);
-router.put('/:id', requireAuth, updateCreation);
-router.delete('/:id', requireAuth, deleteCreation);
-
-// Like routes
-router.post('/:id/like', requireAuth, toggleLike);
-
-// Comment routes
-router.get('/:id/comments', getComments);
-router.post('/:id/comments', requireAuth, addComment);
-router.delete('/:id/comments/:commentId', requireAuth, deleteComment);
+// Comment routes - protect all comment routes with auth
+router.get('/:id/comments', authenticateToken, commentController.getComments);
+router.post('/:id/comments', authenticateToken, commentController.addComment);
+router.post('/:id/comments/:commentId/like', authenticateToken, commentController.toggleLike);
+router.post('/:id/comments/:commentId/replies', authenticateToken, commentController.addReply);
+router.delete('/:id/comments/:commentId', authenticateToken, commentController.deleteComment);
 
 module.exports = router; 

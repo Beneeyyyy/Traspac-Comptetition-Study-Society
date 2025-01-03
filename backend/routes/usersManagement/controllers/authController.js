@@ -380,10 +380,86 @@ const signout = (req, res) => {
   }
 };
 
+// Middleware to authenticate token
+const authenticateToken = async (req, res, next) => {
+  try {
+    console.log('=== AUTHENTICATE-TOKEN START ===');
+    console.log('Headers:', req.headers);
+    console.log('Cookies:', req.cookies);
+    
+    const token = req.cookies.token;
+    console.log('Token from cookies:', token);
+    
+    if (!token) {
+      console.log('No token found in cookies');
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not defined');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('Token decoded successfully:', decoded);
+    } catch (jwtError) {
+      console.error('JWT verification failed:', jwtError);
+      return res.status(401).json({ 
+        message: 'Authentication failed',
+        error: jwtError.message 
+      });
+    }
+
+    if (!decoded.userId) {
+      console.error('No userId in decoded token');
+      return res.status(401).json({ message: 'Invalid token format' });
+    }
+
+    console.log('Looking up user with ID:', decoded.userId);
+    
+    const user = await prisma.user.findUnique({
+      where: { 
+        id: parseInt(decoded.userId)
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        image: true,
+        schoolId: true,
+        bio: true,
+        interests: true,
+        currentGoal: true,
+        totalPoints: true,
+        level: true,
+        rank: true
+      }
+    });
+
+    if (!user) {
+      console.log('User not found in database');
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    req.user = user;
+    console.log('User attached to request:', user.id);
+    console.log('=== AUTHENTICATE-TOKEN END ===');
+    next();
+  } catch (error) {
+    console.error('=== AUTHENTICATE-TOKEN ERROR ===');
+    console.error('Error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 module.exports = {
   login,
   signup,
   checkAuth,
   requireAuth,
-  signout
+  signout,
+  authenticateToken
 }; 
