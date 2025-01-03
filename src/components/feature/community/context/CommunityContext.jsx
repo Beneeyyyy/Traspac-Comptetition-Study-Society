@@ -197,19 +197,30 @@ export const CommunityProvider = ({ children }) => {
   const value = useMemo(() => ({
     ...state,
     refreshQuestion: async (questionId) => {
+      if (!questionId) {
+        console.warn('Attempted to refresh question with undefined id');
+        return null;
+      }
+
       try {
-        const response = await api.get(`/forum/posts/${questionId}`)
-        const updatedQuestion = response.data?.data
+        const response = await api.get(`/forum/posts/${questionId}`);
+        if (!response.data?.success) {
+          console.error('Failed to refresh question:', response.data?.error);
+          return null;
+        }
+
+        const updatedQuestion = response.data?.data;
+        if (updatedQuestion) {
+          dispatch({
+            type: 'REFRESH_QUESTION_SUCCESS',
+            payload: updatedQuestion
+          });
+        }
         
-        dispatch({
-          type: 'REFRESH_QUESTION_SUCCESS',
-          payload: updatedQuestion
-        })
-        
-        return updatedQuestion
+        return updatedQuestion;
       } catch (error) {
-        console.error('Error refreshing question:', error)
-        throw error
+        console.error('Error refreshing question:', error);
+        return null;
       }
     },
     addAnswer: async (questionId, answer) => {
@@ -230,15 +241,29 @@ export const CommunityProvider = ({ children }) => {
     },
     addQuestion: async (question) => {
       try {
-        const response = await api.post('/forum/posts', {
-          ...question,
-          userId: 1 // TODO: Get from auth context
-        })
-        dispatch({ type: 'ADD_QUESTION_SUCCESS', payload: response.data })
-        return response.data
+        const response = await api.post('/forum/posts', question);
+        
+        if (response.data?.success) {
+          // Dispatch success action with the new question
+          dispatch({ 
+            type: 'ADD_QUESTION_SUCCESS', 
+            payload: response.data.data 
+          });
+          
+          // Refresh the questions list
+          const refreshResponse = await api.get('/forum/posts');
+          if (refreshResponse.data?.success) {
+            dispatch({ 
+              type: 'FETCH_QUESTIONS_SUCCESS', 
+              payload: refreshResponse.data.data.posts 
+            });
+          }
+          
+          return response.data.data;
+        }
       } catch (error) {
-        console.error('Error adding question:', error)
-        throw error
+        console.error('Error adding question:', error);
+        throw error;
       }
     },
     acceptAnswer: async (questionId, answerId) => {
@@ -289,14 +314,22 @@ export const CommunityProvider = ({ children }) => {
     },
     updateVote: async (type, id, isUpvote) => {
       try {
-        // Map type 'question' to 'posts' for backend compatibility
-        const mappedType = type === 'question' ? 'posts' : type === 'answer' ? 'answers' : type
+        // Map type 'question' to 'post' for backend compatibility
+        const mappedType = type === 'question' ? 'post' : type === 'answer' ? 'answer' : type
         
         // Fix: Use correct endpoint format
         const endpoint = `/forum/${mappedType}/${id}/vote`
         
-        console.log('Sending vote request to:', endpoint)
-        const response = await api.post(endpoint, { isUpvote })
+        console.log('Sending vote request:', {
+          endpoint,
+          type: mappedType,
+          id,
+          isUpvote: Boolean(isUpvote)
+        })
+
+        const response = await api.post(endpoint, { 
+          isUpvote: Boolean(isUpvote)
+        })
         
         // Transform response for frontend
         const transformedData = {
@@ -316,6 +349,39 @@ export const CommunityProvider = ({ children }) => {
       } catch (error) {
         console.error('Error updating vote:', error.response || error)
         throw error
+      }
+    },
+    createPost: async (postData) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Pastikan images adalah array
+        const images = postData.images || [];
+        
+        // Kirim data dengan images yang sudah divalidasi
+        const response = await api.post(`/forum/posts`, {
+          ...postData,
+          images: images.map(img => {
+            // Jika image sudah berupa URL Cloudinary, gunakan langsung
+            if (typeof img === 'string' && img.includes('cloudinary.com')) {
+              return img;
+            }
+            // Jika image adalah object dengan data base64, ambil data-nya
+            return img;
+          })
+        });
+
+        if (response.data.success) {
+          console.log('Post created with images:', response.data.data.images);
+          // Refresh posts setelah membuat post baru
+          await fetchPosts(1); // Kembali ke halaman pertama untuk melihat post terbaru
+          return response.data.data;
+        }
+      } catch (err) {
+        console.error('Error creating post:', err);
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
     }
   }), [state])

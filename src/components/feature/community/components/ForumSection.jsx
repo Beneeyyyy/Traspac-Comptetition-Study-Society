@@ -117,18 +117,20 @@ const ForumSection = () => {
           </div>
         ) : (
           // Show actual questions when data is loaded
-          filteredQuestions.map((question) => (
-            <Suspense 
-              key={question.id} 
-              fallback={<QuestionCardSkeleton />}
-            >
-              <QuestionCard
-                question={question}
-                expandedQuestion={expandedQuestion}
-                setExpandedQuestion={setExpandedQuestion}
-              />
-            </Suspense>
-          ))
+          filteredQuestions.map((question) => {
+            const key = `question-${question.id}`;
+            return (
+              <div key={key}>
+                <Suspense fallback={<QuestionCardSkeleton />}>
+                  <QuestionCard
+                    question={question}
+                    expandedQuestion={expandedQuestion}
+                    setExpandedQuestion={setExpandedQuestion}
+                  />
+                </Suspense>
+              </div>
+            );
+          })
         )}
       </div>
     </div>

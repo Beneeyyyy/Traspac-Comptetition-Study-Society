@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const uploadImage = require('../../../../utils/uploadImage');
 
 const forumController = {
   // Post Controllers
@@ -82,7 +83,9 @@ const forumController = {
       const userId = req.user?.id;
 
       const post = await prisma.forumPost.findUnique({
-        where: { id: parseInt(id) },
+        where: { 
+          id: parseInt(id)
+        },
         include: {
           user: {
             select: {
@@ -93,6 +96,9 @@ const forumController = {
             }
           },
           answers: {
+            orderBy: {
+              createdAt: 'desc'
+            },
             include: {
               user: {
                 select: {
@@ -146,27 +152,17 @@ const forumController = {
         });
       }
 
-      // Increment view count
-      await prisma.forumPost.update({
-        where: { id: parseInt(id) },
-        data: { viewCount: { increment: 1 } }
-      });
-
       // Transform post to include vote status
-      const transformPost = (post) => {
-        const upvotes = post.votes.filter(vote => vote.isUpvote).length;
-        const downvotes = post.votes.filter(vote => !vote.isUpvote).length;
-        const userVote = post.votes[0];
+      const upvotes = post.votes.filter(vote => vote.isUpvote).length;
+      const downvotes = post.votes.filter(vote => !vote.isUpvote).length;
+      const userVote = post.votes[0];
 
-        const { votes, ...postWithoutVotes } = post;
-        return {
-          ...postWithoutVotes,
-          score: upvotes - downvotes,
-          userVote: userVote ? (userVote.isUpvote ? 'upvote' : 'downvote') : null
-        };
+      const { votes, ...postWithoutVotes } = post;
+      const transformedPost = {
+        ...postWithoutVotes,
+        score: upvotes - downvotes,
+        userVote: userVote ? (userVote.isUpvote ? 'upvote' : 'downvote') : null
       };
-
-      const transformedPost = transformPost(post);
 
       res.json({
         success: true,
@@ -193,12 +189,48 @@ const forumController = {
         });
       }
 
+      // Upload images ke Cloudinary jika ada
+      const uploadedImages = await Promise.all(
+        (images || []).map(async (base64Image, index) => {
+          try {
+            if (!base64Image) {
+              console.log(`Image ${index + 1} is empty, skipping...`);
+              return null;
+            }
+
+            // Skip jika sudah berupa URL Cloudinary
+            if (base64Image.includes('cloudinary.com')) {
+              console.log(`Image ${index + 1} is already a Cloudinary URL`);
+              return base64Image;
+            }
+
+            console.log(`Uploading image ${index + 1} to Cloudinary...`);
+            const imageUrl = await uploadImage(base64Image);
+            
+            if (!imageUrl) {
+              console.error(`Failed to get URL for image ${index + 1}`);
+              return null;
+            }
+
+            console.log(`Image ${index + 1} uploaded successfully:`, imageUrl);
+            return imageUrl;
+          } catch (err) {
+            console.error(`Error uploading image ${index + 1}:`, err);
+            return null; // Skip failed uploads
+          }
+        })
+      );
+
+      // Filter out null values dan gunakan hanya URL Cloudinary yang valid
+      const validImages = uploadedImages.filter(url => url !== null);
+      console.log('Successfully uploaded images:', validImages);
+
       const post = await prisma.forumPost.create({
         data: {
           title,
           content,
           tags: tags || [],
-          images: images || [],
+          images: validImages, // Simpan hanya URL Cloudinary yang valid
           userId
         },
         include: {
@@ -233,6 +265,8 @@ const forumController = {
       const { content, images } = req.body;
       const userId = req.user.id;
 
+      console.log('Creating answer with images:', images?.length || 0);
+
       if (!content) {
         return res.status(400).json({
           success: false,
@@ -240,10 +274,46 @@ const forumController = {
         });
       }
 
+      // Upload images ke Cloudinary jika ada
+      const uploadedImages = await Promise.all(
+        (images || []).map(async (base64Image, index) => {
+          try {
+            if (!base64Image) {
+              console.log(`Image ${index + 1} is empty, skipping...`);
+              return null;
+            }
+
+            // Skip jika sudah berupa URL Cloudinary
+            if (base64Image.includes('cloudinary.com')) {
+              console.log(`Image ${index + 1} is already a Cloudinary URL`);
+              return base64Image;
+            }
+
+            console.log(`Uploading image ${index + 1} to Cloudinary...`);
+            const imageUrl = await uploadImage(base64Image);
+            
+            if (!imageUrl) {
+              console.error(`Failed to get URL for image ${index + 1}`);
+              return null;
+            }
+
+            console.log(`Image ${index + 1} uploaded successfully:`, imageUrl);
+            return imageUrl;
+          } catch (err) {
+            console.error(`Error uploading image ${index + 1}:`, err);
+            return null; // Skip failed uploads
+          }
+        })
+      );
+
+      // Filter out null values and log results
+      const validImages = uploadedImages.filter(url => url !== null);
+      console.log('Successfully uploaded images:', validImages);
+
       const answer = await prisma.forumAnswer.create({
         data: {
           content,
-          images: images || [],
+          images: validImages, // Save only valid Cloudinary URLs
           userId,
           postId: parseInt(postId)
         },
@@ -272,6 +342,8 @@ const forumController = {
         }
       });
 
+      console.log('Answer created with images:', answer.images);
+
       // Transform answer to include vote counts
       const transformedAnswer = {
         ...answer,
@@ -291,7 +363,7 @@ const forumController = {
       console.error('Error in createAnswer:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to create answer'
+        error: error.message || 'Failed to create answer'
       });
     }
   },

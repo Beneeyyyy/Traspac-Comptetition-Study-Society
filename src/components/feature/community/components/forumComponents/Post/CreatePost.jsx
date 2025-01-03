@@ -14,14 +14,47 @@ const CreatePost = () => {
   const [error, setError] = useState(null)
   const fileInputRef = useRef(null)
 
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files)
-    const newImages = files.map(file => ({
-      file,
-      preview: URL.createObjectURL(file)
-    }))
-    setImages(prev => [...prev, ...newImages].slice(0, 4))
-  }
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    const maxSize = 15 * 1024 * 1024; // 15MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+
+    // Validasi file
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        setError('Format gambar tidak didukung. Gunakan JPG, PNG, atau GIF');
+        return;
+      }
+      if (file.size > maxSize) {
+        setError('Ukuran gambar terlalu besar (maksimal 15MB)');
+        return;
+      }
+    }
+
+    try {
+      // Convert files to base64
+      const newImages = await Promise.all(
+        files.map(async (file) => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve(reader.result); // Kirim base64 string langsung
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        })
+      );
+
+      setImages(prev => {
+        const combined = [...prev, ...newImages];
+        return combined.slice(0, 4); // Maksimal 4 gambar
+      });
+    } catch (err) {
+      console.error('Error processing images:', err);
+      setError('Gagal memproses gambar. Silakan coba lagi.');
+    }
+  };
 
   const removeImage = (index) => {
     setImages(prev => prev.filter((_, i) => i !== index))
@@ -59,33 +92,36 @@ const CreatePost = () => {
     setTags(prev => prev.filter(tag => tag !== tagToRemove))
   }
 
-  const handleSubmit = async () => {
-    if (!title.trim() || !content.trim()) return
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !content.trim() || isSubmitting) return;
     
-    setIsSubmitting(true)
-    setError(null)
+    setIsSubmitting(true);
+    setError(null);
 
     try {
-      await addQuestion({
+      // Kirim data post dengan base64 images
+      const response = await addQuestion({
         title: title.trim(),
         content: content.trim(),
-        images: images.map(img => img.preview),
-        tags: tags.length > 0 ? tags : ['general']
-      })
+        tags: tags.length > 0 ? tags : ['general'],
+        images: images // Kirim base64 strings langsung
+      });
 
-      // Reset form
-      setTitle('')
-      setContent('')
-      setImages([])
-      setTags([])
-      setTagInput('')
-      setIsExpanded(false)
+      // Reset form setelah berhasil
+      setTitle('');
+      setContent('');
+      setTags([]);
+      setImages([]);
+      setTagInput('');
+      setIsExpanded(false);
     } catch (err) {
-      setError(err.message || 'Gagal membuat pertanyaan. Silakan coba lagi.')
+      console.error('Error creating post:', err);
+      setError(err.message || 'Gagal membuat post. Silakan coba lagi.');
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden w-full max-w-[1200px] mx-auto">
@@ -172,7 +208,7 @@ const CreatePost = () => {
                 {images.map((image, index) => (
                   <div key={index} className="relative group">
                     <img
-                      src={image.preview}
+                      src={image}
                       alt={`Preview ${index + 1}`}
                       className="h-24 w-full object-cover rounded-lg border border-white/10"
                     />
