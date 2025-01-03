@@ -80,7 +80,7 @@ function Leaderboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white">
+    <div className="min-h-screen bg-black text-white">
       <main className="pt-4 pb-12">
         {/* Hero Section */}
         <LeaderboardHero />

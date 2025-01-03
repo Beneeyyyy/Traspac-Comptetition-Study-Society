@@ -1,14 +1,31 @@
 import { motion } from 'framer-motion'
+import { FiClock, FiBook } from 'react-icons/fi'
 
 function TopThree({ displayLearners = [], activeCategory, activeScope, handleUserClick }) {
-  // Take only top 3 learners
   const topThree = displayLearners.slice(0, 3);
 
-  // Define positions for the podium
   const positions = {
     1: { order: 1, scale: 1.1, y: 0 },
-    2: { order: 0, scale: 0.9, y: 40 },
-    3: { order: 2, scale: 0.9, y: 40 }
+    2: { order: 0, scale: 0.95, y: 30 },
+    3: { order: 2, scale: 0.95, y: 30 }
+  };
+
+  const styles = {
+    1: {
+      card: "bg-black border border-pink-600/20",
+      badge: "bg-black border-2 border-pink-600",
+      points: "text-pink-600"
+    },
+    2: {
+      card: "bg-black border border-purple-600/20",
+      badge: "bg-black border-2 border-purple-600",
+      points: "text-purple-600"
+    },
+    3: {
+      card: "bg-black border border-emerald-600/20",
+      badge: "bg-black border-2 border-emerald-600",
+      points: "text-emerald-600"
+    }
   };
 
   if (topThree.length === 0) {
@@ -16,7 +33,7 @@ function TopThree({ displayLearners = [], activeCategory, activeScope, handleUse
   }
 
   return (
-    <div className="flex justify-center items-end gap-4 mb-12 mt-8">
+    <div className="flex justify-center items-end gap-6 mb-12 mt-8">
       {topThree.map((learner, index) => {
         if (!learner || typeof learner !== 'object') {
           console.error('Invalid learner data:', learner);
@@ -25,6 +42,7 @@ function TopThree({ displayLearners = [], activeCategory, activeScope, handleUse
 
         const position = index + 1;
         const { order, scale, y } = positions[position];
+        const style = styles[position];
 
         return (
           <motion.div
@@ -35,54 +53,59 @@ function TopThree({ displayLearners = [], activeCategory, activeScope, handleUse
             animate={{ opacity: 1, y, scale }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
           >
-            {/* Position Badge */}
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                {position}
-              </div>
-            </div>
-
             {/* Card */}
             <div 
-              className="bg-gray-800 rounded-lg p-6 cursor-pointer hover:bg-gray-700 transition-colors"
+              className={`relative ${style.card} rounded-xl p-6 w-[260px] cursor-pointer hover:bg-[#0a0a0a]`}
               onClick={() => handleUserClick(learner)}
             >
-              {/* Avatar */}
-              <div className="relative w-24 h-24 mx-auto mb-4">
-                <img
-                  src={learner.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(learner.user)}&background=0D8ABC&color=fff`}
-                  alt={learner.user}
-                  className="w-full h-full rounded-full object-cover border-4 border-blue-500"
-                />
-                <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
-                  {learner.level || 1}
+              {/* Position Badge */}
+              <div className="absolute -top-3 -right-3 z-10">
+                <div className={`w-10 h-10 rounded-full ${style.badge} flex items-center justify-center text-white font-bold text-xl`}>
+                  {position}
                 </div>
               </div>
 
-              {/* User Info */}
-              <div className="text-center">
-                <h3 className="text-lg font-bold text-white mb-1">{learner.user}</h3>
-                <p className="text-sm text-gray-400 mb-2">{learner.school?.name || 'Unknown School'}</p>
-                <div className="flex justify-center gap-2 text-sm text-gray-400 mb-3">
-                  <span>{learner.timeSpent || '0h 0m'}</span>
-                  <span>•</span>
-                  <span>{learner.coursesCount || 0} courses</span>
-                </div>
-                <div className="bg-blue-500 rounded-full py-1 px-4 text-white font-bold">
-                  {(learner.points || 0).toLocaleString()} points
-                </div>
-              </div>
-
-              {/* School Badge */}
-              {learner.school?.image && (
-                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+              {/* Avatar & Basic Info */}
+              <div className="text-center mb-4">
+                <div className="relative inline-block">
                   <img
-                    src={learner.school.image}
-                    alt={learner.school.name || 'School'}
-                    className="w-8 h-8 rounded-full border-2 border-gray-700"
+                    src={learner.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(learner.user)}&background=0D8ABC&color=fff`}
+                    alt={learner.user}
+                    className="w-20 h-20 rounded-full object-cover border border-white/10 mb-3"
                   />
                 </div>
-              )}
+                <h3 className="text-lg font-bold text-white mb-1">
+                  {learner.user}
+                </h3>
+                <p className="text-sm text-white/60">
+                  {learner.school?.name || 'Unknown School'}
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div className="bg-black rounded-lg p-4 text-center border border-white/5">
+                <div className={`text-2xl font-bold ${style.points} mb-1`}>
+                  {(learner.points || 0).toLocaleString()}
+                </div>
+                <div className="text-sm font-medium text-white/40">POINTS EARNED</div>
+                
+                <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-white/5">
+                  <div>
+                    <div className="flex items-center justify-center gap-1 text-white/40 mb-1">
+                      <FiClock className="w-4 h-4" />
+                      <span className="text-xs">Time Spent</span>
+                    </div>
+                    <p className="font-medium text-white/80">{learner.timeSpent || '0h'}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-center gap-1 text-white/40 mb-1">
+                      <FiBook className="w-4 h-4" />
+                      <span className="text-xs">Courses</span>
+                    </div>
+                    <p className="font-medium text-white/80">{learner.coursesCount || 0}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         );

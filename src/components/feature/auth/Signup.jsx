@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { provinces } from '../../../data/provinces.js';
 
 const Signup = () => {
   const navigate = useNavigate();
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -10,6 +12,7 @@ const Signup = () => {
     confirmPassword: '',
     schoolId: '',
     schoolName: '',
+    province: '', // Provinsi user
     bio: '',
     interests: [],
     currentGoal: '',
@@ -25,6 +28,9 @@ const Signup = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isCustomSchool, setIsCustomSchool] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [provinceInput, setProvinceInput] = useState('');
+  const [showProvinceDropdown, setShowProvinceDropdown] = useState(false);
+  const [filteredProvinces, setFilteredProvinces] = useState([]);
 
   // Fetch schools from API
   useEffect(() => {
@@ -54,6 +60,21 @@ const Signup = () => {
     );
     setFilteredSchools(filtered);
   }, [searchSchool, schools]);
+
+  // Filter provinces based on input
+  useEffect(() => {
+    if (provinceInput.trim() === '') {
+      setFilteredProvinces([]);
+      setShowProvinceDropdown(false);
+      return;
+    }
+
+    const filtered = provinces.filter(province => 
+      province.toLowerCase().includes(provinceInput.toLowerCase())
+    );
+    setFilteredProvinces(filtered);
+    setShowProvinceDropdown(filtered.length > 0);
+  }, [provinceInput]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -135,6 +156,11 @@ const Signup = () => {
       return;
     }
 
+    if (!formData.province) {
+      setError('Please select your province!');
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -145,6 +171,7 @@ const Signup = () => {
         password: formData.password,
         schoolId: formData.schoolId,
         schoolName: formData.schoolName,
+        province: formData.province,
         bio: formData.bio,
         interests: formData.interests,
         currentGoal: formData.currentGoal,
@@ -317,6 +344,47 @@ const Signup = () => {
                       <button type="button" onClick={() => removeInterest(index)} className="ml-1 text-indigo-300 hover:text-indigo-200 transition-colors">×</button>
                     </span>
                   ))}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="province" className="block text-sm font-medium mb-1 text-gray-300">Province</label>
+                <div className="relative">
+                  <input
+                    id="province"
+                    type="text"
+                    className="h-9 text-sm appearance-none relative block w-full px-3 border border-gray-700/50 bg-gray-800/30 placeholder-gray-500 text-white rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-transparent transition-colors"
+                    placeholder="Type your province..."
+                    value={provinceInput}
+                    onChange={(e) => {
+                      setProvinceInput(e.target.value);
+                      if (e.target.value.trim() === '') {
+                        setFormData(prev => ({ ...prev, province: '' }));
+                      }
+                    }}
+                    onFocus={() => {
+                      if (provinceInput.trim() !== '') {
+                        setShowProvinceDropdown(true);
+                      }
+                    }}
+                  />
+                  {showProvinceDropdown && filteredProvinces.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-lg max-h-48 overflow-auto">
+                      {filteredProvinces.map((province) => (
+                        <div
+                          key={province}
+                          className="px-3 py-2 hover:bg-indigo-500/10 cursor-pointer transition-colors"
+                          onClick={() => {
+                            setProvinceInput(province);
+                            setFormData(prev => ({ ...prev, province }));
+                            setShowProvinceDropdown(false);
+                          }}
+                        >
+                          <div className="text-sm text-white">{province}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -161,14 +161,24 @@ const pointController = {
 
   getLeaderboard: async (req, res) => {
     try {
-      const { timeframe } = req.params;
+      const { timeframe, scope } = req.params;
       
       // For all-time, use totalPoints from user table
       if (timeframe === 'all') {
+        // Build where clause based on scope
+        const whereClause = {
+          role: 'user',  // Only get students
+          ...(scope && scope !== 'national' ? {
+            school: {
+              province: scope
+            }
+          } : {})
+        };
+
+        console.log('All-time leaderboard where clause:', whereClause);
+
         const users = await prisma.user.findMany({
-          where: {
-            role: 'user'  // Only get students
-          },
+          where: whereClause,
           select: {
             id: true,
             name: true,
@@ -191,6 +201,8 @@ const pointController = {
           },
           take: 10
         });
+
+        console.log('All-time leaderboard users found:', users.length);
 
         const leaderboardWithDetails = users.map(user => {
           // Format study time

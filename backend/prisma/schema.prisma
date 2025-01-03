@@ -11,14 +11,26 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String
-  image     String?
-  rank      String?  @default("Member")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  password      String
+  name          String
+  role          String    @default("user")
+  image         String?
+  bio           String?
+  interests     String[]
+  currentGoal   String?
+  totalPoints   Int       @default(0)
+  level         Int       @default(1)
+  rank          String    @default("Pemula")
+  region        String?   // Provinsi user
+  schoolId      Int?
+  school        School?   @relation(fields: [schoolId], references: [id])
+  points        Point[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([schoolId])
 
   // Forum relations
   posts     ForumPost[]

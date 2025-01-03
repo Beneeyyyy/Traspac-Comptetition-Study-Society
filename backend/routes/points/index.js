@@ -9,7 +9,7 @@ router.get('/material/:materialId/:userId', pointController.getMaterialPoints);
 
 // Leaderboard routes
 router.get('/leaderboard/:timeframe', pointController.getLeaderboard);
-router.get('/leaderboard/:timeframe/:scope', pointController.getLeaderboardByScope);
+router.get('/leaderboard/:timeframe/:scope', pointController.getLeaderboard);
 
 // School rankings route
 router.get('/schools/rankings', pointController.getSchoolRankings);

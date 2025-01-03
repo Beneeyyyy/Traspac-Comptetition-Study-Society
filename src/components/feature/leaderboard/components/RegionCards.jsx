@@ -1,14 +1,14 @@
 import { motion } from 'framer-motion'
 
 const regions = [
-  { id: 'jakarta', name: 'Jakarta', province: 'DKI Jakarta' },
-  { id: 'bandung', name: 'Bandung', province: 'Jawa Barat' },
-  { id: 'surabaya', name: 'Surabaya', province: 'Jawa Timur' },
-  { id: 'yogyakarta', name: 'Yogyakarta', province: 'DI Yogyakarta' },
-  { id: 'semarang', name: 'Semarang', province: 'Jawa Tengah' },
-  { id: 'malang', name: 'Malang', province: 'Jawa Timur' },
-  { id: 'medan', name: 'Medan', province: 'Sumatera Utara' },
-]
+  { id: 'jakarta', name: 'DKI Jakarta', province: 'DKI Jakarta' },
+  { id: 'jabar', name: 'Jawa Barat', province: 'Jawa Barat' },
+  { id: 'jatim', name: 'Jawa Timur', province: 'Jawa Timur' },
+  { id: 'jogja', name: 'DI Yogyakarta', province: 'DI Yogyakarta' },
+  { id: 'jateng', name: 'Jawa Tengah', province: 'Jawa Tengah' },
+  { id: 'sumut', name: 'Sumatera Utara', province: 'Sumatera Utara' },
+  { id: 'sumsel', name: 'Sumatera Selatan', province: 'Sumatera Selatan' }
+];
 
 export default function RegionCards({ onRegionSelect }) {
   return (

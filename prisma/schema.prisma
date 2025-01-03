@@ -93,6 +93,7 @@ model User {
   password        String
   role            String        @default("user")
   image           String?
+  province        String?       // Provinsi user
   
   // Profile Info
   schoolId        Int?          // Foreign key for School

@@ -1,52 +1,28 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { FiUsers, FiClock, FiBook, FiAward } from 'react-icons/fi';
 
-function SchoolRankings({ scope = 'national' }) {
-  const [isLoading, setIsLoading] = useState(true);
+export default function SchoolRankings({ scope }) {
   const [schools, setSchools] = useState([]);
-  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSchoolRankings = async () => {
+    const fetchSchools = async () => {
       try {
         setIsLoading(true);
-        setError(null);
-        
-        // Ensure scope is a string
-        const scopeParam = typeof scope === 'string' ? scope : 'national';
-        console.log('Fetching school rankings with scope:', scopeParam);
-        
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/points/schools/rankings?scope=${scopeParam}`,
-          { credentials: 'include' }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch school rankings');
-        }
-
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/points/schools/rankings${scope !== 'national' ? `?scope=${scope}` : ''}`);
         const data = await response.json();
-        console.log('School rankings response:', data);
-        
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch school rankings');
+        if (data.success) {
+          setSchools(data.data);
         }
-
-        if (!Array.isArray(data.data)) {
-          console.error('Invalid data format - expected array:', data.data);
-          throw new Error('Invalid data format received from server');
-        }
-
-        setSchools(data.data);
-      } catch (err) {
-        console.error('Error fetching school rankings:', err);
-        setError(err.message);
+      } catch (error) {
+        console.error('Error fetching schools:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSchoolRankings();
+    fetchSchools();
   }, [scope]);
 
   if (isLoading) {
@@ -57,126 +33,113 @@ function SchoolRankings({ scope = 'national' }) {
     );
   }
 
-  if (error) {
-    return (
-      <div className="text-center text-red-500 py-8">
-        <p>Error: {error}</p>
-      </div>
-    );
-  }
-
-  if (!Array.isArray(schools) || schools.length === 0) {
-    return (
-      <div className="text-center text-gray-400 py-8">
-        <p>No schools found for this region</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold mb-6">
-        {scope === 'national' ? 'National School Rankings' : `School Rankings - ${scope}`}
-      </h2>
-
-      <div className="grid gap-4">
-        {schools.map((school, index) => {
-          console.log('Rendering school:', school);
-          
-          if (!school || typeof school !== 'object') {
-            console.error('Invalid school data:', school);
-            return null;
-          }
+      {/* Top 3 Schools */}
+      <div className="flex justify-center items-end gap-4 mb-16 mt-8">
+        {schools.slice(0, 3).map((school, index) => {
+          const position = index + 1;
+          const isFirst = position === 1;
+          const scale = isFirst ? 1.1 : 0.95;
+          const order = position === 2 ? 0 : position === 1 ? 1 : 2;
 
           return (
             <motion.div
-              key={school.schoolId || index}
+              key={school.schoolId}
+              className="relative"
+              style={{ order }}
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-              className="bg-gray-800 rounded-lg p-6 relative overflow-hidden"
+              animate={{ opacity: 1, y: isFirst ? 0 : 40, scale }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              {/* Rank Badge */}
-              <div className="absolute top-4 right-4 w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-xl font-bold">
-                #{index + 1}
-              </div>
-
-              {/* School Info */}
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold text-white">
-                  {typeof school.name === 'string' ? school.name : 'Unknown School'}
-                </h3>
-                <p className="text-gray-400">
-                  {typeof school.city === 'string' && typeof school.province === 'string' 
-                    ? `${school.city}, ${school.province}`
-                    : 'Location unavailable'}
-                </p>
-              </div>
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                <div className="bg-gray-700 p-3 rounded">
-                  <p className="text-sm text-gray-400">Total Points</p>
-                  <p className="text-xl font-bold text-blue-400">
-                    {typeof school.totalPoints === 'number' 
-                      ? school.totalPoints.toLocaleString() 
-                      : '0'}
-                  </p>
-                </div>
-                
-                <div className="bg-gray-700 p-3 rounded">
-                  <p className="text-sm text-gray-400">Students</p>
-                  <p className="text-xl font-bold text-blue-400">
-                    {typeof school.studentCount === 'number' 
-                      ? school.studentCount 
-                      : '0'}
-                  </p>
-                </div>
-
-                <div className="bg-gray-700 p-3 rounded">
-                  <p className="text-sm text-gray-400">Avg Points/Student</p>
-                  <p className="text-xl font-bold text-blue-400">
-                    {typeof school.averagePoints === 'number' 
-                      ? school.averagePoints.toLocaleString() 
-                      : '0'}
-                  </p>
-                </div>
-
-                <div className="bg-gray-700 p-3 rounded">
-                  <p className="text-sm text-gray-400">Total Study Time</p>
-                  <p className="text-xl font-bold text-blue-400">
-                    {typeof school.totalStudyTime === 'string' 
-                      ? school.totalStudyTime 
-                      : '0h 0m'}
-                  </p>
+              {/* Position Badge */}
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                  {position}
                 </div>
               </div>
 
-              {/* Additional Stats */}
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-400">Completed Materials</p>
-                  <p className="text-lg font-semibold text-white">
-                    {typeof school.totalCompletedMaterials === 'number' && typeof school.averageCompletedMaterials === 'number'
-                      ? `${school.totalCompletedMaterials} (${school.averageCompletedMaterials}/student)`
-                      : '0 (0/student)'}
-                  </p>
+              {/* School Card */}
+              <div className="bg-gray-800 rounded-lg p-6 cursor-pointer hover:bg-gray-700 transition-colors">
+                {/* Avatar/Logo */}
+                <div className="relative w-24 h-24 mx-auto mb-4">
+                  <img
+                    src={school.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(school.name)}&background=0D8ABC&color=fff`}
+                    alt={school.name}
+                    className="w-full h-full rounded-full object-cover border-4 border-blue-500"
+                  />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
+                    {position}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-400">Average Study Time</p>
-                  <p className="text-lg font-semibold text-white">
-                    {typeof school.averageStudyTime === 'string' 
-                      ? school.averageStudyTime 
-                      : '0h 0m'}
-                  </p>
+
+                {/* School Info */}
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-white mb-1">{school.name}</h3>
+                  <p className="text-sm text-gray-400 mb-2">{school.city}, {school.province}</p>
+                  <div className="flex justify-center gap-2 text-sm text-gray-400 mb-3">
+                    <span>{school.averageStudyTime}</span>
+                    <span>•</span>
+                    <span>{school.studentCount} students</span>
+                  </div>
+                  <div className="bg-blue-500 rounded-full py-1 px-4 text-white font-bold">
+                    {school.totalPoints.toLocaleString()} points
+                  </div>
                 </div>
               </div>
             </motion.div>
           );
         })}
       </div>
+
+      {/* Other Schools */}
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10">
+          <div className="px-6 py-4 border-b border-white/10">
+            <h3 className="text-lg font-medium text-white/90">Other Top Schools</h3>
+          </div>
+          <div className="divide-y divide-white/10">
+            {schools.slice(3).map((school, index) => (
+              <motion.div
+                key={school.schoolId}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+                className="px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  {/* Rank */}
+                  <div className="w-8 text-right">
+                    <span className="text-white/60 font-medium">#{index + 4}</span>
+                  </div>
+                  
+                  {/* School Info */}
+                  <div>
+                    <h4 className="font-medium text-white/90">{school.name}</h4>
+                    <p className="text-sm text-white/60">{school.city}, {school.province}</p>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-8">
+                  <div className="text-right">
+                    <p className="text-sm text-white/60">Students</p>
+                    <p className="font-medium text-blue-400">{school.studentCount}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-white/60">Total Points</p>
+                    <p className="font-medium text-yellow-500">{school.totalPoints.toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-white/60">Avg. Time</p>
+                    <p className="font-medium text-purple-500">{school.averageStudyTime}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
-}
-
-export default SchoolRankings; 
+} 
