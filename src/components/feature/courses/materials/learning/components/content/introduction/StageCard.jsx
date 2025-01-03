@@ -6,13 +6,26 @@ const StageCard = ({ stage, material, onComplete, onSelect, stageIndex }) => {
   const { categoryId, subcategoryId } = useParams();
   
   // Calculate XP for this stage
-  const stageXP = Math.floor((material.total_xp || material.xp_reward || 0) / material.stages.length);
+  const calculateStageXP = () => {
+    const totalXP = material.total_xp || material.xp_reward || 0;
+    const baseXP = Math.floor(totalXP / material.stages.length);
+    
+    // Add remainder to last stage
+    if (stageIndex === material.stages.length - 1) {
+      const remainder = totalXP % material.stages.length;
+      return baseXP + remainder;
+    }
+    
+    return baseXP;
+  };
+
+  const stageXP = calculateStageXP();
 
   const handleStartLearning = (e) => {
     e.stopPropagation();
     // Navigate to theory step with the correct stage index and force refresh
     const url = `/courses/${categoryId}/subcategory/${subcategoryId}/learn/${material.id}/theory?stage=${stageIndex}`;
-    window.location.href = url; // Use window.location.href instead of navigate to force refresh
+    window.location.href = url;
   };
 
   const handleClick = () => {

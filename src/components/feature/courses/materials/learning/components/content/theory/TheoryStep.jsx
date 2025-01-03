@@ -17,6 +17,7 @@ const DiscussionPanel = lazy(() => import('../DiscussionPanel'));
 
 const STORAGE_KEY = 'material_progress_';
 const WELCOME_MODAL_KEY = 'theory_welcome_shown';
+const POINTS_STORAGE_KEY = 'earned_points_';
 
 const TheoryStep = ({ material }) => {
   const [searchParams] = useSearchParams();
@@ -38,6 +39,7 @@ const TheoryStep = ({ material }) => {
     const hasSeenModal = localStorage.getItem(`welcome_modal_seen_${material?.id}`);
     return !hasSeenModal;
   });
+  const [totalMaterialXP, setTotalMaterialXP] = useState(0);
   
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
@@ -58,6 +60,13 @@ const TheoryStep = ({ material }) => {
       stages: material.stages?.length,
       hasXpReward: 'xp_reward' in material
     });
+
+    // Load earned points from localStorage
+    const savedPoints = localStorage.getItem(POINTS_STORAGE_KEY + material.id);
+    if (savedPoints) {
+      setEarnedPoints(parseInt(savedPoints));
+      console.log('📍 Loaded points from localStorage:', parseInt(savedPoints));
+    }
 
     // Get stage from URL query parameter
     const urlParams = new URLSearchParams(window.location.search);
@@ -253,68 +262,80 @@ const TheoryStep = ({ material }) => {
             !completedStages.has(activeSection)) {
           
           try {
-            // Calculate XP reward per stage
-            const stageXP = Math.floor(material.xp_reward / material.stages.length);
-            const isLastStage = activeSection === material.stages.length - 1;
-            const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
-            const totalStageXP = stageXP + remainderXP;
+            // Tambahkan pengecekan apakah point sudah pernah diberikan
+            const pointCheckResponse = await fetch(`http://localhost:3000/api/points/check/${user.id}/${material.id}/${activeSection}`);
+            const pointCheckData = await pointCheckResponse.json();
 
-            alert(`Mencoba mencatat ${stageXP} point untuk stage ${activeSection + 1}...`);
+            // Hanya berikan point jika belum pernah diberikan untuk stage ini
+            if (!pointCheckData.exists) {
+              // Calculate XP reward per stage
+              const stageXP = Math.floor(material.xp_reward / material.stages.length);
+              const isLastStage = activeSection === material.stages.length - 1;
+              const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
+              const totalStageXP = stageXP + remainderXP;
 
-            // Create point record with stage XP
-            const pointResponse = await fetch('http://localhost:3000/api/points', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: user.id,
-                materialId: material.id,
-                categoryId: parseInt(categoryId),
-                subcategoryId: parseInt(subcategoryId),
-                value: stageXP,
-                stageIndex: activeSection,
-                isLastStage,
-                remainderXP
-              })
-            });
+              console.log(`Recording ${stageXP} points for stage ${activeSection + 1}...`);
 
-            if (!pointResponse.ok) {
-              const errorData = await pointResponse.json().catch(() => ({
-                error: `Server error: ${pointResponse.status} ${pointResponse.statusText}`
-              }));
-              const errorMessage = errorData.error || `Failed to create point record (${pointResponse.status})`;
-              alert(`❌ Gagal mencatat point! ${errorMessage}`);
-              throw new Error(errorMessage);
-            }
-
-            const pointData = await pointResponse.json();
-
-            if (!pointData.success) {
-              const errorMessage = pointData.error || pointData.message || 'Unknown error occurred';
-              alert(`❌ Gagal mencatat point! ${errorMessage}`);
-              console.error('Point creation failed:', {
-                response: pointData,
-                request: {
+              // Create point record with stage XP
+              const pointResponse = await fetch('http://localhost:3000/api/points', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                   userId: user.id,
                   materialId: material.id,
+                  categoryId: parseInt(categoryId),
+                  subcategoryId: parseInt(subcategoryId),
                   value: stageXP,
-                  stageIndex: activeSection
-                }
+                  stageIndex: activeSection,
+                  isLastStage,
+                  remainderXP
+                })
               });
-              throw new Error(errorMessage);
+
+              if (!pointResponse.ok) {
+                const errorData = await pointResponse.json().catch(() => ({
+                  error: `Server error: ${pointResponse.status} ${pointResponse.statusText}`
+                }));
+                const errorMessage = errorData.error || `Failed to create point record (${pointResponse.status})`;
+                console.error('Failed to record points:', errorMessage);
+                throw new Error(errorMessage);
+              }
+
+              const pointData = await pointResponse.json();
+
+              if (!pointData.success) {
+                const errorMessage = pointData.error || pointData.message || 'Unknown error occurred';
+                console.error('Point creation failed:', {
+                  response: pointData,
+                  request: {
+                    userId: user.id,
+                    materialId: material.id,
+                    value: stageXP,
+                    stageIndex: activeSection
+                  }
+                });
+                throw new Error(errorMessage);
+              }
+
+              console.log(`Points recorded successfully! Stage ${activeSection + 1}, Points: ${stageXP}, Total: ${pointData.data.user.totalPoints}`);
+
+              // Only update completedStages after point is successfully created
+              const newCompletedStages = new Set(completedStages);
+              newCompletedStages.add(activeSection);
+              setCompletedStages(newCompletedStages);
+              
+              // Update earned points with stage XP
+              const newPoints = prev => prev + stageXP + (isLastStage ? remainderXP : 0);
+              setEarnedPoints(newPoints);
+            } else {
+              console.log(`Points already recorded for stage ${activeSection + 1}`);
+              // Still mark stage as completed even if points were already given
+              const newCompletedStages = new Set(completedStages);
+              newCompletedStages.add(activeSection);
+              setCompletedStages(newCompletedStages);
             }
-
-            alert(`✅ Point berhasil dicatat!\nStage ${activeSection + 1}\nPoint yang didapat: ${stageXP}\nTotal point: ${pointData.data.user.totalPoints}`);
-
-            // Only update completedStages after point is successfully created
-            const newCompletedStages = new Set(completedStages);
-            newCompletedStages.add(activeSection);
-            setCompletedStages(newCompletedStages);
-            
-            // Update earned points with stage XP
-            const newPoints = prev => prev + stageXP + (isLastStage ? remainderXP : 0);
-            setEarnedPoints(newPoints);
           } catch (pointError) {
-            alert(`❌ Error saat mencatat point: ${pointError.message}`);
+            console.error('Error recording points:', pointError.message);
             return;
           }
         }
@@ -457,36 +478,59 @@ const TheoryStep = ({ material }) => {
       try {
         setIsStageLoading(true);
 
-        // 1. Record points for completed stage
-        const { pointData, stageXP, totalXP } = await recordStagePoints(
-          activeSection,
-          material,
-          user,
-          categoryId,
-          subcategoryId
-        );
+        // Calculate XP for this stage
+        const baseXP = Math.floor(material.xp_reward / material.stages.length);
+        const isLastStage = activeSection === material.stages.length - 1;
+        const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
+        const stageXP = baseXP + (isLastStage ? remainderXP : 0);
 
-        // Show success notification
-        alert(`✅ Point berhasil dicatat!\nStage ${activeSection + 1}\nPoint yang didapat: ${stageXP}\nTotal point: ${pointData.user?.totalPoints || 0}`);
+        console.log('💫 Stage XP calculation:', {
+          baseXP,
+          isLastStage,
+          remainderXP,
+          stageXP
+        });
 
-        // 2. Update completed stages
+        // Record points to database
+        try {
+          const response = await fetch('http://localhost:3000/api/points', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              materialId: material.id,
+              categoryId: parseInt(categoryId),
+              subcategoryId: parseInt(subcategoryId),
+              value: stageXP,
+              stageIndex: activeSection
+            })
+          });
+
+          if (!response.ok) throw new Error('Failed to record points');
+          
+          // Fetch updated total after recording new points
+          const totalResponse = await fetch(`http://localhost:3000/api/points/material/${material.id}/${user.id}`);
+          const totalData = await totalResponse.json();
+          
+          if (totalData.success) {
+            // Calculate total points for this material
+            const materialPoints = totalData.points.reduce((sum, point) => sum + point.value, 0);
+            console.log('📊 Updated material points:', materialPoints);
+            
+            // Update state with new total
+            setEarnedPoints(materialPoints);
+          }
+
+        } catch (error) {
+          console.error('Failed to record/fetch points:', error);
+        }
+
+        // Update completed stages
         const newCompletedStages = new Set(completedStages);
         newCompletedStages.add(activeSection);
-
-        // 3. Save progress
-        const progressData = await updateStageProgress(
-          activeSection,
-          activeContentIndex,
-          user,
-          material,
-          newCompletedStages
-        );
-
-        // 4. Update local state
         setCompletedStages(newCompletedStages);
-        setEarnedPoints(prev => prev + totalXP);
-        
-        // 5. Navigate to next stage or complete
+
+        // Navigate to next stage or complete
         if (activeSection < material.stages.length - 1) {
           setActiveSection(activeSection + 1);
           setActiveContentIndex(0);
@@ -495,17 +539,7 @@ const TheoryStep = ({ material }) => {
         }
 
       } catch (error) {
-        console.error('❌ Error in handleNext:', {
-          message: error.message,
-          stack: error.stack,
-          context: {
-            stage: activeSection,
-            content: activeContentIndex,
-            user: user?.id,
-            material: material?.id
-          }
-        });
-        alert('❌ Gagal menyimpan progress. Silakan coba lagi.');
+        console.error('❌ Error in handleNext:', error);
       } finally {
         setIsStageLoading(false);
       }
@@ -599,6 +633,94 @@ const TheoryStep = ({ material }) => {
       localStorage.setItem(`welcome_modal_seen_${material.id}`, 'true');
     }
   };
+
+  // Tambahkan useEffect baru untuk menyimpan points ke localStorage setiap kali berubah
+  useEffect(() => {
+    if (!material?.id) return;
+    
+    localStorage.setItem(POINTS_STORAGE_KEY + material.id, earnedPoints.toString());
+    console.log('💾 Saved points to localStorage:', earnedPoints);
+  }, [earnedPoints, material?.id]);
+
+  // Tambahkan useEffect untuk mengambil dan menghitung total XP dari database
+  useEffect(() => {
+    const fetchTotalXP = async () => {
+      if (!material?.id || !user?.id) return;
+
+      try {
+        const response = await fetch(`http://localhost:3000/api/points/material/${material.id}/${user.id}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const totalXP = data.points.reduce((sum, point) => sum + point.value, 0);
+          setTotalMaterialXP(totalXP);
+          setEarnedPoints(totalXP);
+          console.log('📊 Loaded total XP:', totalXP);
+        }
+      } catch (error) {
+        console.error('Failed to fetch total XP:', error);
+      }
+    };
+
+    fetchTotalXP();
+  }, [material?.id, user?.id]);
+
+  // Tambahkan useEffect untuk fetch point saat komponen dimuat
+  useEffect(() => {
+    const fetchMaterialPoints = async () => {
+      // Pastikan user sudah ter-authenticate dan ID tersedia
+      if (!user?.id) {
+        console.log('❌ User not authenticated or ID missing');
+        return;
+      }
+
+      // Pastikan material ID tersedia
+      if (!material?.id) {
+        console.log('❌ Material ID missing');
+        return;
+      }
+
+      try {
+        console.log('🔄 Fetching points for:', {
+          materialId: material.id,
+          userId: user.id,
+          categoryId,
+          subcategoryId
+        });
+
+        const response = await fetch(`http://localhost:3000/api/points/material/${material.id}/${user.id}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const totalPoints = data.total || 0;
+          console.log('📊 Points loaded:', {
+            total: totalPoints,
+            points: data.points,
+            userId: user.id,
+            materialId: material.id
+          });
+          setEarnedPoints(totalPoints);
+        } else {
+          console.log('No points found, setting to 0');
+          setEarnedPoints(0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch points:', error);
+        setEarnedPoints(0);
+      }
+    };
+
+    fetchMaterialPoints();
+  }, [material?.id, user?.id, categoryId, subcategoryId]);
+
+  // Tambahkan useEffect untuk logging user data
+  useEffect(() => {
+    console.log('👤 Auth check:', {
+      isAuthenticated: !!user,
+      userId: user?.id,
+      materialId: material?.id
+    });
+  }, [user, material]);
 
   return (
     <div className="min-h-screen bg-black">

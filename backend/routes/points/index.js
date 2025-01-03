@@ -8,4 +8,7 @@ router.post('/', pointController.createPoint);
 // Get user's points history
 router.get('/user/:userId', pointController.getUserPoints);
 
+// Tambahkan route baru untuk mengambil point berdasarkan material dan user
+router.get('/material/:materialId/:userId', pointController.getMaterialPoints);
+
 module.exports = router; 

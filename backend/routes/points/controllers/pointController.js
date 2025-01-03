@@ -98,6 +98,65 @@ const pointController = {
         details: error.message
       });
     }
+  },
+
+  getMaterialPoints: async (req, res) => {
+    const { materialId, userId } = req.params;
+
+    try {
+      console.log('Fetching points for:', { materialId, userId });
+
+      // Validasi input
+      if (!materialId || !userId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing materialId or userId'
+        });
+      }
+
+      // Parse ID ke integer
+      const parsedMaterialId = parseInt(materialId);
+      const parsedUserId = parseInt(userId);
+
+      // Cek apakah ID valid
+      if (isNaN(parsedMaterialId) || isNaN(parsedUserId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid materialId or userId'
+        });
+      }
+
+      const points = await prisma.point.findMany({
+        where: {
+          materialId: parsedMaterialId,
+          userId: parsedUserId
+        },
+        select: {
+          id: true,
+          value: true,
+          materialId: true,
+          userId: true,
+          createdAt: true
+        }
+      });
+
+      console.log('Found points:', points);
+
+      // Selalu kembalikan response sukses
+      return res.json({
+        success: true,
+        points: points || [],
+        total: points ? points.reduce((sum, point) => sum + point.value, 0) : 0
+      });
+
+    } catch (error) {
+      console.error('Error in getMaterialPoints:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        details: error.message
+      });
+    }
   }
 };
 
