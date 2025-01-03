@@ -1,9 +1,10 @@
-import { useState, Suspense, useEffect, useRef, lazy, useCallback } from 'react';
+import { useState, Suspense, useEffect, useRef, lazy, useCallback, useLayoutEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FiArrowLeft, FiMenu } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
 import { useAuth } from '../../../../../../../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import iconCourse2 from '../../../../../../../../assets/images/courses/iconCourse2.svg';
 
 // Lazy load components
 const TopNavigation = lazy(() => import('./components/TopNavigation'));
@@ -15,6 +16,7 @@ const QuickQuiz = lazy(() => import('./components/QuickQuiz'));
 const DiscussionPanel = lazy(() => import('../DiscussionPanel'));
 
 const STORAGE_KEY = 'material_progress_';
+const WELCOME_MODAL_KEY = 'theory_welcome_shown';
 
 const TheoryStep = ({ material }) => {
   const [searchParams] = useSearchParams();
@@ -31,6 +33,10 @@ const TheoryStep = ({ material }) => {
   const [earnedPoints, setEarnedPoints] = useState(0);
   const mainContentRef = useRef(null);
   const [isStageLoading, setIsStageLoading] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
+    const hasShown = localStorage.getItem(WELCOME_MODAL_KEY);
+    return !hasShown;
+  });
   
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
@@ -484,8 +490,84 @@ const TheoryStep = ({ material }) => {
     }
   });
 
+  // Tambahkan useLayoutEffect untuk mengatur scroll
+  useLayoutEffect(() => {
+    if (showWelcomeModal) {
+      // Prevent scroll when modal is open
+      document.body.style.overflow = 'hidden';
+      // Reset scroll position
+      window.scrollTo(0, 0);
+    } else {
+      // Re-enable scroll when modal is closed
+      document.body.style.overflow = 'unset';
+    }
+  }, [showWelcomeModal]);
+
+  // Tambahkan effect untuk menyimpan status modal
+  useEffect(() => {
+    if (!showWelcomeModal) {
+      localStorage.setItem(WELCOME_MODAL_KEY, 'true');
+    }
+  }, [showWelcomeModal]);
+
   return (
     <div className="min-h-screen bg-black">
+      {/* Welcome Modal */}
+      <AnimatePresence>
+        {showWelcomeModal && (
+          <div className="fixed inset-0 z-[100]">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowWelcomeModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed top-[20vh] left-[40%] -translate-x-1/2 w-full max-w-sm mx-4"
+            >
+              <div className="relative overflow-hidden bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl rounded-2xl border border-white/10">
+                {/* Decorative circles */}
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" />
+                <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
+                
+                <div className="relative p-8">
+                  {/* Icon container with glow effect */}
+                  <div className="relative mb-8">
+                    <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full" />
+                    <div className="relative flex items-center justify-center">
+                      <img src={iconCourse2} alt="Course Icon" className="w-32 h-32 transform hover:scale-110 transition-transform duration-300" />
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="text-center space-y-4">
+                    <h3 className="text-2xl font-semibold text-white bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+                      Good Luck Learning!
+                    </h3>
+                    <p className="text-white/70 text-sm leading-relaxed">
+                      Let's start your learning journey. We believe in you!
+                    </p>
+                    <button
+                      onClick={() => setShowWelcomeModal(false)}
+                      className="w-full px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium 
+                                 hover:from-blue-600 hover:to-purple-600 active:from-blue-700 active:to-purple-700 
+                                 transform hover:-translate-y-0.5 active:translate-y-0
+                                 transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
+                    >
+                      Let's Begin!
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Top Navigation - Fixed */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-lg border-b border-white/5">
         <TopNavigation 
