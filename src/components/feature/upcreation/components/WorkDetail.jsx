@@ -254,7 +254,7 @@ const Comment = ({ comment, onReply, onLike, onDelete, currentUserId, creationId
   );
 };
 
-const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
+const WorkDetail = ({ work: initialWork, setSelectedWork, onLikeUpdate }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [work, setWork] = useState({
@@ -547,12 +547,15 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
       const newLiked = !wasLiked;
       const newCount = wasLiked ? prevLikeCount - 1 : prevLikeCount + 1;
 
-      // Update state optimistically
+      // Update local state optimistically
       setWork(prev => ({
         ...prev,
         liked: newLiked,
         likeCount: newCount
       }));
+
+      // Update parent state (UpCreation)
+      onLikeUpdate(work.id, newLiked, newCount);
 
       // Animate heart
       setIsLikeAnimating(true);
@@ -566,21 +569,23 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
       );
 
       if (!response.data.success) {
-        // Revert on error
+        // Revert both local and parent state on error
         setWork(prev => ({
           ...prev,
           liked: wasLiked,
           likeCount: prevLikeCount
         }));
+        onLikeUpdate(work.id, wasLiked, prevLikeCount);
       }
     } catch (error) {
       console.error('Error liking creation:', error);
-      // Revert on error
+      // Revert both local and parent state on error
       setWork(prev => ({
         ...prev,
         liked: wasLiked,
         likeCount: prevLikeCount
       }));
+      onLikeUpdate(work.id, wasLiked, prevLikeCount);
     }
   };
 

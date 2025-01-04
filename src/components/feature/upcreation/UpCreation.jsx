@@ -171,6 +171,7 @@ const UpCreation = () => {
                     <WorkDetail
                       work={selectedWork}
                       setSelectedWork={setSelectedWork}
+                      onLikeUpdate={handleLikeUpdate}
                     />
                   </Suspense>
                 )}
