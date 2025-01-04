@@ -144,6 +144,11 @@ model User {
   creationComments  CreationComment[]
   creationLikes     CreationLike[]
   commentLikes      CreationCommentLike[]
+  
+  // Service relations
+  providedServices Service[]
+  serviceBookings  ServiceBooking[]
+  serviceReviews   ServiceReview[]
 }
 
 model Point {
@@ -402,4 +407,51 @@ model CreationCommentLike {
   comment     CreationComment @relation(fields: [commentId], references: [id])
 
   @@unique([userId, commentId])
+}
+
+model Service {
+  id            Int       @id @default(autoincrement())
+  title         String
+  description   String
+  price         Float
+  category      String    // Mentoring/Tutoring/Workshop/Review/Consultation
+  images        String[]  // Array of image URLs
+  status        String    @default("active") // active/inactive/draft
+  providerId    Int
+  provider      User      @relation(fields: [providerId], references: [id])
+  rating        Float     @default(0)
+  totalReviews  Int      @default(0)
+  totalBookings Int      @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  bookings      ServiceBooking[]
+  reviews       ServiceReview[]
+}
+
+model ServiceBooking {
+  id          Int       @id @default(autoincrement())
+  serviceId   Int
+  service     Service   @relation(fields: [serviceId], references: [id])
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  status      String    @default("pending") // pending/accepted/rejected/completed
+  schedule    DateTime
+  duration    Int       // in minutes
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ServiceReview {
+  id          Int       @id @default(autoincrement())
+  serviceId   Int
+  service     Service   @relation(fields: [serviceId], references: [id])
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  rating      Float
+  comment     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

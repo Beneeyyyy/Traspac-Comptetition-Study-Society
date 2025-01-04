@@ -1,149 +1,235 @@
-import { motion, AnimatePresence } from 'framer-motion'
-import { FiPlus, FiX } from 'react-icons/fi'
+import { Dialog, Transition } from '@headlessui/react'
+import { Fragment, useState } from 'react'
+import { FiX, FiUpload, FiTrash2 } from 'react-icons/fi'
 
-const CreateServiceModal = ({ isOpen, onClose, onSubmit, newService, setNewService, categories }) => {
+const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    price: '',
+    category: 'Mentoring',
+    images: []
+  })
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!formData.title || !formData.description || !formData.price) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    try {
+      await onSubmit(formData)
+      setFormData({
+        title: '',
+        description: '',
+        price: '',
+        category: 'Mentoring',
+        images: []
+      })
+    } catch (error) {
+      alert('Failed to create service')
+    }
+  }
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files)
+    if (files.length + formData.images.length > 5) {
+      alert('Maximum 5 images allowed')
+      return
+    }
+
+    const validFiles = files.filter(file => {
+      if (!file.type.startsWith('image/')) {
+        alert('Only image files are allowed')
+        return false
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB')
+        return false
+      }
+      return true
+    })
+
+    const readers = validFiles.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.readAsDataURL(file)
+      })
+    })
+
+    Promise.all(readers).then(results => {
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...results]
+      }))
+    })
+  }
+
+  const removeImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }))
+  }
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 w-full max-w-lg relative"
-          >
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 transition-colors text-white/70 hover:text-white"
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/75" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
             >
-              <FiX className="text-xl" />
-            </button>
-
-            <h2 className="text-2xl font-semibold mb-6">Create New Service</h2>
-            <form onSubmit={onSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Service Title</label>
-                <input
-                  type="text"
-                  value={newService.title}
-                  onChange={(e) => setNewService({...newService, title: e.target.value})}
-                  placeholder="Enter service title"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Description</label>
-                <textarea
-                  value={newService.description}
-                  onChange={(e) => setNewService({...newService, description: e.target.value})}
-                  placeholder="Describe your service"
-                  rows={4}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50 resize-none"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-2">Price</label>
-                  <input
-                    type="text"
-                    value={newService.price}
-                    onChange={(e) => setNewService({...newService, price: e.target.value})}
-                    placeholder="e.g. $50/hour"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-2">Category</label>
-                  <select
-                    value={newService.category}
-                    onChange={(e) => setNewService({...newService, category: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gray-900 p-6 shadow-xl transition-all">
+                <div className="flex items-center justify-between mb-6">
+                  <Dialog.Title className="text-2xl font-bold text-white">
+                    Create New Service
+                  </Dialog.Title>
+                  <button
+                    onClick={onClose}
+                    className="text-gray-400 hover:text-white transition-colors"
                   >
-                    {categories.filter(cat => cat !== 'All').map((category) => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
+                    <FiX className="w-6 h-6" />
+                  </button>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Showcase Images</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="relative aspect-video rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-white/20 transition-colors cursor-pointer">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-1">
+                      Title
+                    </label>
                     <input
-                      type="file"
-                      accept="image/*"
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                      onChange={(e) => {
-                        const file = e.target.files[0]
-                        if (file) {
-                          const reader = new FileReader()
-                          reader.onloadend = () => {
-                            setNewService(prev => ({
-                              ...prev,
-                              showcaseImages: [...prev.showcaseImages, reader.result]
-                            }))
-                          }
-                          reader.readAsDataURL(file)
-                        }
-                      }}
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter service title"
                     />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <FiPlus className="text-2xl text-white/40" />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      rows={4}
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Describe your service"
+                    />
+                  </div>
+
+                  {/* Price and Category */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-1">
+                        Price ($)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-1">
+                        Category
+                      </label>
+                      <select
+                        value={formData.category}
+                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="Mentoring">Mentoring</option>
+                        <option value="Tutoring">Tutoring</option>
+                        <option value="Workshop">Workshop</option>
+                        <option value="Review">Review</option>
+                        <option value="Consultation">Consultation</option>
+                      </select>
                     </div>
                   </div>
-                  {newService.showcaseImages.map((image, index) => (
-                    <div key={index} className="relative aspect-video rounded-lg overflow-hidden">
-                      <img
-                        src={image}
-                        alt={`Showcase ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewService(prev => ({
-                            ...prev,
-                            showcaseImages: prev.showcaseImages.filter((_, i) => i !== index)
-                          }))
-                        }}
-                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
-                      >
-                        <span className="sr-only">Remove image</span>
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-white/40">Upload up to 3 images to showcase your work</p>
-              </div>
 
-              <div className="flex justify-end gap-4 pt-6 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-6 py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  Create Service
-                </button>
-              </div>
-            </form>
-          </motion.div>
+                  {/* Image Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Images (Max 5)
+                    </label>
+                    <div className="grid grid-cols-5 gap-4 mb-4">
+                      {formData.images.map((image, index) => (
+                        <div key={index} className="relative aspect-square">
+                          <img
+                            src={image}
+                            alt={`Upload ${index + 1}`}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {formData.images.length < 5 && (
+                        <label className="aspect-square border-2 border-dashed border-gray-700 rounded-lg hover:border-blue-500 transition-colors cursor-pointer flex items-center justify-center">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                          <FiUpload className="w-6 h-6 text-gray-400" />
+                        </label>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-400">
+                      Upload up to 5 images (max 5MB each)
+                    </p>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+                  >
+                    Create Service
+                  </button>
+                </form>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
         </div>
-      )}
-    </AnimatePresence>
+      </Dialog>
+    </Transition>
   )
 }
 
