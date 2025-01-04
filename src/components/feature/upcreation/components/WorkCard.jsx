@@ -1,8 +1,31 @@
 import { motion } from 'framer-motion'
 import { FiEye, FiMessageSquare, FiHeart } from 'react-icons/fi'
+import { useState, useEffect } from 'react'
+import axios from 'axios'
 
-const WorkCard = ({ work, index, selectedWork, setSelectedWork }) => {
+const WorkCard = ({ work, index, selectedWork, setSelectedWork, onLikeUpdate }) => {
   const isSelected = selectedWork?.id === work.id
+  
+  // Initialize like state from work data, fallback to likeCount > 0 if liked is false
+  const [isLiked, setIsLiked] = useState(work.liked || work.likeCount > 0)
+  const [likeCount, setLikeCount] = useState(work.likeCount)
+  const [isLikeAnimating, setIsLikeAnimating] = useState(false)
+
+  // Debug log initial props
+  useEffect(() => {
+    console.log('WorkCard mounted:', work.id, {
+      initialLiked: work.liked,
+      initialCount: work.likeCount,
+      computedLiked: work.liked || work.likeCount > 0
+    })
+  }, [])
+
+  // Sync like state with props immediately when they change
+  useEffect(() => {
+    const shouldBeLiked = work.liked || work.likeCount > 0
+    setIsLiked(shouldBeLiked)
+    setLikeCount(work.likeCount)
+  }, [work.liked, work.likeCount])
 
   // Get the first image file from the uploaded files
   const getThumbnail = () => {
@@ -13,7 +36,60 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork }) => {
     return null
   }
 
+  // Get author avatar and badge from user data
+  const getAuthorAvatar = () => {
+    return work.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(work.author)}&background=0D8ABC&color=fff`
+  }
+
+  const getBadge = () => {
+    return work.user?.school?.name
+  }
+
+  const handleLike = async (e) => {
+    e.stopPropagation()
+    
+    // Optimistic update
+    const wasLiked = isLiked
+    const prevCount = likeCount
+    const newLiked = !wasLiked
+    const newCount = wasLiked ? prevCount - 1 : prevCount + 1
+
+    // Update local state immediately
+    setIsLiked(newLiked)
+    setLikeCount(newCount)
+    
+    // Update parent state
+    onLikeUpdate(work.id, newLiked, newCount)
+    
+    // Animate heart
+    setIsLikeAnimating(true)
+    setTimeout(() => setIsLikeAnimating(false), 1000)
+
+    try {
+      const response = await axios.post(
+        `/api/creations/${work.id}/like`,
+        {},
+        { withCredentials: true }
+      )
+
+      if (!response.data.success) {
+        // Revert both states on error
+        setIsLiked(wasLiked)
+        setLikeCount(prevCount)
+        onLikeUpdate(work.id, wasLiked, prevCount)
+      }
+    } catch (error) {
+      console.error('Error liking creation:', error)
+      // Revert both states on error
+      setIsLiked(wasLiked)
+      setLikeCount(prevCount)
+      onLikeUpdate(work.id, wasLiked, prevCount)
+    }
+  }
+
   const thumbnail = getThumbnail()
+  const authorAvatar = getAuthorAvatar()
+  const badge = getBadge()
 
   return (
     <motion.div
@@ -48,15 +124,15 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork }) => {
           <div className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <div className="flex items-center gap-2">
               <img
-                src={work.authorAvatar}
+                src={authorAvatar}
                 alt={work.author}
                 className="w-8 h-8 rounded-full border-2 border-white/20"
               />
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-white/90">{work.author}</span>
-                {work.badge && (
+                {badge && (
                   <span className="px-2 py-0.5 text-xs bg-[#2563EB] text-white rounded-full">
-                    {work.badge}
+                    {badge}
                   </span>
                 )}
               </div>
@@ -68,7 +144,7 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork }) => {
               </div>
               <div className="flex items-center gap-1">
                 <FiMessageSquare className="w-4 h-4" />
-                <span className="text-sm">{work.comments}</span>
+                <span className="text-sm">{work._count?.comments || 0}</span>
               </div>
             </div>
           </div>
@@ -79,7 +155,7 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork }) => {
           <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">{work.title}</h3>
             <div className="flex flex-wrap gap-2">
-              {work.tags.map((tag, tagIndex) => (
+              {work.tags && work.tags.map((tag, tagIndex) => (
                 <span
                   key={tagIndex}
                   className="px-2 py-1 text-xs bg-white/10 text-white/90 rounded-lg"
@@ -92,9 +168,29 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork }) => {
         </div>
 
         {/* Like Button - Bottom Right */}
-        <button className="absolute bottom-4 right-4 p-2 rounded-full bg-white/10 text-white/90 backdrop-blur-sm hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100">
-          <FiHeart className="w-4 h-4" />
+        <button 
+          onClick={handleLike}
+          className={`absolute bottom-4 right-4 p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+            isLiked 
+              ? 'bg-pink-500/20 text-pink-500' 
+              : 'bg-white/10 text-white/90 hover:bg-white/20'
+          } opacity-0 group-hover:opacity-100`}
+        >
+          <FiHeart 
+            className={`w-4 h-4 transform transition-all duration-200 ${
+              isLiked ? 'fill-current' : ''
+            } ${isLikeAnimating ? 'scale-150' : ''}`}
+          />
         </button>
+
+        {/* Like Count - Bottom Right */}
+        {likeCount > 0 && (
+          <div className="absolute bottom-4 right-16 p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <span className={`text-sm ${isLiked ? 'text-pink-500' : 'text-white/90'}`}>
+              {likeCount}
+            </span>
+          </div>
+        )}
       </div>
     </motion.div>
   )

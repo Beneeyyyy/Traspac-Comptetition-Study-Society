@@ -103,12 +103,49 @@ const getCreationById = async (req, res) => {
           }
         },
         comments: {
+          where: {
+            parentId: null // Only get top-level comments
+          },
           include: {
             user: {
               select: {
                 id: true,
                 name: true,
-                image: true
+                image: true,
+                rank: true
+              }
+            },
+            likes: userId ? {
+              where: {
+                userId: parseInt(userId)
+              }
+            } : false,
+            _count: {
+              select: {
+                likes: true,
+                replies: true
+              }
+            },
+            replies: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    rank: true
+                  }
+                },
+                likes: userId ? {
+                  where: {
+                    userId: parseInt(userId)
+                  }
+                } : false,
+                _count: {
+                  select: {
+                    likes: true
+                  }
+                }
               }
             }
           },
@@ -118,9 +155,14 @@ const getCreationById = async (req, res) => {
         },
         creationLikes: userId ? {
           where: {
-            userId
+            userId: parseInt(userId)
           }
-        } : false
+        } : false,
+        _count: {
+          select: {
+            creationLikes: true
+          }
+        }
       }
     });
 
@@ -134,17 +176,48 @@ const getCreationById = async (req, res) => {
       data: { views: { increment: 1 } }
     });
 
-    // Format response
+    // Format comments to include like status
+    const formattedComments = creation.comments.map(comment => ({
+      ...comment,
+      isLiked: comment.likes?.length > 0,
+      likeCount: comment._count.likes,
+      replies: comment.replies.map(reply => ({
+        ...reply,
+        isLiked: reply.likes?.length > 0,
+        likeCount: reply._count.likes
+      }))
+    }));
+
+    // Remove raw likes data from comments
+    formattedComments.forEach(comment => {
+      delete comment.likes;
+      comment.replies.forEach(reply => {
+        delete reply.likes;
+      });
+    });
+
+    // Format response with creation like status
     const response = {
       ...creation,
-      liked: creation.creationLikes?.length > 0
+      liked: creation.creationLikes?.length > 0,
+      likeCount: creation._count.creationLikes,
+      comments: formattedComments
     };
-    delete response.creationLikes;
 
-    res.json(response);
+    // Remove raw likes data
+    delete response.creationLikes;
+    delete response._count;
+
+    res.json({
+      success: true,
+      data: response
+    });
   } catch (error) {
     console.error('Error getting creation:', error);
-    res.status(500).json({ error: 'Failed to get creation' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to get creation' 
+    });
   }
 };
 
@@ -286,6 +359,7 @@ const toggleLike = async (req, res) => {
       });
     }
 
+    // Check if like exists
     const existingLike = await prisma.creationLike.findFirst({
       where: {
         userId: parseInt(userId),
@@ -293,6 +367,7 @@ const toggleLike = async (req, res) => {
       }
     });
 
+    // If like exists, delete it (unlike)
     if (existingLike) {
       await prisma.creationLike.delete({
         where: {
@@ -300,6 +375,7 @@ const toggleLike = async (req, res) => {
         }
       });
     } else {
+      // If no like exists, create it (like)
       await prisma.creationLike.create({
         data: {
           userId: parseInt(userId),
@@ -308,10 +384,22 @@ const toggleLike = async (req, res) => {
       });
     }
 
-    // Get updated like count
-    const likeCount = await prisma.creationLike.count({
-      where: {
-        creationId: parseInt(id)
+    // Get updated like count and status
+    const updatedCreation = await prisma.creation.findUnique({
+      where: { 
+        id: parseInt(id) 
+      },
+      include: {
+        creationLikes: {
+          where: {
+            userId: parseInt(userId)
+          }
+        },
+        _count: {
+          select: {
+            creationLikes: true
+          }
+        }
       }
     });
 
@@ -319,7 +407,7 @@ const toggleLike = async (req, res) => {
       success: true,
       data: {
         liked: !existingLike,
-        likeCount
+        likeCount: updatedCreation._count.creationLikes
       }
     });
   } catch (error) {

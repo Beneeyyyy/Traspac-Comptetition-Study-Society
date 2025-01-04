@@ -259,7 +259,7 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
   const [newComment, setNewComment] = useState('');
   const [work, setWork] = useState({
     ...initialWork,
-    liked: initialWork.liked || false,
+    liked: initialWork.liked || initialWork.likeCount > 0,
     likeCount: initialWork.likeCount || 0
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -268,6 +268,36 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
 
   const { user } = useAuth();
   const currentUserId = user?.id;
+
+  // If no auth context is available, show a message
+  if (!user) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+        onClick={() => setSelectedWork(null)}
+      >
+        <motion.div
+          initial={{ scale: 0.9 }}
+          animate={{ scale: 1 }}
+          exit={{ scale: 0.9 }}
+          className="relative w-full max-w-md bg-[#1F2937] rounded-xl shadow-2xl overflow-hidden p-6 text-center"
+          onClick={e => e.stopPropagation()}
+        >
+          <h3 className="text-xl font-semibold mb-4">Authentication Required</h3>
+          <p className="text-gray-300 mb-6">Please log in to view and interact with this content.</p>
+          <button
+            onClick={() => setSelectedWork(null)}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Close
+          </button>
+        </motion.div>
+      </motion.div>
+    );
+  }
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -312,7 +342,7 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
         console.error('Error fetching comments:', error);
         if (error.response?.status === 404) {
           setComments([]);
-        } else {
+    } else {
           setError('Failed to load comments. Please try again later.');
         }
       } finally {
@@ -514,12 +544,14 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
       // Optimistic update
       const wasLiked = work.liked;
       const prevLikeCount = work.likeCount || 0;
+      const newLiked = !wasLiked;
+      const newCount = wasLiked ? prevLikeCount - 1 : prevLikeCount + 1;
 
       // Update state optimistically
       setWork(prev => ({
         ...prev,
-        liked: !wasLiked,
-        likeCount: wasLiked ? prevLikeCount - 1 : prevLikeCount + 1
+        liked: newLiked,
+        likeCount: newCount
       }));
 
       // Animate heart
@@ -530,22 +562,10 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
       const response = await axios.post(
         `/api/creations/${work.id}/like`,
         {},
-        { 
-          withCredentials: true,
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
+        { withCredentials: true }
       );
 
-      if (response.data.success) {
-        // Update with server data to ensure consistency
-        setWork(prev => ({
-          ...prev,
-          liked: response.data.data.liked,
-          likeCount: response.data.data.likeCount
-        }));
-      } else {
+      if (!response.data.success) {
         // Revert on error
         setWork(prev => ({
           ...prev,
@@ -564,6 +584,15 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
     }
   };
 
+  // Sync work state with props
+  useEffect(() => {
+    setWork(prev => ({
+      ...prev,
+      liked: initialWork.liked || initialWork.likeCount > 0,
+      likeCount: initialWork.likeCount || 0
+    }));
+  }, [initialWork.liked, initialWork.likeCount]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -580,12 +609,12 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
         onClick={e => e.stopPropagation()}
       >
         {/* Close Button */}
-        <button
+                  <button
           onClick={() => setSelectedWork(null)}
           className="absolute top-4 right-4 p-2 text-white/80 hover:text-white bg-black/20 rounded-full z-10"
         >
           <FiX className="w-6 h-6" />
-        </button>
+                  </button>
 
         <div className="flex flex-col md:flex-row h-[90vh]">
           {/* Left Side - Image */}
@@ -595,7 +624,7 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
               alt={work.title}
               className="w-full h-full object-contain"
             />
-          </div>
+        </div>
 
           {/* Right Side - Details */}
           <div className="w-full md:w-1/3 flex flex-col bg-[#1F2937] border-l border-gray-800">
@@ -610,21 +639,21 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
                   />
                   <div>
                     <h3 className="font-medium text-white">{work.author}</h3>
-                    {work.badge && (
+                      {work.badge && (
                       <span className="text-xs text-gray-400">{work.badge}</span>
-                    )}
+                      )}
                   </div>
                 </div>
                 <button className="p-2 text-gray-400 hover:text-white">
                   <FiMoreVertical className="w-5 h-5" />
                 </button>
-              </div>
+            </div>
 
               <h2 className="text-xl font-semibold text-white mb-2">{work.title}</h2>
               <p className="text-gray-300 mb-4">{work.description}</p>
 
               <div className="flex items-center gap-6 text-gray-400">
-                <button
+                <button 
                   onClick={handleLikeCreation}
                   className={`flex items-center gap-2 transition-all duration-200 ${
                     work.liked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'
@@ -668,7 +697,7 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
                   <div className="flex flex-col items-center justify-center py-8 text-gray-400">
                     <FiMessageSquare className="w-8 h-8 mb-2" />
                     <p>No comments yet. Be the first to comment!</p>
-                  </div>
+              </div>
                 ) : (
                   comments.map((comment) => (
                     <Comment
@@ -690,20 +719,20 @@ const WorkDetail = ({ work: initialWork, setSelectedWork }) => {
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
+                        placeholder="Add a comment..."
                 className="w-full bg-gray-800/30 border border-gray-700 rounded-lg p-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows="2"
-              />
+                      />
               <div className="flex justify-end mt-2">
-                <button
-                  type="submit"
+                      <button
+                        type="submit"
                   disabled={!newComment.trim()}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                      >
                   Comment
-                </button>
-              </div>
-            </form>
+                      </button>
+                    </div>
+                  </form>
           </div>
         </div>
       </motion.div>

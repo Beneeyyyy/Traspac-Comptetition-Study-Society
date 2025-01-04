@@ -23,11 +23,33 @@ const UpCreation = () => {
   const [creations, setCreations] = useState([])
   const [error, setError] = useState(null)
 
+  // Handle like update
+  const handleLikeUpdate = (creationId, liked, likeCount) => {
+    setCreations(prevCreations => 
+      prevCreations.map(creation => 
+        creation.id === creationId 
+          ? { ...creation, liked, likeCount }
+          : creation
+      )
+    )
+
+    // Also update selectedWork if it's the same creation
+    if (selectedWork?.id === creationId) {
+      setSelectedWork(prev => ({
+        ...prev,
+        liked,
+        likeCount
+      }))
+    }
+  }
+
   // Load creations from API
   useEffect(() => {
     const fetchCreations = async () => {
       try {
         setIsLoading(true)
+        console.log('Fetching creations...')
+        
         const response = await axios.get('/api/creations', {
           params: {
             category: selectedCategory !== 'All' ? selectedCategory : undefined,
@@ -35,7 +57,30 @@ const UpCreation = () => {
           },
           withCredentials: true
         })
-        setCreations(response.data)
+
+        console.log('Raw response:', response.data)
+
+        // Process creations to match comment like pattern
+        const processedCreations = response.data.map(creation => {
+          console.log('Processing creation:', creation.id, {
+            liked: creation.liked,
+            likeCount: creation.likeCount
+          })
+
+          return {
+            ...creation,
+            // Add processed files
+            files: creation.image ? [{ type: 'image/jpeg', data: creation.image }] : []
+          };
+        });
+
+        console.log('Processed creations:', processedCreations.map(c => ({
+          id: c.id,
+          liked: c.liked,
+          likeCount: c.likeCount
+        })))
+
+        setCreations(processedCreations)
         setError(null)
       } catch (err) {
         console.error('Error fetching creations:', err)
@@ -110,16 +155,11 @@ const UpCreation = () => {
                     creations.map((creation, index) => (
                       <Suspense key={creation.id} fallback={<SkeletonCard index={index} />}>
                         <WorkCard
-                          work={{
-                            ...creation,
-                            authorAvatar: creation.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(creation.author)}&background=0D8ABC&color=fff`,
-                            badge: creation.user?.school?.name,
-                            comments: creation._count?.comments || 0,
-                            files: creation.image ? [{ type: 'image/jpeg', data: creation.image }] : []
-                          }}
+                          work={creation}
                           index={index}
                           selectedWork={selectedWork}
                           setSelectedWork={setSelectedWork}
+                          onLikeUpdate={handleLikeUpdate}
                         />
                       </Suspense>
                     ))
