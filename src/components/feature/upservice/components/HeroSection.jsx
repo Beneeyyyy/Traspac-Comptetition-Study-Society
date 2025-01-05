@@ -1,5 +1,6 @@
 import React from 'react'
 import { FiArrowRight } from 'react-icons/fi'
+import './HeroSection.css'
 
 const HeroSection = () => {
   return (
@@ -170,34 +171,6 @@ const HeroSection = () => {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes marquee-down {
-          0% {
-            transform: translateY(0);
-          }
-          100% {
-            transform: translateY(-50%);
-          }
-        }
-
-        @keyframes marquee-up {
-          0% {
-            transform: translateY(-50%);
-          }
-          100% {
-            transform: translateY(0);
-          }
-        }
-
-        .animate-marquee-down {
-          animation: marquee-down 20s linear infinite;
-        }
-
-        .animate-marquee-up {
-          animation: marquee-up 20s linear infinite;
-        }
-      `}</style>
     </div>
   )
 }
