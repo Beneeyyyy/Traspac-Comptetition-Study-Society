@@ -61,27 +61,7 @@ const UpService = () => {
     }
   }
 
-  const stats = [
-    {
-      icon: <FiBookOpen className="w-8 h-8" />,
-      value: "1,000+",
-      label: "Student Services",
-      color: "from-pink-500 to-purple-500"
-    },
-    {
-      icon: <FiSmile className="w-8 h-8" />,
-      value: "Rp50.000.000+",
-      label: "Total Transactions",
-      color: "from-blue-500 to-cyan-500"
-    },
-    {
-      icon: <FiAward className="w-8 h-8" />,
-      value: "4.8/5",
-      label: "Average Rating",
-      color: "from-yellow-500 to-orange-500"
-    }
-  ]
-
+  
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Artistic Background - Focused on left side */}
@@ -152,38 +132,7 @@ const UpService = () => {
         <HeroSection onCreateClick={() => setIsCreateModalOpen(true)} />
 
         {/* Fun Stats Section */}
-        <div className="relative">
-          <div className="container max-w-7xl mx-auto px-4 py-12">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-8"
-            >
-              {stats.map((stat, index) => (
-                <motion.div
-                  key={index}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  className="relative group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl blur-xl"
-                       style={{ backgroundImage: `linear-gradient(to right, var(--tw-gradient-stops))` }}></div>
-                  <div className="relative flex items-center gap-4 bg-gray-900/50 backdrop-blur-sm p-6 rounded-xl border border-gray-800 group-hover:border-gray-700 transition-colors">
-                    <div className={`p-4 rounded-xl bg-gradient-to-r ${stat.color} group-hover:scale-110 transition-transform`}>
-                      {stat.icon}
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-blue-400 transition-all">
-                        {stat.value}
-                      </div>
-                      <div className="text-gray-400 text-sm group-hover:text-gray-300">{stat.label}</div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </div>
+      
 
         {/* Main Content */}
         <div className="container max-w-7xl mx-auto px-4 relative pb-12">

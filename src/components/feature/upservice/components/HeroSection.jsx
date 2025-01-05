@@ -40,6 +40,7 @@ const HeroSection = ({ onCreateClick }) => {
   const duplicatedServices = [...services, ...services, ...services]
 
   return (
+    <>
     <div className="relative min-h-screen bg-black overflow-hidden">
       {/* Abstract Background Elements */}
       <div className="absolute inset-0">
@@ -89,14 +90,14 @@ const HeroSection = ({ onCreateClick }) => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.8, delay: 0.4 }}
-                      className="relative mt-3 inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600"
+                      className="relative mt-3 inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500/80 to-blue-900/50"
                     >
                       Into Impact
                       <motion.span
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
                         transition={{ duration: 1, delay: 0.8 }}
-                        className="absolute -bottom-3 left-0 w-full h-[3px] bg-gradient-to-r from-blue-500/40 via-blue-400/20 to-transparent transform origin-left"
+                        className="absolute -bottom-3 left-0 w-full h-[3px] bg-gradient-to-r from-blue-500/40 via-blue-600/20 to-transparent transform origin-left"
                       />
                     </motion.span>
                   </h1>
@@ -106,11 +107,12 @@ const HeroSection = ({ onCreateClick }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.6 }}
-                  className="text-xl text-white/70 leading-relaxed max-w-2xl font-light"
+                  className="text-xl leading-relaxed max-w-2xl font-light"
                 >
-                  Your skills are valuable. Whether it's tutoring, mentoring, or sharing expertise, 
-                  <span className="text-blue-400/90"> transform your academic excellence into meaningful opportunities</span>. 
-                  Join a community where knowledge creates impact.
+                  <span className="text-white/90">Your skills are valuable. </span>
+                  <span className="bg-gradient-to-r from-blue-400/90 via-blue-400/80 to-blue-500/70 bg-clip-text text-transparent">Whether it's tutoring, mentoring, or sharing expertise, </span>
+                  <span className="bg-gradient-to-r from-blue-400/80 via-blue-500/70 to-blue-600/60 bg-clip-text text-transparent">transform your academic excellence into meaningful opportunities. </span>
+                  <span className="bg-gradient-to-r from-blue-500/70 via-blue-500/60 to-blue-600/50 bg-clip-text text-transparent">Join a community where knowledge creates impact.</span>
                 </motion.p>
 
                 <motion.div
@@ -150,15 +152,21 @@ const HeroSection = ({ onCreateClick }) => {
                   className="grid grid-cols-3 gap-16 pt-12 mt-4 border-t border-white/5"
                 >
                   <div className="group">
-                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">150<span className="text-blue-400">+</span></p>
+                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">
+                      150<span className="text-blue-400">+</span>
+                    </p>
                     <p className="text-base text-white/50 mt-2">Expert Students</p>
                   </div>
                   <div className="group">
-                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">15K<span className="text-blue-400">+</span></p>
+                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">
+                      15K<span className="bg-gradient-to-r from-blue-400 via-blue-500/80 to-blue-900/50 bg-clip-text text-transparent">+</span>
+                    </p>
                     <p className="text-base text-white/50 mt-2">Hours Shared</p>
                   </div>
                   <div className="group">
-                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">98<span className="text-blue-400">%</span></p>
+                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">
+                      98<span className="bg-gradient-to-r from-blue-400/80 via-blue-600/60 to-blue-900/40 bg-clip-text text-transparent">%</span>
+                    </p>
                     <p className="text-base text-white/50 mt-2">Success Stories</p>
                   </div>
                 </motion.div>
@@ -240,6 +248,7 @@ const HeroSection = ({ onCreateClick }) => {
         }
       `}</style>
     </div>
+    </>
   )
 }
 
