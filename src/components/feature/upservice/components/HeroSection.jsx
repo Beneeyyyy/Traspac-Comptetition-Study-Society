@@ -20,155 +20,210 @@ const HeroSection = ({ onCreateClick }) => {
   }, [])
 
   const handleCreateClick = () => {
-    // Scroll ke bawah dengan animasi smooth
     window.scrollTo({
       top: window.innerHeight,
       behavior: 'smooth'
     })
-    
-    // Tunggu scroll selesai baru buka modal
     setTimeout(() => {
       onCreateClick()
     }, 500)
   }
 
   const handleExploreClick = () => {
-    // Scroll ke bawah dengan animasi smooth
     window.scrollTo({
       top: window.innerHeight,
       behavior: 'smooth'
     })
   }
 
-  // Duplicate array untuk memastikan ada cukup gambar untuk animasi marquee
-  const duplicatedServices = [...services, ...services]
+  // Duplicate services for infinite marquee
+  const duplicatedServices = [...services, ...services, ...services]
 
   return (
-    <div className="relative min-h-screen flex items-center overflow-hidden">
-      {/* Background dengan gradient yang lebih fokus di kiri */}
-      <div className="absolute inset-0">
-        {/* Efek cahaya yang terfokus di tengah */}
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[50vh] bg-gradient-to-r from-blue-500/[0.1] via-transparent to-transparent"></div>
-        
-        {/* Radial gradient di tengah */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[50%] h-[40vh] bg-[radial-gradient(ellipse_at_center,_rgba(59,130,246,0.1),transparent_70%)]"></div>
-        
-        {/* Subtle dots pattern */}
-        <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay">
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[40%] h-[30vh] bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.1)_1px,_transparent_1px)] [background-size:24px_24px]"></div>
+    <div className="relative min-h-screen bg-black overflow-hidden">
+      {/* Simple Dark Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-black to-black/95" />
+      
+      {/* Subtle Animated Background */}
+      <motion.div
+        animate={{
+          opacity: [0.05, 0.08, 0.05],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15),transparent_70%)]"
+      />
+
+      {/* Content Container */}
+      <div className="relative z-10 container mx-auto px-6 h-screen">
+        <div className="h-full flex items-center">
+          <div className="w-full flex flex-col lg:flex-row items-center justify-between gap-20">
+            {/* Left Content */}
+            <div className="flex-1 max-w-xl">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+                className="space-y-8"
+              >
+                {/* Decorative Elements */}
+                <div className="absolute -left-20 top-1/2 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
+                <div className="absolute -left-10 top-1/3 w-24 h-24 bg-purple-500/10 rounded-full blur-3xl" />
+
+                {/* Main Content */}
+                <div className="relative space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-blue-400/80">
+                    <span className="h-px w-10 bg-blue-400/50"></span>
+                    STUDENT MARKETPLACE
+                  </div>
+                  <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight">
+                    <span className="text-white/90">Discover and</span>
+                    <br />
+                    <span className="relative mt-1 inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
+                      Share Knowledge
+                      <motion.span
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 1, delay: 0.8 }}
+                        className="absolute -bottom-2 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500/50 to-transparent transform origin-left"
+                      />
+                    </span>
+                  </h1>
+                </div>
+
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.3 }}
+                  className="text-base text-white/60 leading-relaxed max-w-lg"
+                >
+                  Join a thriving community of students where you can transform your skills into valuable services. Share your expertise, help others learn, and earn while making a difference.
+                </motion.p>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.5 }}
+                  className="flex flex-col sm:flex-row gap-4"
+                >
+                  <button
+                    onClick={handleCreateClick}
+                    className="group relative px-8 py-4 bg-blue-500 text-white font-medium rounded-xl overflow-hidden hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <span className="relative flex items-center justify-center text-sm font-semibold tracking-wide">
+                      Start Teaching
+                      <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                  </button>
+                  <button
+                    onClick={handleExploreClick}
+                    className="px-8 py-4 bg-white/5 text-white font-medium rounded-xl transition-all border border-white/10 hover:bg-white/10 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5"
+                  >
+                    <span className="text-sm font-semibold tracking-wide">Browse Services</span>
+                  </button>
+                </motion.div>
+
+                {/* Stats Section */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.7 }}
+                  className="grid grid-cols-3 gap-8 pt-8 border-t border-white/5"
+                >
+                  <div>
+                    <p className="text-2xl font-bold text-white/90">150<span className="text-blue-400">+</span></p>
+                    <p className="text-sm text-white/40 mt-1">Total Services</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white/90">Rp<span className="text-blue-400">15M</span></p>
+                    <p className="text-sm text-white/40 mt-1">Total Transactions</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white/90">4.8<span className="text-blue-400">/5</span></p>
+                    <p className="text-sm text-white/40 mt-1">Average Rating</p>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
+
+            {/* Right Content - Service Previews */}
+            <div className="flex-1 relative h-[650px] max-w-2xl">
+              {/* Enhanced Vignette Effects */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-20" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black pointer-events-none z-20" />
+              <div className="absolute -inset-20 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.95))] pointer-events-none z-20" />
+              
+              {/* Columns Container */}
+              <div className="relative h-full overflow-hidden px-8">
+                {/* Left Column - Moving Down */}
+                <div className="absolute left-0 w-[calc(50%-4px)] animate-marquee-down">
+                  {duplicatedServices.slice(0, 8).map((service, index) => (
+                    <motion.div
+                      key={`down-${index}`}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 1, delay: index * 0.1 }}
+                      className="relative mb-3 aspect-[3/4] rounded-lg overflow-hidden group transform-gpu"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent group-hover:via-black/0 transition-all duration-500" />
+                      <img
+                        src={service.images?.[0]}
+                        alt="Preview"
+                        className="w-full h-full object-cover scale-110 group-hover:scale-125 transition-transform duration-700 ease-out"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Right Column - Moving Up */}
+                <div className="absolute right-0 w-[calc(50%-4px)] animate-marquee-up">
+                  {duplicatedServices.slice(8, 16).map((service, index) => (
+                    <motion.div
+                      key={`up-${index}`}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 1, delay: index * 0.1 }}
+                      className="relative mb-3 aspect-[3/4] rounded-lg overflow-hidden group transform-gpu"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent group-hover:via-black/0 transition-all duration-500" />
+                      <img
+                        src={service.images?.[0]}
+                        alt="Preview"
+                        className="w-full h-full object-cover scale-110 group-hover:scale-125 transition-transform duration-700 ease-out"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="container max-w-7xl mx-auto px-4 relative z-10">
-        <div className="flex flex-col lg:flex-row items-center gap-12 w-full">
-          {/* Left Content - dengan animasi dan gradient text */}
-          <div className="flex-1 lg:pr-8">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <h1 className="text-5xl lg:text-7xl font-bold mb-8 leading-tight">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-blue-400">
-                  Turn Your Skills
-                </span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600 block mt-2">
-                  Into Income
-                </span>
-              </h1>
-              <p className="text-xl text-white/80 mb-10 max-w-xl">
-                Transform your daily activities into profitable services. Join our platform where students can showcase their talents and skills to a global audience. Start earning while doing what you love.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button 
-                  onClick={handleCreateClick}
-                  className="group px-10 py-5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all flex items-center justify-center shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
-                >
-                  <span className="text-xl font-medium">Start Offering Services</span>
-                  <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button 
-                  onClick={handleExploreClick}
-                  className="px-10 py-5 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all text-xl font-medium backdrop-blur-sm border border-white/10 hover:border-white/20"
-                >
-                  Explore Services
-                </button>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Right Content - Image Grid dengan efek gelap di sisi kanan */}
-          <div className="flex-1 relative">
-            <div className="absolute -inset-4 bg-gradient-to-l from-black via-black/50 to-transparent z-0"></div>
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8 }}
-              className="relative z-10 grid grid-cols-2 gap-6"
-            >
-              {/* Container for Images 1 & 2 - Marquee Top to Bottom */}
-              <div className="relative -mt-6">
-                <div className="rounded-2xl bg-white/5 p-4 backdrop-blur-sm relative overflow-hidden h-[600px]">
-                  <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
-                  
-                  <div className="animate-marquee-down flex flex-col gap-6">
-                    {duplicatedServices.slice(0, 7).map((service, index) => (
-                      <div key={`down-${service.id}-${index}`} className="rounded-2xl overflow-hidden shadow-lg bg-white/5 p-3">
-                        <img 
-                          src={service.images[0]} 
-                          alt={service.title} 
-                          className="w-full h-56 object-cover rounded-xl"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none"></div>
-                </div>
-              </div>
-
-              {/* Container for Images 3 & 4 - Marquee Bottom to Top */}
-              <div className="relative mt-24">
-                <div className="rounded-2xl bg-white/5 p-4 backdrop-blur-sm relative overflow-hidden h-[600px]">
-                  <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
-                  
-                  <div className="animate-marquee-up flex flex-col gap-6">
-                    {duplicatedServices.slice(7, 14).map((service, index) => (
-                      <div key={`up-${service.id}-${index}`} className="rounded-2xl overflow-hidden shadow-lg bg-white/5 p-3">
-                        <img 
-                          src={service.images[0]} 
-                          alt={service.title} 
-                          className="w-full h-56 object-cover rounded-xl"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none"></div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </div>
-
+      {/* Marquee Animation Styles */}
       <style jsx>{`
         @keyframes marquee-down {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(-50%); }
-        }
-
-        @keyframes marquee-up {
           0% { transform: translateY(-50%); }
           100% { transform: translateY(0); }
         }
 
+        @keyframes marquee-up {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-50%); }
+        }
+
         .animate-marquee-down {
-          animation: marquee-down 20s linear infinite;
+          animation: marquee-down 30s linear infinite;
         }
 
         .animate-marquee-up {
-          animation: marquee-up 20s linear infinite;
+          animation: marquee-up 30s linear infinite;
         }
       `}</style>
     </div>
