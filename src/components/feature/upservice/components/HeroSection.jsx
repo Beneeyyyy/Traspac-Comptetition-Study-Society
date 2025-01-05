@@ -54,6 +54,12 @@ const HeroSection = ({ onCreateClick }) => {
         <div className="absolute left-0 w-[5%] h-full bg-[url('/grid.svg')] opacity-[0.01]" />
       </div>
 
+      {/* Bottom Gradient Overlay for Smooth Transition */}
+      <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
+        <div className="h-32 bg-gradient-to-t from-black via-black/80 to-transparent" />
+        <div className="h-16 bg-gradient-to-t from-black to-black/90" />
+      </div>
+
       {/* Content Container */}
       <div className="relative z-10 container mx-auto px-6 h-screen">
         <div className="h-full flex items-center">

@@ -129,80 +129,183 @@ const UpService = () => {
       </div>
 
       <main className="relative" style={{ zIndex: 1 }}>
-        <HeroSection onCreateClick={() => setIsCreateModalOpen(true)} />
+        {/* Hero Section with Gradient Transition */}
+        <div className="relative">
+          <HeroSection onCreateClick={() => setIsCreateModalOpen(true)} />
+          {/* Multi-layer Smooth Dark Gradient Transition */}
+          <div className="absolute -bottom-96 left-0 right-0 h-96 pointer-events-none">
+            {/* Main fade to black - darker and longer */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black to-black" />
+            {/* Extra dark layer for smoother transition */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/80 to-black" />
+            {/* Subtle blue accent for depth */}
+            <div className="absolute inset-0 bg-gradient-to-b from-blue-500/[0.01] via-transparent to-transparent opacity-50" />
+          </div>
+        </div>
 
-        {/* Fun Stats Section */}
-      
+        {/* Main Content with Enhanced Background */}
+        <div className="relative bg-black">
+          {/* Abstract Background Patterns */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Animated Abstract Lines */}
+            <svg className="absolute w-full h-full opacity-[0.2]" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {/* Wavy Line 1 */}
+              <motion.path
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 4, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+                d="M-10,20 Q30,40 50,20 T110,20"
+                stroke="url(#abstractLine1)"
+                strokeWidth="0.5"
+                fill="none"
+              />
+              {/* Wavy Line 2 */}
+              <motion.path
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 5, ease: "easeInOut", repeat: Infinity, repeatType: "reverse", delay: 0.5 }}
+                d="M-10,40 Q25,60 50,40 T110,40"
+                stroke="url(#abstractLine2)"
+                strokeWidth="0.5"
+                fill="none"
+              />
+              {/* Diagonal Lines */}
+              <motion.path
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 3, ease: "easeInOut", repeat: Infinity, repeatType: "reverse", delay: 1 }}
+                d="M15,0 L85,100"
+                stroke="url(#abstractLine3)"
+                strokeWidth="0.3"
+                fill="none"
+              />
+              <motion.path
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 3, ease: "easeInOut", repeat: Infinity, repeatType: "reverse", delay: 1.5 }}
+                d="M85,0 L15,100"
+                stroke="url(#abstractLine3)"
+                strokeWidth="0.3"
+                fill="none"
+              />
+              <defs>
+                <linearGradient id="abstractLine1" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.5" />
+                  <stop offset="50%" stopColor="#8B5CF6" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.5" />
+                </linearGradient>
+                <linearGradient id="abstractLine2" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.4" />
+                  <stop offset="50%" stopColor="#A78BFA" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.4" />
+                </linearGradient>
+                <linearGradient id="abstractLine3" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0.2" />
+                </linearGradient>
+              </defs>
+            </svg>
 
-        {/* Main Content */}
-        <div className="container max-w-7xl mx-auto px-4 relative pb-12">
-          <ServiceHeader
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-            categories={categories}
-            onCreateClick={() => setIsCreateModalOpen(true)}
-          />
+            {/* Floating Gradient Orbs */}
+            <div className="absolute -left-1/4 top-1/4 w-1/2 h-1/2 opacity-[0.07]">
+              <motion.div
+                animate={{
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 180, 0],
+                }}
+                transition={{
+                  duration: 25,
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+                className="w-full h-full rounded-full bg-gradient-to-r from-blue-500/30 via-purple-500/20 to-blue-500/30 blur-3xl"
+              />
+            </div>
+            <div className="absolute -right-1/4 bottom-1/4 w-1/2 h-1/2 opacity-[0.05]">
+              <motion.div
+                animate={{
+                  scale: [1.2, 1, 1.2],
+                  rotate: [180, 0, 180],
+                }}
+                transition={{
+                  duration: 20,
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+                className="w-full h-full rounded-full bg-gradient-to-r from-purple-500/30 via-blue-500/20 to-purple-500/30 blur-3xl"
+              />
+            </div>
+          </div>
 
-          {/* Playful Category Pills */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex flex-wrap gap-3 mb-8"
-          >
-           
-          </motion.div>
+          <div className="container max-w-7xl mx-auto px-4 relative">
+            <ServiceHeader
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              categories={categories}
+              onCreateClick={() => setIsCreateModalOpen(true)}
+            />
 
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <div className="flex justify-center items-center min-h-[400px]">
-                <LoadingSpinner />
-              </div>
-            ) : (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
-              >
-                {services.map((service, index) => (
-                  <motion.div
-                    key={service.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <ServiceCard
-                      service={service}
-                      onCardClick={setSelectedService}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Fun Empty State */}
-          {!loading && services.length === 0 && (
+            {/* Playful Category Pills */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center py-12"
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="flex flex-wrap gap-3 mb-8"
             >
-              <div className="text-gray-400 mb-4">No services found yet! 🎨</div>
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsCreateModalOpen(true)}
-                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/25"
-              >
-                Create Your First Service ✨
-              </motion.button>
+             
             </motion.div>
-          )}
+
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <div className="flex justify-center items-center min-h-[400px]">
+                  <LoadingSpinner />
+                </div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
+                >
+                  {services.map((service, index) => (
+                    <motion.div
+                      key={service.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <ServiceCard
+                        service={service}
+                        onCardClick={setSelectedService}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Fun Empty State */}
+            {!loading && services.length === 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center py-12"
+              >
+                <div className="text-gray-400 mb-4">No services found yet! 🎨</div>
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/25"
+                >
+                  Create Your First Service ✨
+                </motion.button>
+              </motion.div>
+            )}
+          </div>
         </div>
 
         <CreateServiceModal
