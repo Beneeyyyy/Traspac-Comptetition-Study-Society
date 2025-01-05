@@ -41,54 +41,46 @@ const HeroSection = ({ onCreateClick }) => {
 
   return (
     <div className="relative min-h-screen bg-black overflow-hidden">
-      {/* Simple Dark Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-black to-black/95" />
-      
-      {/* Subtle Animated Background */}
-      <motion.div
-        animate={{
-          opacity: [0.05, 0.08, 0.05],
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15),transparent_70%)]"
-      />
+      {/* Abstract Background Elements */}
+      <div className="absolute inset-0">
+        {/* Dark Gradient Base - Ultra Minimal */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A1A]/60 via-black to-black" style={{ backgroundSize: '20% 100%' }} />
+        
+        {/* Subtle Left Side Glow - Ultra Minimal */}
+        <div className="absolute left-0 w-[5%] h-full bg-gradient-to-r from-blue-500/[0.01] to-transparent" />
+
+        {/* Grid Pattern - Ultra Minimal */}
+        <div className="absolute left-0 w-[5%] h-full bg-[url('/grid.svg')] opacity-[0.01]" />
+      </div>
 
       {/* Content Container */}
       <div className="relative z-10 container mx-auto px-6 h-screen">
         <div className="h-full flex items-center">
           <div className="w-full flex flex-col lg:flex-row items-center justify-between gap-20">
             {/* Left Content */}
-            <div className="flex-1 max-w-xl">
+            <div className="flex-1 max-w-3xl pl-8 lg:pl-16">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
-                className="space-y-8"
+                className="space-y-12"
               >
-                {/* Decorative Elements */}
-                <div className="absolute -left-20 top-1/2 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
-                <div className="absolute -left-10 top-1/3 w-24 h-24 bg-purple-500/10 rounded-full blur-3xl" />
-
                 {/* Main Content */}
-                <div className="relative space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-blue-400/80">
-                    <span className="h-px w-10 bg-blue-400/50"></span>
+                <div className="relative space-y-5">
+                  <div className="flex items-center gap-4 text-base text-blue-400/70">
+                    <span className="h-[2px] w-20 bg-blue-400/40"></span>
                     STUDENT MARKETPLACE
                   </div>
-                  <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight">
-                    <span className="text-white/90">Discover and</span>
+                  <h1 className="text-5xl lg:text-7xl xl:text-8xl font-bold tracking-tight leading-[1.1]">
+                    <span className="text-white/95">Transform Your</span>
                     <br />
-                    <span className="relative mt-1 inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
-                      Share Knowledge
+                    <span className="relative mt-3 inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
+                      Skills & Knowledge
                       <motion.span
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
                         transition={{ duration: 1, delay: 0.8 }}
-                        className="absolute -bottom-2 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500/50 to-transparent transform origin-left"
+                        className="absolute -bottom-3 left-0 w-full h-[3px] bg-gradient-to-r from-blue-500/40 to-transparent transform origin-left"
                       />
                     </span>
                   </h1>
@@ -98,32 +90,32 @@ const HeroSection = ({ onCreateClick }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.3 }}
-                  className="text-base text-white/60 leading-relaxed max-w-lg"
+                  className="text-lg text-white/60 leading-relaxed max-w-2xl"
                 >
-                  Join a thriving community of students where you can transform your skills into valuable services. Share your expertise, help others learn, and earn while making a difference.
+                  Join our vibrant student community where expertise meets opportunity. Transform your academic knowledge into valuable services, help fellow students excel, and build your professional portfolio while earning.
                 </motion.p>
 
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.5 }}
-                  className="flex flex-col sm:flex-row gap-4"
+                  className="flex flex-col sm:flex-row gap-5"
                 >
                   <button
                     onClick={handleCreateClick}
-                    className="group relative px-8 py-4 bg-blue-500 text-white font-medium rounded-xl overflow-hidden hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300"
+                    className="group relative px-10 py-4 bg-blue-500 text-white text-lg font-medium rounded-xl overflow-hidden hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <span className="relative flex items-center justify-center text-sm font-semibold tracking-wide">
+                    <span className="relative flex items-center justify-center font-semibold tracking-wide">
                       Start Teaching
-                      <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                      <FiArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </span>
                   </button>
                   <button
                     onClick={handleExploreClick}
-                    className="px-8 py-4 bg-white/5 text-white font-medium rounded-xl transition-all border border-white/10 hover:bg-white/10 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5"
+                    className="px-10 py-4 bg-white/5 text-white text-lg font-medium rounded-xl transition-all border border-white/10 hover:bg-white/10 hover:border-blue-500/30"
                   >
-                    <span className="text-sm font-semibold tracking-wide">Browse Services</span>
+                    <span className="font-semibold tracking-wide">Browse Services</span>
                   </button>
                 </motion.div>
 
@@ -132,30 +124,28 @@ const HeroSection = ({ onCreateClick }) => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.8, delay: 0.7 }}
-                  className="grid grid-cols-3 gap-8 pt-8 border-t border-white/5"
+                  className="grid grid-cols-3 gap-16 pt-12 mt-4 border-t border-white/5"
                 >
                   <div>
-                    <p className="text-2xl font-bold text-white/90">150<span className="text-blue-400">+</span></p>
-                    <p className="text-sm text-white/40 mt-1">Total Services</p>
+                    <p className="text-4xl font-bold text-white/95">150<span className="text-blue-400">+</span></p>
+                    <p className="text-base text-white/50 mt-2">Active Services</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-white/90">Rp<span className="text-blue-400">15M</span></p>
-                    <p className="text-sm text-white/40 mt-1">Total Transactions</p>
+                    <p className="text-4xl font-bold text-white/95">Rp<span className="text-blue-400">15M</span></p>
+                    <p className="text-base text-white/50 mt-2">Total Earnings</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-white/90">4.8<span className="text-blue-400">/5</span></p>
-                    <p className="text-sm text-white/40 mt-1">Average Rating</p>
+                    <p className="text-4xl font-bold text-white/95">4.8<span className="text-blue-400">/5</span></p>
+                    <p className="text-base text-white/50 mt-2">Student Rating</p>
                   </div>
                 </motion.div>
               </motion.div>
             </div>
 
             {/* Right Content - Service Previews */}
-            <div className="flex-1 relative h-[650px] max-w-2xl">
-              {/* Enhanced Vignette Effects */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-20" />
-              <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black pointer-events-none z-20" />
-              <div className="absolute -inset-20 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.95))] pointer-events-none z-20" />
+            <div className="flex-1 relative h-[750px] max-w-2xl">
+              {/* Darker Vignette for Marquee */}
+              <div className="absolute -inset-16 bg-[radial-gradient(circle_at_center,transparent_5%,black_50%)] pointer-events-none z-20" />
               
               {/* Columns Container */}
               <div className="relative h-full overflow-hidden px-8">
@@ -164,18 +154,18 @@ const HeroSection = ({ onCreateClick }) => {
                   {duplicatedServices.slice(0, 8).map((service, index) => (
                     <motion.div
                       key={`down-${index}`}
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 1, delay: index * 0.1 }}
                       className="relative mb-3 aspect-[3/4] rounded-lg overflow-hidden group transform-gpu"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent group-hover:via-black/0 transition-all duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-100 group-hover:opacity-40 transition-all duration-500" />
                       <img
                         src={service.images?.[0]}
                         alt="Preview"
-                        className="w-full h-full object-cover scale-110 group-hover:scale-125 transition-transform duration-700 ease-out"
+                        className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-500 ease-out"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black opacity-0 group-hover:opacity-90 transition-all duration-500" />
                     </motion.div>
                   ))}
                 </div>
@@ -185,18 +175,18 @@ const HeroSection = ({ onCreateClick }) => {
                   {duplicatedServices.slice(8, 16).map((service, index) => (
                     <motion.div
                       key={`up-${index}`}
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 1, delay: index * 0.1 }}
                       className="relative mb-3 aspect-[3/4] rounded-lg overflow-hidden group transform-gpu"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent group-hover:via-black/0 transition-all duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-100 group-hover:opacity-40 transition-all duration-500" />
                       <img
                         src={service.images?.[0]}
                         alt="Preview"
-                        className="w-full h-full object-cover scale-110 group-hover:scale-125 transition-transform duration-700 ease-out"
+                        className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-500 ease-out"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black opacity-0 group-hover:opacity-90 transition-all duration-500" />
                     </motion.div>
                   ))}
                 </div>
@@ -219,11 +209,11 @@ const HeroSection = ({ onCreateClick }) => {
         }
 
         .animate-marquee-down {
-          animation: marquee-down 30s linear infinite;
+          animation: marquee-down 40s linear infinite;
         }
 
         .animate-marquee-up {
-          animation: marquee-up 30s linear infinite;
+          animation: marquee-up 40s linear infinite;
         }
       `}</style>
     </div>
