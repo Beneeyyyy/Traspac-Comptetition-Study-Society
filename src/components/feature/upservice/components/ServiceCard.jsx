@@ -12,65 +12,87 @@ const ServiceCard = ({ service, onCardClick }) => {
 
   return (
     <div 
-      className="group bg-gray-900 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/20"
+      className="group relative bg-gradient-to-t from-blue-950 via-black to-black/80 backdrop-blur-sm rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10 border border-white/5 h-[440px] flex flex-col"
       onClick={() => onCardClick(service)}
     >
-      {/* Service Image */}
-      <div className="relative h-48">
+      {/* Service Image Container */}
+      <div className="relative h-52">
         <img
           src={images[0]}
           alt={title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/20 to-transparent opacity-60"></div>
-        <div className="absolute top-4 right-4 bg-blue-500 px-4 py-2 rounded-lg shadow-lg transform transition-transform duration-300 group-hover:-translate-y-1">
-          <span className="text-white font-semibold">Rp{price.toLocaleString()}</span>
+        {/* Gradient overlay untuk memastikan kontras */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/40"></div>
+        
+        {/* Category - dipindah ke bawah untuk kontras lebih baik */}
+        <div className="absolute bottom-4 left-4">
+          <div className="bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10 group-hover:border-white/20 transition-colors">
+            <span className="text-white text-sm font-medium">{category}</span>
+          </div>
         </div>
-        <div className="absolute top-4 left-4 bg-gray-900/80 backdrop-blur-sm px-3 py-1 rounded-full">
-          <span className="text-white text-sm font-medium">{category}</span>
+
+        {/* Price - dengan efek glass morphism yang elegan */}
+        <div className="absolute top-4 right-4">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 blur-xl rounded-xl group-hover:blur-2xl transition-all"></div>
+            <div className="relative bg-black/50 backdrop-blur-md border border-white/10 group-hover:border-white/20 px-4 py-2 rounded-xl transition-all duration-300 group-hover:-translate-y-1">
+              <div className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 font-bold">
+                Rp{price.toLocaleString()}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Service Info */}
-      <div className="p-6">
-        <h3 className="text-xl font-bold text-white mb-2 truncate group-hover:text-blue-400 transition-colors">
-          {title}
-        </h3>
-        <p className="text-gray-400 text-sm mb-4 line-clamp-2 group-hover:text-gray-300 transition-colors">
-          {description}
-        </p>
-
-        {/* Rating */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-lg">
-            <span className="text-yellow-500">★</span>
-            <span className="text-yellow-500 font-semibold">{rating.toFixed(1)}</span>
-          </div>
-          <span className="text-gray-400 text-sm">({totalReviews.toLocaleString()} reviews)</span>
+      {/* Service Info - dengan flex grow untuk konsistensi */}
+      <div className="relative flex-grow flex flex-col p-5 bg-gradient-to-br from-black via-black/95 to-black/90">
+        {/* Title & Description */}
+        <div className="space-y-2 mb-4">
+          <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 truncate group-hover:from-blue-400 group-hover:to-purple-400 transition-all">
+            {title}
+          </h3>
+          <p className="text-gray-400 text-sm line-clamp-2 group-hover:text-gray-300 transition-colors">
+            {description}
+          </p>
         </div>
 
-        {/* Provider Info */}
-        <div className="flex items-center justify-between border-t border-gray-800 pt-4 mt-4">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <img
-                src={provider.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(provider.name)}&background=random`}
-                alt={provider.name}
-                className="w-10 h-10 rounded-full border-2 border-blue-500/50"
-              />
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
-            </div>
-            <div>
-              <p className="text-white text-sm font-semibold group-hover:text-blue-400 transition-colors">{provider.name}</p>
-              <p className="text-gray-400 text-xs">{provider.school?.name}</p>
-            </div>
+        {/* Stats Bar */}
+        <div className="flex items-center gap-3 mb-4">
+          {/* Rating */}
+          <div className="flex items-center gap-1 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-yellow-500/10">
+            <span className="text-yellow-500">★</span>
+            <span className="text-white font-semibold">{rating.toFixed(1)}</span>
           </div>
+          <span className="text-gray-500 text-sm group-hover:text-gray-400">
+            {totalReviews.toLocaleString()} reviews
+          </span>
+          {/* Location */}
           {provider.school?.province && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-400 to-purple-400"></div>
               <span className="text-gray-400 text-xs">{provider.school.province}</span>
             </div>
           )}
+        </div>
+
+        {/* Provider Info - dengan margin-top auto untuk posisi konsisten */}
+        <div className="flex items-center gap-3 pt-3 mt-auto border-t border-white/5">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur"></div>
+            <img
+              src={provider.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(provider.name)}&background=random`}
+              alt={provider.name}
+              className="relative w-9 h-9 rounded-full border border-white/10 group-hover:border-white/20 transition-colors"
+            />
+            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-gradient-to-r from-green-400 to-green-500 rounded-full border-2 border-black"></div>
+          </div>
+          <div>
+            <p className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 text-sm font-semibold group-hover:from-blue-400 group-hover:to-purple-400 transition-all">
+              {provider.name}
+            </p>
+            <p className="text-gray-500 text-xs group-hover:text-gray-400">{provider.school?.name}</p>
+          </div>
         </div>
       </div>
     </div>

@@ -203,20 +203,7 @@ const UpService = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex flex-wrap gap-3 mb-8"
           >
-            {categories.map((category, index) => (
-              <motion.button
-                key={category}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300
-                  ${selectedCategory === category 
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25' 
-                    : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 hover:text-white backdrop-blur-sm'}`}
-              >
-                {category}
-              </motion.button>
-            ))}
+           
           </motion.div>
 
           <AnimatePresence mode="wait">

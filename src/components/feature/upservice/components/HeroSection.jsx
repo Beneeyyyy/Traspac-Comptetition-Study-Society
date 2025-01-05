@@ -32,6 +32,14 @@ const HeroSection = ({ onCreateClick }) => {
     }, 500)
   }
 
+  const handleExploreClick = () => {
+    // Scroll ke bawah dengan animasi smooth
+    window.scrollTo({
+      top: window.innerHeight,
+      behavior: 'smooth'
+    })
+  }
+
   // Duplicate array untuk memastikan ada cukup gambar untuk animasi marquee
   const duplicatedServices = [...services, ...services]
 
@@ -79,7 +87,10 @@ const HeroSection = ({ onCreateClick }) => {
                   <span className="text-xl font-medium">Start Offering Services</span>
                   <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </button>
-                <button className="px-10 py-5 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all text-xl font-medium backdrop-blur-sm border border-white/10 hover:border-white/20">
+                <button 
+                  onClick={handleExploreClick}
+                  className="px-10 py-5 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all text-xl font-medium backdrop-blur-sm border border-white/10 hover:border-white/20"
+                >
                   Explore Services
                 </button>
               </div>
