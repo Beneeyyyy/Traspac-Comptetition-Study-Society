@@ -67,55 +67,78 @@ const HeroSection = ({ onCreateClick }) => {
               >
                 {/* Main Content */}
                 <div className="relative space-y-5">
-                  <div className="flex items-center gap-4 text-base text-blue-400/70">
-                    <span className="h-[2px] w-20 bg-blue-400/40"></span>
-                    STUDENT MARKETPLACE
-                  </div>
+                  <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="flex items-center gap-4"
+                  >
+                    <span className="h-[2px] w-20 bg-gradient-to-r from-blue-500/40 to-transparent"></span>
+                    <span className="text-base font-medium tracking-wider text-blue-400/70">UNLOCK YOUR POTENTIAL</span>
+                  </motion.div>
                   <h1 className="text-5xl lg:text-7xl xl:text-8xl font-bold tracking-tight leading-[1.1]">
-                    <span className="text-white/95">Transform Your</span>
-                    <br />
-                    <span className="relative mt-3 inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
-                      Skills & Knowledge
+                    <motion.span 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                      className="block text-white/95"
+                    >
+                      Turn Knowledge
+                    </motion.span>
+                    <motion.span 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.8, delay: 0.4 }}
+                      className="relative mt-3 inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600"
+                    >
+                      Into Impact
                       <motion.span
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
                         transition={{ duration: 1, delay: 0.8 }}
-                        className="absolute -bottom-3 left-0 w-full h-[3px] bg-gradient-to-r from-blue-500/40 to-transparent transform origin-left"
+                        className="absolute -bottom-3 left-0 w-full h-[3px] bg-gradient-to-r from-blue-500/40 via-blue-400/20 to-transparent transform origin-left"
                       />
-                    </span>
+                    </motion.span>
                   </h1>
                 </div>
 
                 <motion.p
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.3 }}
-                  className="text-lg text-white/60 leading-relaxed max-w-2xl"
+                  transition={{ duration: 0.8, delay: 0.6 }}
+                  className="text-xl text-white/70 leading-relaxed max-w-2xl font-light"
                 >
-                  Join our vibrant student community where expertise meets opportunity. Transform your academic knowledge into valuable services, help fellow students excel, and build your professional portfolio while earning.
+                  Your skills are valuable. Whether it's tutoring, mentoring, or sharing expertise, 
+                  <span className="text-blue-400/90"> transform your academic excellence into meaningful opportunities</span>. 
+                  Join a community where knowledge creates impact.
                 </motion.p>
 
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.5 }}
-                  className="flex flex-col sm:flex-row gap-5"
+                  transition={{ duration: 0.8, delay: 0.7 }}
+                  className="flex flex-col sm:flex-row gap-6"
                 >
                   <button
                     onClick={handleCreateClick}
-                    className="group relative px-10 py-4 bg-blue-500 text-white text-lg font-medium rounded-xl overflow-hidden hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300"
+                    className="group relative px-12 py-5 bg-transparent text-white text-lg overflow-hidden rounded-xl transition-all duration-300"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <span className="relative flex items-center justify-center font-semibold tracking-wide">
-                      Start Teaching
+                    <div className="absolute inset-[1.5px] bg-black rounded-[10px] z-[2]" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/50 via-blue-500/25 to-transparent rounded-xl z-[1]" />
+                    <span className="relative z-[3] flex items-center justify-center font-medium tracking-wide text-white/90 group-hover:text-white">
+                      Share Your Expertise
                       <FiArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </span>
                   </button>
                   <button
                     onClick={handleExploreClick}
-                    className="px-10 py-4 bg-white/5 text-white text-lg font-medium rounded-xl transition-all border border-white/10 hover:bg-white/10 hover:border-blue-500/30"
+                    className="group relative px-12 py-5 bg-transparent text-white text-lg overflow-hidden rounded-xl transition-all duration-300"
                   >
-                    <span className="font-semibold tracking-wide">Browse Services</span>
+                    <div className="absolute inset-[1.5px] bg-black rounded-[10px] z-[2]" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-white/10 to-transparent rounded-xl z-[1] group-hover:from-blue-500/30 group-hover:via-blue-500/15 group-hover:to-transparent transition-all duration-500" />
+                    <span className="relative z-[3] font-medium tracking-wide text-white/80 group-hover:text-white/90">
+                      Discover Services
+                    </span>
                   </button>
                 </motion.div>
 
@@ -123,20 +146,20 @@ const HeroSection = ({ onCreateClick }) => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.8, delay: 0.7 }}
+                  transition={{ duration: 0.8, delay: 0.8 }}
                   className="grid grid-cols-3 gap-16 pt-12 mt-4 border-t border-white/5"
                 >
-                  <div>
-                    <p className="text-4xl font-bold text-white/95">150<span className="text-blue-400">+</span></p>
-                    <p className="text-base text-white/50 mt-2">Active Services</p>
+                  <div className="group">
+                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">150<span className="text-blue-400">+</span></p>
+                    <p className="text-base text-white/50 mt-2">Expert Students</p>
                   </div>
-                  <div>
-                    <p className="text-4xl font-bold text-white/95">Rp<span className="text-blue-400">15M</span></p>
-                    <p className="text-base text-white/50 mt-2">Total Earnings</p>
+                  <div className="group">
+                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">15K<span className="text-blue-400">+</span></p>
+                    <p className="text-base text-white/50 mt-2">Hours Shared</p>
                   </div>
-                  <div>
-                    <p className="text-4xl font-bold text-white/95">4.8<span className="text-blue-400">/5</span></p>
-                    <p className="text-base text-white/50 mt-2">Student Rating</p>
+                  <div className="group">
+                    <p className="text-4xl font-bold text-white/95 group-hover:text-blue-400/90 transition-colors">98<span className="text-blue-400">%</span></p>
+                    <p className="text-base text-white/50 mt-2">Success Stories</p>
                   </div>
                 </motion.div>
               </motion.div>
