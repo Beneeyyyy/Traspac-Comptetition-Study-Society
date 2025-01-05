@@ -61,7 +61,7 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-white">{title}</h2>
-                <div className="text-xl font-bold text-white">${price}</div>
+                <div className="text-xl font-bold text-white">Rp{price}</div>
               </div>
 
               <div className="flex items-center gap-4 mb-4">

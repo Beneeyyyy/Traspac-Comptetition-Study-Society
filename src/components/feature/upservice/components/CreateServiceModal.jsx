@@ -44,8 +44,8 @@ const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
         alert('Only image files are allowed')
         return false
       }
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB')
+      if (file.size > 20 * 1024 * 1024) {
+        alert('Image size should be less than 20MB')
         return false
       }
       return true
@@ -146,7 +146,7 @@ const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-white mb-1">
-                        Price ($)
+                        Price (Rp)
                       </label>
                       <input
                         type="number"
