@@ -3,7 +3,7 @@ import { FiArrowRight } from 'react-icons/fi'
 import { motion } from 'framer-motion'
 import axios from 'axios'
 
-const HeroSection = () => {
+const HeroSection = ({ onCreateClick }) => {
   const [services, setServices] = useState([])
 
   useEffect(() => {
@@ -18,6 +18,19 @@ const HeroSection = () => {
 
     fetchServices()
   }, [])
+
+  const handleCreateClick = () => {
+    // Scroll ke bawah dengan animasi smooth
+    window.scrollTo({
+      top: window.innerHeight,
+      behavior: 'smooth'
+    })
+    
+    // Tunggu scroll selesai baru buka modal
+    setTimeout(() => {
+      onCreateClick()
+    }, 500)
+  }
 
   // Duplicate array untuk memastikan ada cukup gambar untuk animasi marquee
   const duplicatedServices = [...services, ...services]
@@ -59,7 +72,10 @@ const HeroSection = () => {
                 Transform your daily activities into profitable services. Join our platform where students can showcase their talents and skills to a global audience. Start earning while doing what you love.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="group px-10 py-5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all flex items-center justify-center shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40">
+                <button 
+                  onClick={handleCreateClick}
+                  className="group px-10 py-5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all flex items-center justify-center shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
+                >
                   <span className="text-xl font-medium">Start Offering Services</span>
                   <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </button>

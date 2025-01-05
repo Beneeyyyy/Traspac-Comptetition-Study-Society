@@ -64,20 +64,20 @@ const UpService = () => {
   const stats = [
     {
       icon: <FiBookOpen className="w-8 h-8" />,
-      value: "10,000+",
-      label: "Happy Students",
+      value: "1,000+",
+      label: "Student Services",
       color: "from-pink-500 to-purple-500"
     },
     {
       icon: <FiSmile className="w-8 h-8" />,
-      value: "1,000+",
-      label: "Amazing Teachers",
+      value: "Rp50.000.000+",
+      label: "Total Transactions",
       color: "from-blue-500 to-cyan-500"
     },
     {
       icon: <FiAward className="w-8 h-8" />,
-      value: "95%",
-      label: "Success Stories",
+      value: "4.8/5",
+      label: "Average Rating",
       color: "from-yellow-500 to-orange-500"
     }
   ]
@@ -149,7 +149,7 @@ const UpService = () => {
       </div>
 
       <main className="relative" style={{ zIndex: 1 }}>
-        <HeroSection />
+        <HeroSection onCreateClick={() => setIsCreateModalOpen(true)} />
 
         {/* Fun Stats Section */}
         <div className="relative">
