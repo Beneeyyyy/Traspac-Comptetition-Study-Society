@@ -234,7 +234,7 @@ const HeroSection = ({ onCreateClick }) => {
       </div>
 
       {/* Marquee Animation Styles */}
-      <style jsx>{`
+      <style>{`
         @keyframes marquee-down {
           0% { transform: translateY(-50%); }
           100% { transform: translateY(0); }

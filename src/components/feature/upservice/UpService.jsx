@@ -61,7 +61,7 @@ const UpService = () => {
     }
   }
 
-  
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Artistic Background - Focused on left side */}
@@ -104,7 +104,7 @@ const UpService = () => {
 
         {/* Floating Shapes - Only on left side */}
         <div className="absolute top-20 left-[5%] w-24 h-24 opacity-20">
-          <motion.div
+      <motion.div
             animate={{
               scale: [1, 1.2, 1],
               rotate: [0, 90, 0],
@@ -308,21 +308,21 @@ const UpService = () => {
           </div>
         </div>
 
-        <CreateServiceModal
-          isOpen={isCreateModalOpen}
+              <CreateServiceModal
+                isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onSubmit={handleCreateService}
-        />
+              />
 
-        {selectedService && (
-          <ServiceDetailModal
-            isOpen={!!selectedService}
+          {selectedService && (
+              <ServiceDetailModal
+                isOpen={!!selectedService}
             onClose={() => setSelectedService(null)}
-            service={selectedService}
-          />
-        )}
+                service={selectedService}
+              />
+          )}
       </main>
-      <Footer />
+        <Footer />
     </div>
   )
 }
