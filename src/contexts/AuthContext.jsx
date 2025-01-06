@@ -1,85 +1,109 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
-import axios from 'axios'
+import React, { createContext, useState, useContext, useEffect } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-// Create axios instance
-const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
-})
-
 const AuthContext = createContext(null)
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  const login = useCallback(async (email, password) => {
+  const checkAuth = async () => {
     try {
-      setError(null)
-      const response = await api.post('/api/auth/login', { email, password })
-      setUser(response.data.user)
-      return response.data
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to login')
-      throw err
-    }
-  }, [])
+      console.log('Checking auth status...')
+      const response = await fetch(`${API_URL}/api/auth/check-auth`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
 
-  const signup = useCallback(async (userData) => {
-    try {
-      setError(null)
-      const response = await api.post('/api/auth/signup', userData)
-      setUser(response.data.user)
-      return response.data
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to signup')
-      throw err
-    }
-  }, [])
+      const data = await response.json()
+      console.log('Auth check response:', data)
 
-  const logout = useCallback(async () => {
-    try {
-      await api.post('/api/auth/logout')
+      if (response.ok && data.user) {
+        console.log('Setting user data:', data.user)
+        setUser(data.user)
+      } else {
+        console.log('No user data found')
+        setUser(null)
+      }
+    } catch (error) {
+      console.error('Auth check error:', error)
       setUser(null)
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to logout')
-      throw err
     }
+  }
+
+  const login = async (email, password) => {
+    try {
+      console.log('Attempting login...')
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      })
+
+      const data = await response.json()
+      console.log('Login response:', data)
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to login')
+      }
+
+      if (data.user) {
+        console.log('Setting user after login:', data.user)
+        setUser(data.user)
+        // Immediately check auth status after login
+        await checkAuth()
+      }
+
+      return data
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
+    }
+  }
+
+  const logout = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/signout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        setUser(null)
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      setUser(null)
+    }
+  }
+
+  // Check auth status when component mounts and when route changes
+  useEffect(() => {
+    console.log('AuthProvider mounted, checking auth...')
+    checkAuth()
+
+    // Re-check auth every time route changes
+    const interval = setInterval(checkAuth, 5000)
+    return () => clearInterval(interval)
   }, [])
 
-  const checkAuth = useCallback(async () => {
-    try {
-      setLoading(true)
-      const response = await api.get('/api/auth/me')
-      setUser(response.data.user)
-    } catch (err) {
-      setUser(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  console.log('Current auth state:', { user })
 
   const value = {
     user,
-    loading,
-    error,
     login,
-    signup,
     logout,
     checkAuth
   }
@@ -89,6 +113,14 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
 }
 
 export default AuthContext 

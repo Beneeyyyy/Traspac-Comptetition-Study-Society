@@ -8,9 +8,7 @@ const prisma = new PrismaClient();
 // Login controller
 const login = async (req, res) => {
   try {
-    console.log('=== LOGIN START ===');
     const { email, password } = req.body;
-    console.log('Login attempt for email:', email);
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -27,24 +25,17 @@ const login = async (req, res) => {
         currentGoal: true,
         totalPoints: true,
         level: true,
-        rank: true,
-        createdAt: true,
-        updatedAt: true
+        rank: true
       }
     });
 
-    console.log('User found:', user ? 'Yes' : 'No');
-
     if (!user) {
-      console.log('User not found');
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log('Password valid:', isValidPassword);
     
     if (!isValidPassword) {
-      console.log('Invalid password');
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
@@ -53,15 +44,6 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-    console.log('Token generated:', token.substring(0, 20) + '...');
-
-    console.log('Setting cookie with options:', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000,
-      path: '/'
-    });
 
     res.cookie('token', token, {
       httpOnly: true,
@@ -72,19 +54,17 @@ const login = async (req, res) => {
     });
 
     const { password: _, ...userData } = user;
-    console.log('Sending response with user data');
-    console.log('=== LOGIN END ===');
+    const finalUserData = {
+      ...userData,
+      image: userData.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=0D8ABC&color=fff`
+    };
 
     res.json({
       message: 'Login successful',
-      user: userData
+      user: finalUserData
     });
   } catch (error) {
-    console.error('=== LOGIN ERROR ===');
-    console.error('Error type:', error.constructor.name);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('=== END ERROR ===');
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
@@ -198,31 +178,20 @@ const signup = async (req, res) => {
 // Check auth status controller (as endpoint)
 const checkAuth = async (req, res, next) => {
   try {
-    console.log('=== CHECK-AUTH START ===');
-    console.log('Headers:', req.headers);
-    console.log('Cookies:', req.cookies);
-    
     const token = req.cookies.token;
-    console.log('Token from cookies:', token);
     
     if (!token) {
-      console.log('No token found in cookies');
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
     if (!process.env.JWT_SECRET) {
-      console.error('JWT_SECRET is not defined');
       return res.status(500).json({ message: 'Server configuration error' });
     }
 
-    console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
-    
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('Token decoded successfully:', decoded);
     } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError);
       return res.status(401).json({ 
         message: 'Authentication failed',
         error: jwtError.message 
@@ -230,11 +199,8 @@ const checkAuth = async (req, res, next) => {
     }
 
     if (!decoded.userId) {
-      console.error('No userId in decoded token');
       return res.status(401).json({ message: 'Invalid token format' });
     }
-
-    console.log('Looking up user with ID:', decoded.userId);
     
     const user = await prisma.user.findUnique({
       where: { 
@@ -252,16 +218,11 @@ const checkAuth = async (req, res, next) => {
         currentGoal: true,
         totalPoints: true,
         level: true,
-        rank: true,
-        createdAt: true,
-        updatedAt: true
+        rank: true
       }
     });
 
-    console.log('User found:', user ? 'Yes' : 'No');
-
     if (!user) {
-      console.log('User not found in database');
       return res.status(401).json({ message: 'User not found' });
     }
 
@@ -270,16 +231,9 @@ const checkAuth = async (req, res, next) => {
       image: user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff`
     };
 
-    console.log('Sending response with user data');
-    console.log('=== CHECK-AUTH END ===');
-
     return res.json({ user: userData });
   } catch (error) {
-    console.error('=== CHECK-AUTH ERROR ===');
-    console.error('Error type:', error.constructor.name);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('=== END ERROR ===');
+    console.error('Check auth error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };

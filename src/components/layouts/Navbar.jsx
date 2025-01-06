@@ -1,14 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 const Navbar = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
-  const { user, loading, logout } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
 
-  console.log('Navbar user data:', user)
+  console.log('Current user in Navbar:', user)
 
   const handleSignOut = async () => {
     try {
@@ -20,9 +20,77 @@ const Navbar = () => {
     }
   }
 
-  const getProfileImage = () => {
-    if (!user) return null
-    return user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff`
+  // Render login/signup buttons if user is null, otherwise render profile
+  const renderAuthSection = () => {
+    if (user === null) {
+      return (
+        <div className="flex items-center gap-3">
+          <Link 
+            to="/login"
+            className="px-4 py-1.5 text-sm font-medium text-white/80 hover:text-white transition-colors"
+          >
+            Login
+          </Link>
+          <Link 
+            to="/signup"
+            className="px-4 py-1.5 text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-colors"
+          >
+            Sign Up
+          </Link>
+        </div>
+      )
+    }
+
+    return (
+      <>
+        <button 
+          onClick={() => setShowProfileMenu(!showProfileMenu)}
+          className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-white/20 transition-all"
+        >
+          <img 
+            src={user.image}
+            alt={`${user.name}'s profile`}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff`
+            }}
+          />
+        </button>
+
+        <AnimatePresence>
+          {showProfileMenu && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="absolute right-0 mt-2 w-48 py-2 bg-[#1A1A1B] rounded-xl border border-white/10 shadow-xl"
+            >
+              <div className="px-4 py-2 border-b border-white/10">
+                <p className="font-medium text-white">{user.name}</p>
+                <p className="text-sm text-white/60">{user.email}</p>
+              </div>
+              <Link 
+                to="/profile"
+                className="flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
+                onClick={() => setShowProfileMenu(false)}
+              >
+                <span className="text-lg">👤</span>
+                Profile
+              </Link>
+              <div className="h-px bg-white/10 my-2" />
+              <button 
+                onClick={handleSignOut}
+                className="w-full flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
+              >
+                <span className="text-lg">🚪</span>
+                Sign Out
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
+    )
   }
 
   return (
@@ -58,73 +126,7 @@ const Navbar = () => {
 
           {/* Profile Button & Dropdown */}
           <div className="relative">
-            {loading ? (
-              <div className="w-10 h-10 rounded-full bg-white/10 animate-pulse" />
-            ) : user ? (
-              <>
-                <button 
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-white/20 transition-all"
-                >
-                  <img 
-                    src={getProfileImage()}
-                    alt={`${user.name}'s profile`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff`
-                    }}
-                  />
-                </button>
-
-                <AnimatePresence>
-                  {showProfileMenu && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 w-48 py-2 bg-[#1A1A1B] rounded-xl border border-white/10 shadow-xl"
-                    >
-                      <div className="px-4 py-2 border-b border-white/10">
-                        <p className="font-medium text-white">{user.name}</p>
-                        <p className="text-sm text-white/60">{user.email}</p>
-                      </div>
-                      <Link 
-                        to="/profile"
-                        className="flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
-                        onClick={() => setShowProfileMenu(false)}
-                      >
-                        <span className="text-lg">👤</span>
-                        Profile
-                      </Link>
-                      <div className="h-px bg-white/10 my-2" />
-                      <button 
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
-                      >
-                        <span className="text-lg">🚪</span>
-                        Sign Out
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
-            ) : (
-              <div className="flex items-center gap-3">
-                <Link 
-                  to="/login"
-                  className="px-4 py-1.5 text-sm font-medium text-white/80 hover:text-white transition-colors"
-                >
-                  Login
-                </Link>
-                <Link 
-                  to="/signup"
-                  className="px-4 py-1.5 text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-colors"
-                >
-                  Sign Up
-                </Link>
-              </div>
-            )}
+            {renderAuthSection()}
           </div>
         </div>
       </div>
