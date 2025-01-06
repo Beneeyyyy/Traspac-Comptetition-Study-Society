@@ -2,11 +2,11 @@ import React, { createContext, useContext, useReducer, useMemo, useEffect } from
 import axios from 'axios'
 import { useAuth } from '../../../../context/AuthContext'
 
-const CommunityContext = createContext()
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-// Create axios instance with default config
+// Create axios instance
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: API_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -14,7 +14,18 @@ const api = axios.create({
   }
 })
 
-export const useCommunity = () => {
+// Create context with default value
+const CommunityContext = createContext({
+  questions: [],
+  isLoading: false,
+  error: null,
+  currentUser: null,
+  refreshQuestion: async () => {},
+  addAnswer: async () => {},
+  addQuestion: async () => {}
+})
+
+export function useCommunity() {
   const context = useContext(CommunityContext)
   if (!context) {
     throw new Error('useCommunity must be used within a CommunityProvider')
@@ -166,61 +177,50 @@ const communityReducer = (state, action) => {
   }
 }
 
-export const CommunityProvider = ({ children }) => {
+export function CommunityProvider({ children }) {
   const [state, dispatch] = useReducer(communityReducer, initialState)
-  const { user: authUser } = useAuth() // Get user from AuthContext
+  const { user: authUser, loading: authLoading } = useAuth()
 
-  // Set current user from AuthContext
   useEffect(() => {
-    if (authUser) {
+    if (!authLoading && authUser) {
       dispatch({ type: 'SET_CURRENT_USER', payload: authUser })
     }
-  }, [authUser])
+  }, [authUser, authLoading])
 
-  // Fetch questions when component mounts
   useEffect(() => {
-    const fetchQuestions = async () => {
-      dispatch({ type: 'FETCH_QUESTIONS_START' })
-      try {
-        const response = await api.get('/forum/posts')
-        // Extract posts array from response data
-        const posts = response.data?.data?.posts || []
-        dispatch({ type: 'FETCH_QUESTIONS_SUCCESS', payload: posts })
-      } catch (error) {
-        console.error('Error fetching questions:', error)
-        dispatch({ type: 'FETCH_QUESTIONS_ERROR', payload: error.message })
+    if (!authLoading) {
+      const fetchQuestions = async () => {
+        dispatch({ type: 'FETCH_QUESTIONS_START' })
+        try {
+          const response = await api.get('/forum/posts')
+          const posts = response.data?.data?.posts || []
+          dispatch({ type: 'FETCH_QUESTIONS_SUCCESS', payload: posts })
+        } catch (error) {
+          console.error('Error fetching questions:', error)
+          dispatch({ type: 'FETCH_QUESTIONS_ERROR', payload: error.message })
+        }
       }
+      fetchQuestions()
     }
-    fetchQuestions()
-  }, [])
+  }, [authLoading])
 
   const value = useMemo(() => ({
     ...state,
     refreshQuestion: async (questionId) => {
-      if (!questionId) {
-        console.warn('Attempted to refresh question with undefined id');
-        return null;
-      }
-
+      if (!questionId) return null
       try {
-        const response = await api.get(`/forum/posts/${questionId}`);
-        if (!response.data?.success) {
-          console.error('Failed to refresh question:', response.data?.error);
-          return null;
-        }
-
-        const updatedQuestion = response.data?.data;
+        const response = await api.get(`/forum/posts/${questionId}`)
+        const updatedQuestion = response.data?.data
         if (updatedQuestion) {
           dispatch({
             type: 'REFRESH_QUESTION_SUCCESS',
             payload: updatedQuestion
-          });
+          })
         }
-        
-        return updatedQuestion;
+        return updatedQuestion
       } catch (error) {
-        console.error('Error refreshing question:', error);
-        return null;
+        console.error('Error refreshing question:', error)
+        return null
       }
     },
     addAnswer: async (questionId, answer) => {
@@ -229,11 +229,14 @@ export const CommunityProvider = ({ children }) => {
           content: answer.content,
           images: answer.images || []
         })
-
-        // Refresh question data to get the latest answers
-        await value.refreshQuestion(questionId)
-
-        return response.data?.data
+        const newAnswer = response.data?.data
+        if (newAnswer) {
+          dispatch({
+            type: 'ADD_ANSWER_SUCCESS',
+            payload: { questionId, answer: newAnswer }
+          })
+        }
+        return newAnswer
       } catch (error) {
         console.error('Error adding answer:', error)
         throw error
@@ -241,150 +244,25 @@ export const CommunityProvider = ({ children }) => {
     },
     addQuestion: async (question) => {
       try {
-        const response = await api.post('/forum/posts', question);
-        
-        if (response.data?.success) {
-          // Dispatch success action with the new question
-          dispatch({ 
-            type: 'ADD_QUESTION_SUCCESS', 
-            payload: response.data.data 
-          });
-          
-          // Refresh the questions list
-          const refreshResponse = await api.get('/forum/posts');
-          if (refreshResponse.data?.success) {
-            dispatch({ 
-              type: 'FETCH_QUESTIONS_SUCCESS', 
-              payload: refreshResponse.data.data.posts 
-            });
-          }
-          
-          return response.data.data;
-        }
-      } catch (error) {
-        console.error('Error adding question:', error);
-        throw error;
-      }
-    },
-    acceptAnswer: async (questionId, answerId) => {
-      try {
-        const response = await api.post(`/forum/posts/${questionId}/answers/${answerId}/accept`)
-        dispatch({
-          type: 'ACCEPT_ANSWER_SUCCESS',
-          payload: { questionId, answerId }
-        })
-        return response.data
-      } catch (error) {
-        console.error('Error accepting answer:', error)
-        throw error
-      }
-    },
-    addComment: async (questionId, answerId, comment) => {
-      try {
-        const endpoint = answerId 
-          ? `/forum/answers/${answerId}/comments`
-          : `/forum/posts/${questionId}/comments`
-        
-        const response = await api.post(endpoint, {
-          content: comment.content,
-          parentId: comment.parentId
-        })
-        
-        dispatch({
-          type: 'ADD_COMMENT_SUCCESS',
-          payload: { 
-            questionId, 
-            answerId,
-            comment: {
-              ...response.data?.data,
-              timeAgo: 'Just now',
-              user: response.data?.data?.user || {
-                name: 'You',
-                image: '/avatars/default.png',
-                rank: 'Member'
-              }
-            }
-          }
-        })
-        return response.data
-      } catch (error) {
-        console.error('Error adding comment:', error)
-        throw error
-      }
-    },
-    updateVote: async (type, id, isUpvote) => {
-      try {
-        // Map type 'question' to 'post' for backend compatibility
-        const mappedType = type === 'question' ? 'post' : type === 'answer' ? 'answer' : type
-        
-        // Fix: Use correct endpoint format
-        const endpoint = `/forum/${mappedType}/${id}/vote`
-        
-        console.log('Sending vote request:', {
-          endpoint,
-          type: mappedType,
-          id,
-          isUpvote: Boolean(isUpvote)
-        })
-
-        const response = await api.post(endpoint, { 
-          isUpvote: Boolean(isUpvote)
-        })
-        
-        // Transform response for frontend
-        const transformedData = {
-          type,
-          id: parseInt(id),
-          upvoteCount: response.data?.data?.upvotes || 0,
-          downvoteCount: response.data?.data?.downvotes || 0,
-          userVote: response.data?.data?.userVote || null
-        }
-        
-        dispatch({
-          type: 'UPDATE_VOTE_SUCCESS',
-          payload: transformedData
-        })
-        
-        return transformedData
-      } catch (error) {
-        console.error('Error updating vote:', error.response || error)
-        throw error
-      }
-    },
-    createPost: async (postData) => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Pastikan images adalah array
-        const images = postData.images || [];
-        
-        // Kirim data dengan images yang sudah divalidasi
-        const response = await api.post(`/forum/posts`, {
-          ...postData,
-          images: images.map(img => {
-            // Jika image sudah berupa URL Cloudinary, gunakan langsung
-            if (typeof img === 'string' && img.includes('cloudinary.com')) {
-              return img;
-            }
-            // Jika image adalah object dengan data base64, ambil data-nya
-            return img;
+        const response = await api.post('/forum/posts', question)
+        const newQuestion = response.data?.data
+        if (newQuestion) {
+          dispatch({
+            type: 'ADD_QUESTION_SUCCESS',
+            payload: newQuestion
           })
-        });
-
-        if (response.data.success) {
-          console.log('Post created with images:', response.data.data.images);
-          // Refresh posts setelah membuat post baru
-          await fetchPosts(1); // Kembali ke halaman pertama untuk melihat post terbaru
-          return response.data.data;
         }
-      } catch (err) {
-        console.error('Error creating post:', err);
-        throw err;
-      } finally {
-        setIsLoading(false);
+        return newQuestion
+      } catch (error) {
+        console.error('Error adding question:', error)
+        throw error
       }
     }
   }), [state])
+
+  if (authLoading) {
+    return <div>Loading...</div> // Or your loading component
+  }
 
   return (
     <CommunityContext.Provider value={value}>
@@ -393,4 +271,4 @@ export const CommunityProvider = ({ children }) => {
   )
 }
 
-export default CommunityProvider 
+export default CommunityContext 

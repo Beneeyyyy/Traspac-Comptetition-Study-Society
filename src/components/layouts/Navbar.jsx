@@ -8,6 +8,8 @@ const Navbar = () => {
   const { user, loading, logout } = useAuth()
   const navigate = useNavigate()
 
+  console.log('Navbar user data:', user)
+
   const handleSignOut = async () => {
     try {
       await logout()
@@ -18,8 +20,9 @@ const Navbar = () => {
     }
   }
 
-  if (loading) {
-    return null // or return a loading spinner
+  const getProfileImage = () => {
+    if (!user) return null
+    return user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff`
   }
 
   return (
@@ -32,53 +35,80 @@ const Navbar = () => {
           </Link>
 
           {/* Navigation Links */}
-          <div className="hidden md:flex items-center gap-6">
-            {user ? (
-              <>
-                <Link to="/dashboard" className="text-white/60 hover:text-white transition-colors">
-                  Dashboard
-                </Link>
-                <Link to="/courses" className="text-white/60 hover:text-white transition-colors">
-                  Courses
-                </Link>
-                <Link to="/community" className="text-white/60 hover:text-white transition-colors">
-                  Community
-                </Link>
-                <Link to="/leaderboard" className="text-white/60 hover:text-white transition-colors">
-                  Leaderboard
-                </Link>
-                <Link to="/upcreation" className="text-white/60 hover:text-white transition-colors">
-                  Up Creation
-                </Link>
-                <Link to="/upservice" className="text-white/60 hover:text-white transition-colors">
-                  Up Service
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link to="/about" className="text-white/60 hover:text-white transition-colors">
-                  About
-                </Link>
-                <Link to="/features" className="text-white/60 hover:text-white transition-colors">
-                  Features
-                </Link>
-              </>
-            )}
+          <div className="flex items-center gap-6">
+            <Link to="/dashboard" className="text-white/60 hover:text-white transition-colors">
+              Dashboard
+            </Link>
+            <Link to="/courses" className="text-white/60 hover:text-white transition-colors">
+              Courses
+            </Link>
+            <Link to="/community" className="text-white/60 hover:text-white transition-colors">
+              Community
+            </Link>
+            <Link to="/leaderboard" className="text-white/60 hover:text-white transition-colors">
+              Leaderboard
+            </Link>
+            <Link to="/upcreation" className="text-white/60 hover:text-white transition-colors">
+              Up Creation
+            </Link>
+            <Link to="/upservice" className="text-white/60 hover:text-white transition-colors">
+              Up Service
+            </Link>
           </div>
 
-          {/* Auth Buttons or Profile */}
+          {/* Profile Button & Dropdown */}
           <div className="relative">
-            {user ? (
-              <button 
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-white/20 transition-all"
-              >
-                <img 
-                  src={user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=0D8ABC&color=fff`}
-                  alt={`${user.name || 'User'}'s profile`}
-                  className="w-full h-full object-cover"
-                />
-              </button>
+            {loading ? (
+              <div className="w-10 h-10 rounded-full bg-white/10 animate-pulse" />
+            ) : user ? (
+              <>
+                <button 
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-white/20 transition-all"
+                >
+                  <img 
+                    src={getProfileImage()}
+                    alt={`${user.name}'s profile`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff`
+                    }}
+                  />
+                </button>
+
+                <AnimatePresence>
+                  {showProfileMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 mt-2 w-48 py-2 bg-[#1A1A1B] rounded-xl border border-white/10 shadow-xl"
+                    >
+                      <div className="px-4 py-2 border-b border-white/10">
+                        <p className="font-medium text-white">{user.name}</p>
+                        <p className="text-sm text-white/60">{user.email}</p>
+                      </div>
+                      <Link 
+                        to="/profile"
+                        className="flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
+                        onClick={() => setShowProfileMenu(false)}
+                      >
+                        <span className="text-lg">👤</span>
+                        Profile
+                      </Link>
+                      <div className="h-px bg-white/10 my-2" />
+                      <button 
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
+                      >
+                        <span className="text-lg">🚪</span>
+                        Sign Out
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             ) : (
               <div className="flex items-center gap-3">
                 <Link 
@@ -95,43 +125,6 @@ const Navbar = () => {
                 </Link>
               </div>
             )}
-
-            <AnimatePresence>
-              {showProfileMenu && user && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-2 w-48 py-2 bg-[#1A1A1B] rounded-xl border border-white/10 shadow-xl"
-                >
-                  <Link 
-                    to="/profile"
-                    className="flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
-                    onClick={() => setShowProfileMenu(false)}
-                  >
-                    <span className="text-lg">👤</span>
-                    Profile
-                  </Link>
-                  <Link 
-                    to="/settings"
-                    className="flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
-                    onClick={() => setShowProfileMenu(false)}
-                  >
-                    <span className="text-lg">⚙️</span>
-                    Settings
-                  </Link>
-                  <div className="h-px bg-white/10 my-2" />
-                  <button 
-                    onClick={handleSignOut}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-white/60 hover:text-white hover:bg-white/5"
-                  >
-                    <span className="text-lg">🚪</span>
-                    Sign Out
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
       </div>

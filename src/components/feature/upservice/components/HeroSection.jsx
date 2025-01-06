@@ -1,47 +1,142 @@
-import React, { useState, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import { FiArrowRight } from 'react-icons/fi'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
-const HeroSection = ({ onCreateClick }) => {
-  const [services, setServices] = useState([])
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-  useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const response = await axios.get('/api/services')
-        setServices(response.data)
-      } catch (error) {
-        console.error('Error fetching services:', error)
-      }
+// Create axios instance
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+})
+
+// Fallback data jika API error
+const FALLBACK_SERVICES = [
+  {
+    id: 'fallback-1',
+    title: 'Web Development Mentoring',
+    description: 'Learn modern web development from experienced mentors',
+    category: 'Mentoring',
+    price: 50,
+    rating: 4.8,
+    images: ['https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80']
+  },
+  {
+    id: 'fallback-2',
+    title: 'Data Science Workshop',
+    description: 'Master data analysis and machine learning',
+    category: 'Workshop',
+    price: 75,
+    rating: 4.9,
+    images: ['https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80']
+  },
+  {
+    id: 'fallback-3',
+    title: 'Mobile App Development',
+    description: 'Build iOS and Android apps with React Native',
+    category: 'Tutoring',
+    price: 60,
+    rating: 4.7,
+    images: ['https://images.unsplash.com/photo-1517694712202-14dd9538aa97?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80']
+  }
+]
+
+// Fungsi untuk fetch services
+const fetchFeaturedServices = async () => {
+  try {
+    const response = await api.get('/api/services')
+    return response.data?.length > 0 ? response.data : FALLBACK_SERVICES
+  } catch (err) {
+    console.warn('Using fallback services:', err)
+    return FALLBACK_SERVICES
+  }
+}
+
+// Definisikan custom easing
+const customEase = [0.6, 0.05, 0.01, 0.9]
+
+function HeroSection({ onCreateClick }) {
+  const prefersReducedMotion = useReducedMotion()
+  const queryClient = useQueryClient()
+
+  // Prefetch data saat komponen mount
+  React.useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['featuredServices'],
+      queryFn: fetchFeaturedServices,
+      staleTime: 30000
+    })
+  }, [queryClient])
+
+  // Gunakan useQuery dengan suspense mode
+  const { data: services = FALLBACK_SERVICES } = useQuery({
+    queryKey: ['allServices'],
+    queryFn: fetchFeaturedServices,
+    staleTime: 30000,
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+    suspense: false,
+    initialData: FALLBACK_SERVICES,
+    placeholderData: FALLBACK_SERVICES
+  })
+
+  // Memoize services untuk marquee dengan error handling
+  const marqueeServices = useMemo(() => {
+    try {
+      const safeServices = Array.isArray(services) && services.length > 0 
+        ? services 
+        : FALLBACK_SERVICES
+      
+      // Duplicate array hingga minimal 12 item untuk memastikan scroll smooth
+      const minLength = 12
+      const repeats = Math.ceil(minLength / safeServices.length)
+      const duplicatedServices = Array(repeats).fill(safeServices).flat()
+      
+      // Pastikan jumlah item genap untuk pembagian kolom
+      return duplicatedServices.length % 2 === 0 
+        ? duplicatedServices 
+        : [...duplicatedServices, duplicatedServices[0]]
+    } catch (err) {
+      console.warn('Error creating marquee services, using fallback:', err)
+      return [...FALLBACK_SERVICES, ...FALLBACK_SERVICES, ...FALLBACK_SERVICES, ...FALLBACK_SERVICES]
     }
+  }, [services])
 
-    fetchServices()
-  }, [])
+  // Bagi services untuk kolom kiri dan kanan
+  const leftColumnServices = useMemo(() => 
+    marqueeServices.slice(0, Math.ceil(marqueeServices.length / 2))
+  , [marqueeServices])
+  
+  const rightColumnServices = useMemo(() => 
+    marqueeServices.slice(Math.ceil(marqueeServices.length / 2))
+  , [marqueeServices])
 
   const handleCreateClick = () => {
     window.scrollTo({
       top: window.innerHeight,
-      behavior: 'smooth'
+      behavior: prefersReducedMotion ? 'auto' : 'smooth'
     })
     setTimeout(() => {
       onCreateClick()
-    }, 500)
+    }, prefersReducedMotion ? 0 : 500)
   }
 
   const handleExploreClick = () => {
     window.scrollTo({
       top: window.innerHeight,
-      behavior: 'smooth'
+      behavior: prefersReducedMotion ? 'auto' : 'smooth'
     })
   }
 
-  // Duplicate services for infinite marquee
-  const duplicatedServices = [...services, ...services, ...services]
-
   return (
-    <>
-    <div className="relative min-h-screen bg-black overflow-hidden">
+    <div className="relative min-h-screen bg-black">
       {/* Abstract Background Elements */}
       <div className="absolute inset-0">
         {/* Dark Gradient Base - Ultra Minimal */}
@@ -49,9 +144,6 @@ const HeroSection = ({ onCreateClick }) => {
         
         {/* Subtle Left Side Glow - Ultra Minimal */}
         <div className="absolute left-0 w-[5%] h-full bg-gradient-to-r from-blue-500/[0.01] to-transparent" />
-
-        {/* Grid Pattern - Ultra Minimal */}
-        <div className="absolute left-0 w-[5%] h-full bg-[url('/grid.svg')] opacity-[0.01]" />
       </div>
 
       {/* Bottom Gradient Overlay for Smooth Transition */}
@@ -180,69 +272,125 @@ const HeroSection = ({ onCreateClick }) => {
             </div>
 
             {/* Right Content - Service Previews */}
-            <div className="flex-1 relative h-[750px] max-w-2xl">
-              {/* Darker Vignette for Marquee */}
-              <div className="absolute -inset-16 bg-[radial-gradient(circle_at_center,transparent_5%,black_50%)] pointer-events-none z-20" />
+            <div className="flex-1 relative h-[750px] max-w-xl">
+              {/* Container Shadow */}
+              <div className="absolute inset-0 rounded-full"
+                style={{
+                  background: 'radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.7) 70%, rgba(0,0,0,0.9) 100%)',
+                  transform: 'scale(1.2)',
+                  pointerEvents: 'none',
+                  zIndex: 5
+                }}
+              />
               
-              {/* Columns Container */}
-              <div className="relative h-full overflow-hidden px-8">
-                {/* Left Column - Moving Down */}
-                <div className="absolute left-0 w-[calc(50%-4px)] animate-marquee-down">
-                  {duplicatedServices.slice(0, 8).map((service, index) => (
-                    <motion.div
-                      key={`down-${index}`}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 1, delay: index * 0.1 }}
-                      className="relative mb-3 aspect-[3/4] rounded-lg overflow-hidden group transform-gpu"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-100 group-hover:opacity-40 transition-all duration-500" />
-                      <img
-                        src={service.images?.[0]}
-                        alt="Preview"
-                        className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-500 ease-out"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black opacity-0 group-hover:opacity-90 transition-all duration-500" />
-                    </motion.div>
-                  ))}
-                </div>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="relative h-full overflow-hidden"
+                style={{ transform: 'scale(0.95)' }}
+              >
+                {/* Full Rounded Container with Edge Overlay */}
+                <div className="absolute inset-0 rounded-full overflow-hidden bg-black">
+                  {/* Edge Overlays */}
+                  <div className="absolute inset-0 z-10 rounded-full" 
+                    style={{
+                      background: 'radial-gradient(circle at center, transparent 45%, rgba(0,0,0,0.7) 100%)',
+                      pointerEvents: 'none'
+                    }} 
+                  />
+                  {/* Top Overlay */}
+                  <div className="absolute top-0 left-0 right-0 h-[15%] z-10 bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none" />
+                  {/* Bottom Overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 h-[15%] z-10 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
+                  {/* Left Side Overlay */}
+                  <div className="absolute inset-y-0 left-0 w-[15%] z-10 bg-gradient-to-r from-black via-black/80 to-transparent pointer-events-none" />
+                  {/* Right Side Overlay */}
+                  <div className="absolute inset-y-0 right-0 w-[15%] z-10 bg-gradient-to-l from-black via-black/80 to-transparent pointer-events-none" />
+                  
+                  {/* Left Column - Moving Down */}
+                  <div className="marquee-container absolute left-0 w-[calc(50%-2px)] h-full">
+                    <div className="marquee-content animate-marquee-down">
+                      {leftColumnServices.map((service, index) => (
+                        <motion.div
+                          key={`down-${service.id}-${index}`}
+                          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ 
+                            duration: 0.8,
+                            delay: index * 0.1,
+                            ease: "easeOut"
+                          }}
+                          className="relative mb-3 aspect-[3/4] rounded-lg overflow-hidden group transform-gpu"
+                          style={{ transform: 'scale(1.25)' }}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-100 group-hover:opacity-40 transition-all duration-500" />
+                          <img
+                            src={service.images?.[0]}
+                            alt={service.title}
+                            className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-500 ease-out"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black opacity-0 group-hover:opacity-90 transition-all duration-500" />
+                          <div className="absolute bottom-0 left-0 right-0 p-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                            <h3 className="text-lg font-semibold truncate">{service.title}</h3>
+                            <p className="text-sm text-white/80">{service.category}</p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
 
-                {/* Right Column - Moving Up */}
-                <div className="absolute right-0 w-[calc(50%-4px)] animate-marquee-up">
-                  {duplicatedServices.slice(8, 16).map((service, index) => (
-                    <motion.div
-                      key={`up-${index}`}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 1, delay: index * 0.1 }}
-                      className="relative mb-3 aspect-[3/4] rounded-lg overflow-hidden group transform-gpu"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-100 group-hover:opacity-40 transition-all duration-500" />
-                      <img
-                        src={service.images?.[0]}
-                        alt="Preview"
-                        className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-500 ease-out"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black opacity-0 group-hover:opacity-90 transition-all duration-500" />
-                    </motion.div>
-                  ))}
+                  {/* Right Column - Moving Up */}
+                  <div className="marquee-container absolute right-0 w-[calc(50%-2px)] h-full">
+                    <div className="marquee-content animate-marquee-up">
+                      {rightColumnServices.map((service, index) => (
+                        <motion.div
+                          key={`up-${service.id}-${index}`}
+                          initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ 
+                            duration: 0.8,
+                            delay: index * 0.1,
+                            ease: "easeOut"
+                          }}
+                          className="relative mb-3 aspect-[3/4] rounded-lg overflow-hidden group transform-gpu"
+                          style={{ transform: 'scale(1.25)' }}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-100 group-hover:opacity-40 transition-all duration-500" />
+                          <img
+                            src={service.images?.[0]}
+                            alt={service.title}
+                            className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-500 ease-out"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black opacity-0 group-hover:opacity-90 transition-all duration-500" />
+                          <div className="absolute bottom-0 left-0 right-0 p-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                            <h3 className="text-lg font-semibold truncate">{service.title}</h3>
+                            <p className="text-sm text-white/80">{service.category}</p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Marquee Animation Styles */}
+      {/* Optimized Marquee Animation Styles */}
       <style>{`
-        @keyframes marquee-down {
-          0% { transform: translateY(-50%); }
-          100% { transform: translateY(0); }
+        .marquee-container {
+          mask-image: linear-gradient(to bottom, black 0%, black 20%, black 80%, black 100%);
+          -webkit-mask-image: linear-gradient(to bottom, black 0%, black 20%, black 80%, black 100%);
         }
 
-        @keyframes marquee-up {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(-50%); }
+        .marquee-content {
+          position: relative;
+          will-change: transform;
+          padding: 1rem;
         }
 
         .animate-marquee-down {
@@ -252,9 +400,49 @@ const HeroSection = ({ onCreateClick }) => {
         .animate-marquee-up {
           animation: marquee-up 40s linear infinite;
         }
+
+        @keyframes marquee-down {
+          0% { 
+            transform: translateY(-50%);
+            opacity: 0;
+          }
+          5% {
+            opacity: 1;
+          }
+          95% {
+            opacity: 1;
+          }
+          100% { 
+            transform: translateY(0%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes marquee-up {
+          0% { 
+            transform: translateY(0%);
+            opacity: 0;
+          }
+          5% {
+            opacity: 1;
+          }
+          95% {
+            opacity: 1;
+          }
+          100% { 
+            transform: translateY(-50%);
+            opacity: 0;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .animate-marquee-down,
+          .animate-marquee-up {
+            animation: none;
+          }
+        }
       `}</style>
     </div>
-    </>
   )
 }
 
