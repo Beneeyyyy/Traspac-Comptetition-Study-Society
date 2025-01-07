@@ -1,6 +1,6 @@
 const ServiceCard = ({ service, onCardClick }) => {
   const {
-    images,
+    images = [],
     title,
     description,
     price,
@@ -10,6 +10,26 @@ const ServiceCard = ({ service, onCardClick }) => {
     provider
   } = service;
 
+  // Fallback image jika tidak ada gambar
+  const defaultImage = "https://placehold.co/600x400/000000/FFFFFF/png?text=No+Image";
+
+  // Validasi dan logging untuk debugging
+  console.log('Service data:', {
+    id: service.id,
+    title,
+    hasImages: images && images.length > 0,
+    imagesArray: images,
+    firstImage: images?.[0],
+    isFirstImageString: typeof images?.[0] === 'string',
+    imageType: images?.[0] ? typeof images[0] : 'undefined'
+  });
+
+  const imageUrl = images?.[0];
+  console.log('Image URL to display:', {
+    url: imageUrl || 'Using default image',
+    isValidUrl: imageUrl?.startsWith('http') || imageUrl?.startsWith('data:image'),
+  });
+
   return (
     <div 
       className="group relative bg-gradient-to-t from-blue-950 via-black to-black/80 backdrop-blur-sm rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10 border border-white/5 h-[440px] flex flex-col"
@@ -18,9 +38,17 @@ const ServiceCard = ({ service, onCardClick }) => {
       {/* Service Image Container */}
       <div className="relative h-52">
         <img
-          src={images[0]}
+          src={imageUrl || defaultImage}
           alt={title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={(e) => {
+            console.error('Image failed to load:', {
+              attemptedUrl: imageUrl,
+              fallbackUrl: defaultImage,
+              error: e.error
+            });
+            e.target.src = defaultImage;
+          }}
         />
         {/* Gradient overlay untuk memastikan kontras */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/40"></div>

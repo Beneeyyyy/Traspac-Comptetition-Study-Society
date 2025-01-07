@@ -22,6 +22,7 @@
     "daisyui": "^4.12.22",
     "dompurify": "^3.2.3",
     "framer-motion": "^11.15.0",
+    "multer": "^1.4.5-lts.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-error-boundary": "^5.0.0",
@@ -29,7 +30,8 @@
     "react-intersection-observer": "^9.14.0",
     "react-query": "^3.39.3",
     "react-router-dom": "6.22.3",
-    "react-syntax-highlighter": "^15.6.1"
+    "react-syntax-highlighter": "^15.6.1",
+    "streamifier": "^0.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

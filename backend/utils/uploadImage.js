@@ -1,58 +1,112 @@
 const cloudinary = require('../config/cloudinary');
+const streamifier = require('streamifier');
 
-const uploadImage = async (base64Image) => {
+const uploadImage = async (image) => {
   try {
     // Jika tidak ada gambar, return null
-    if (!base64Image) {
+    if (!image) {
       console.log('No image provided');
       return null;
     }
     
     // Jika gambar sudah berupa URL Cloudinary, return URL tersebut
-    if (base64Image.includes('cloudinary.com')) {
+    if (typeof image === 'string' && image.includes('cloudinary.com')) {
       console.log('Image is already a Cloudinary URL');
-      return base64Image;
-    }
-    
-    console.log('Processing image for upload...');
-    
-    // Validasi format base64
-    if (!base64Image.startsWith('data:image')) {
-      console.error('Invalid base64 format:', base64Image.substring(0, 50) + '...');
-      throw new Error('Invalid image format: Must be base64 data URL');
+      return image;
     }
 
-    // Extract MIME type
-    const mimeType = base64Image.split(';')[0].split(':')[1];
-    console.log('Image MIME type:', mimeType);
+    console.log('Image type:', {
+      isBuffer: Buffer.isBuffer(image),
+      hasBuffer: image.buffer ? true : false,
+      type: typeof image,
+      constructor: image.constructor.name
+    });
 
-    // Validate file size (base64 is ~33% larger than binary)
-    const base64WithoutHeader = base64Image.split(',')[1];
-    const fileSizeInBytes = (base64WithoutHeader.length * 3) / 4;
-    const fileSizeInMB = fileSizeInBytes / (1024 * 1024);
-    
-    if (fileSizeInMB > 15) {
-      throw new Error('Image size exceeds 15MB limit');
+    let uploadPromise;
+    let buffer;
+
+    // Convert ArrayBuffer to Buffer if needed
+    if (image instanceof ArrayBuffer) {
+      buffer = Buffer.from(image);
+    } else if (image.buffer instanceof ArrayBuffer) {
+      buffer = Buffer.from(image.buffer);
+    } else if (Buffer.isBuffer(image)) {
+      buffer = image;
+    } else {
+      console.error('Invalid image format:', {
+        type: typeof image,
+        isBuffer: Buffer.isBuffer(image),
+        hasBuffer: image.buffer ? true : false,
+        constructor: image.constructor.name
+      });
+      throw new Error('Invalid image format: Must be either a File object, Buffer, or base64 data URL');
     }
 
-    console.log('Image size:', fileSizeInMB.toFixed(2) + 'MB');
-    
-    try {
-      // Upload ke Cloudinary dengan base64 string
-      console.log('Uploading to Cloudinary...');
-      const result = await cloudinary.uploader.upload(base64Image, {
+    // Handle buffer upload
+    if (buffer) {
+      console.log('Processing buffer upload...');
+      
+      uploadPromise = new Promise((resolve, reject) => {
+        console.log('Creating upload stream...');
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'study-society',
+            resource_type: 'auto',
+            transformation: [
+              { width: 1200, crop: 'limit' },
+              { quality: 'auto:good' },
+              { fetch_format: 'auto' }
+            ],
+            allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
+            max_bytes: 15 * 1024 * 1024
+          },
+          (error, result) => {
+            if (error) {
+              console.error('Stream upload error:', error);
+              reject(error);
+            } else {
+              console.log('Stream upload successful:', {
+                public_id: result.public_id,
+                url: result.secure_url
+              });
+              resolve(result);
+            }
+          }
+        );
+
+        console.log('Piping buffer to upload stream...');
+        streamifier.createReadStream(buffer).pipe(uploadStream);
+      });
+    } 
+    // Handle base64 string
+    else if (typeof image === 'string' && image.startsWith('data:image')) {
+      console.log('Processing base64 upload...');
+      
+      uploadPromise = cloudinary.uploader.upload(image, {
         folder: 'study-society',
         resource_type: 'auto',
         transformation: [
-          { width: 1200, crop: 'limit' }, // Increase max width
-          { quality: 'auto:good' }, // Optimize quality
+          { width: 1200, crop: 'limit' },
+          { quality: 'auto:good' },
           { fetch_format: 'auto' }
         ],
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
         max_bytes: 15 * 1024 * 1024
       });
+    } else {
+      console.error('Invalid image format:', {
+        type: typeof image,
+        isBuffer: Buffer.isBuffer(image),
+        hasBuffer: image.buffer ? true : false,
+        constructor: image.constructor.name
+      });
+      throw new Error('Invalid image format: Must be either a File object, Buffer, or base64 data URL');
+    }
 
-      console.log('Upload successful:', {
+    try {
+      const result = await uploadPromise;
+
+      console.log('Upload completed:', {
         public_id: result.public_id,
         format: result.format,
         size: Math.round(result.bytes / 1024) + 'KB',
@@ -65,7 +119,8 @@ const uploadImage = async (base64Image) => {
       console.error('Cloudinary upload failed:', {
         error: cloudinaryError.message,
         code: cloudinaryError.http_code,
-        details: cloudinaryError.error?.message
+        details: cloudinaryError.error?.message,
+        stack: cloudinaryError.stack
       });
       
       if (cloudinaryError.http_code === 400) {

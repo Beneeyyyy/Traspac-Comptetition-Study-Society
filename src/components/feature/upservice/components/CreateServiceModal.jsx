@@ -1,6 +1,6 @@
 import { Dialog, Transition } from '@headlessui/react'
 import { Fragment, useState } from 'react'
-import { FiX, FiUpload, FiTrash2 } from 'react-icons/fi'
+import { FiX, FiUpload, FiTrash2, FiLoader } from 'react-icons/fi'
 
 const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -10,6 +10,8 @@ const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
     category: 'Mentoring',
     images: []
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [imageFiles, setImageFiles] = useState([])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -19,7 +21,23 @@ const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
     }
 
     try {
-      await onSubmit(formData)
+      setIsLoading(true)
+      
+      // Create FormData untuk upload gambar
+      const formDataToSubmit = new FormData()
+      formDataToSubmit.append('title', formData.title)
+      formDataToSubmit.append('description', formData.description)
+      formDataToSubmit.append('price', formData.price)
+      formDataToSubmit.append('category', formData.category)
+      
+      // Append setiap file gambar
+      imageFiles.forEach((file, index) => {
+        formDataToSubmit.append(`images`, file)
+      })
+
+      await onSubmit(formDataToSubmit)
+      
+      // Reset form
       setFormData({
         title: '',
         description: '',
@@ -27,8 +45,11 @@ const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
         category: 'Mentoring',
         images: []
       })
+      setImageFiles([])
     } catch (error) {
       alert('Failed to create service')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -44,39 +65,44 @@ const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
         alert('Only image files are allowed')
         return false
       }
-      if (file.size > 20 * 1024 * 1024) {
-        alert('Image size should be less than 20MB')
+      if (file.size > 5 * 1024 * 1024) { // Reduced to 5MB
+        alert('Image size should be less than 5MB')
         return false
       }
       return true
     })
 
-    const readers = validFiles.map(file => {
-      return new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result)
-        reader.readAsDataURL(file)
-      })
-    })
+    // Store file objects
+    setImageFiles(prev => [...prev, ...validFiles])
 
-    Promise.all(readers).then(results => {
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...results]
-      }))
-    })
+    // Create preview URLs
+    const previewUrls = validFiles.map(file => URL.createObjectURL(file))
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...previewUrls]
+    }))
   }
 
   const removeImage = (index) => {
+    // Revoke object URL to prevent memory leaks
+    URL.revokeObjectURL(formData.images[index])
+    
     setFormData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }))
+    setImageFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Cleanup object URLs when modal closes
+  const handleClose = () => {
+    formData.images.forEach(url => URL.revokeObjectURL(url))
+    onClose()
   }
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -219,9 +245,17 @@ const CreateServiceModal = ({ isOpen, onClose, onSubmit }) => {
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+                    disabled={isLoading}
+                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    Create Service
+                    {isLoading ? (
+                      <>
+                        <FiLoader className="w-5 h-5 mr-2 animate-spin" />
+                        Creating Service...
+                      </>
+                    ) : (
+                      'Create Service'
+                    )}
                   </button>
                 </form>
               </Dialog.Panel>

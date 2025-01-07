@@ -1,8 +1,13 @@
+import { useState } from 'react';
+import { FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+
 const ServiceDetailModal = ({ isOpen, onClose, service }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
   if (!isOpen || !service) return null;
 
   const {
-    images,
+    images = [],
     title,
     description,
     price,
@@ -13,6 +18,17 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
     provider,
     reviews = []
   } = service;
+
+  // Fallback image jika tidak ada gambar
+  const defaultImage = "https://placehold.co/600x400/000000/FFFFFF/png?text=No+Image";
+
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
@@ -44,41 +60,92 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
             onClick={onClose}
             className="absolute top-4 right-4 text-white/70 hover:text-white"
           >
-            ✕
+            <FiX className="w-6 h-6" />
           </button>
 
-          {/* Image Gallery */}
-          <div className="relative aspect-video bg-black">
+          {/* Image Carousel */}
+          <div className="relative aspect-video rounded-t-2xl overflow-hidden bg-black">
             <img
-              src={images[0]}
-              alt={title}
+              src={images[currentImageIndex] || defaultImage}
+              alt={`${title} - Image ${currentImageIndex + 1}`}
               className="w-full h-full object-contain"
+              onError={(e) => {
+                console.error('Image failed to load:', {
+                  url: images[currentImageIndex],
+                  fallback: defaultImage
+                });
+                e.target.src = defaultImage;
+              }}
             />
+            
+            {/* Navigation Arrows - hanya tampil jika ada lebih dari 1 gambar */}
+            {images.length > 1 && (
+              <>
+                {/* Previous Button */}
+                <button
+                  onClick={handlePrevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-full transition-colors"
+                >
+                  <FiChevronLeft className="w-6 h-6" />
+                </button>
+                
+                {/* Next Button */}
+                <button
+                  onClick={handleNextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-full transition-colors"
+                >
+                  <FiChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+
+            {/* Dot Navigation */}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4">
+                {images.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      index === currentImageIndex 
+                        ? 'bg-white scale-125' 
+                        : 'bg-white/50 hover:bg-white/75'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Content */}
           <div className="p-6">
-            {/* Service Info */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-white">{title}</h2>
-                <div className="text-xl font-bold text-white">Rp{price}</div>
+            {/* Title & Category */}
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-white mb-2">{title}</h2>
+              <div className="inline-block bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-sm">
+                {category}
               </div>
+            </div>
 
-              <div className="flex items-center gap-4 mb-4">
-                <span className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full text-sm">
-                  {category}
-                </span>
-                <div className="flex items-center gap-1">
-                  <span className="text-yellow-500">★</span>
-                  <span className="text-white">{rating.toFixed(1)}</span>
-                  <span className="text-gray-400">({totalReviews} reviews)</span>
-                </div>
-                <span className="text-gray-400 text-sm">
-                  {totalBookings} bookings
-                </span>
+            {/* Stats */}
+            <div className="flex items-center gap-4 mb-4 text-sm text-gray-400">
+              <div className="flex items-center">
+                <span className="text-yellow-500 mr-1">★</span>
+                <span>{rating?.toFixed(1) || '0.0'}</span>
+                <span className="ml-1">({totalReviews || 0} reviews)</span>
               </div>
+              <div>{totalBookings || 0} bookings</div>
+            </div>
 
-              <p className="text-gray-300">{description}</p>
+            {/* Description */}
+            <p className="text-gray-300 mb-6">{description}</p>
+
+            {/* Price */}
+            <div className="mb-6">
+              <div className="text-sm text-gray-400 mb-1">Price</div>
+              <div className="text-2xl font-bold text-white">
+                Rp {parseInt(price).toLocaleString('id-ID')}
+              </div>
             </div>
 
             {/* Provider Info */}

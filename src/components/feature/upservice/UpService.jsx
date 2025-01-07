@@ -23,7 +23,6 @@ const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
   headers: {
-    'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
 })
@@ -92,7 +91,14 @@ function UpService() {
   // Handle service creation with better error handling
   const handleCreateService = async (serviceData) => {
     try {
-      const response = await api.post('/api/services', serviceData)
+      // Since we're using FormData, we need to set the correct headers
+      const response = await api.post('/api/services', serviceData, {
+        headers: {
+          // Let the browser set the Content-Type header with boundary for FormData
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      
       setIsCreateModalOpen(false)
       // Trigger refetch
       setRetryCount(prev => prev + 1)

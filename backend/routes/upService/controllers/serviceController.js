@@ -1,5 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const uploadImage = require('../../../utils/uploadImage');
+const multer = require('multer');
+const upload = multer().array('images', 5); // Max 5 images
 
 const prisma = new PrismaClient();
 
@@ -100,50 +102,134 @@ const getServiceById = async (req, res) => {
 // Create new service
 const createService = async (req, res) => {
   try {
-    const { title, description, price, category, images } = req.body;
-    const providerId = req.user.id;
+    // Handle multipart form data
+    upload(req, res, async (err) => {
+      if (err instanceof multer.MulterError) {
+        console.error('Multer error:', err);
+        return res.status(400).json({ message: 'Image upload error', error: err.message });
+      } else if (err) {
+        console.error('Unknown upload error:', err);
+        return res.status(500).json({ message: 'Unknown error', error: err.message });
+      }
 
-    // Upload images if provided
-    let uploadedImages = [];
-    if (images && images.length > 0) {
-      uploadedImages = await Promise.all(
-        images.map(image => uploadImage(image))
-      );
-    }
+      try {
+        const { title, description, price, category } = req.body;
+        const providerId = req.user.id;
+        const files = req.files || [];
 
-    const service = await prisma.service.create({
-      data: {
-        title,
-        description,
-        price: parseFloat(price),
-        category,
-        images: uploadedImages,
-        providerId,
-        rating: 0,
-        totalReviews: 0,
-        totalBookings: 0
-      },
-      include: {
-        provider: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-            school: {
+        console.log('Request files:', {
+          count: files.length,
+          types: files.map(f => f.mimetype),
+          sizes: files.map(f => f.size)
+        });
+
+        // Upload images if provided
+        let uploadedImages = [];
+        if (files.length > 0) {
+          console.log('Starting image uploads...');
+          const uploadPromises = files.map(async (file, index) => {
+            try {
+              console.log(`Processing file ${index + 1}:`, {
+                type: file.mimetype,
+                size: file.size,
+                buffer: file.buffer ? 'Buffer present' : 'No buffer'
+              });
+              
+              const imageUrl = await uploadImage(file.buffer);
+              console.log(`File ${index + 1} uploaded successfully:`, imageUrl);
+              return imageUrl;
+            } catch (uploadError) {
+              console.error(`Failed to upload file ${index + 1}:`, uploadError);
+              return null;
+            }
+          });
+
+          // Wait for all uploads and filter out failed ones
+          const results = await Promise.all(uploadPromises);
+          uploadedImages = results.filter(url => url !== null);
+          
+          console.log('Final uploaded images:', {
+            total: uploadedImages.length,
+            urls: uploadedImages
+          });
+        }
+
+        // Ensure we have at least one image if files were provided
+        if (files.length > 0 && uploadedImages.length === 0) {
+          console.error('All image uploads failed');
+          return res.status(400).json({ 
+            message: 'Failed to upload any images. Please try again.' 
+          });
+        }
+
+        console.log('Creating service with data:', {
+          title,
+          description,
+          price,
+          category,
+          imageCount: uploadedImages.length,
+          images: uploadedImages
+        });
+
+        const service = await prisma.service.create({
+          data: {
+            title,
+            description,
+            price: parseFloat(price),
+            category,
+            images: uploadedImages,
+            providerId,
+            rating: 0,
+            totalReviews: 0,
+            totalBookings: 0
+          },
+          include: {
+            provider: {
               select: {
+                id: true,
                 name: true,
-                province: true
+                image: true,
+                school: {
+                  select: {
+                    name: true,
+                    province: true
+                  }
+                }
               }
             }
           }
-        }
+        });
+
+        console.log('Service created:', {
+          id: service.id,
+          title: service.title,
+          imageCount: service.images?.length || 0,
+          images: service.images
+        });
+
+        res.status(201).json(service);
+      } catch (error) {
+        console.error('Service creation error:', {
+          message: error.message,
+          stack: error.stack
+        });
+        res.status(500).json({ 
+          message: 'Failed to create service', 
+          error: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
       }
     });
-
-    res.status(201).json(service);
   } catch (error) {
-    console.error('Error creating service:', error);
-    res.status(500).json({ message: 'Failed to create service', error: error.message });
+    console.error('Upload middleware error:', {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      message: 'Failed to process upload', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
