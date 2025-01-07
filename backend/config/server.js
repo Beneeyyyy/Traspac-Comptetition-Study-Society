@@ -20,6 +20,7 @@ const discussionRoutes = require('../routes/coursesManagement/routes/discussionR
 const forumRoutes = require('../routes/community/forum/routes/forumRoutes');
 const creationRoutes = require('../routes/upCreation/routes/creationRoutes');
 const serviceRoutes = require('../routes/upService/routes/serviceRoutes');
+const bookingRoutes = require('../routes/upService/routes/bookingRoutes');
 
 
 
@@ -94,6 +95,7 @@ app.use('/api/discussions', discussionRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/creations', creationRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 // Global error handling
 app.use((err, req, res, next) => {

@@ -19,6 +19,8 @@ import CategoryManagement from '../pages/admin/CategoryManagement';
 import UserManagement from '../pages/admin/UserManagement';
 import SubcategoryManagement from '../pages/admin/SubcategoryManagement';
 import MaterialManagement from '../pages/admin/MaterialManagement';
+import Dashboard from '../pages/Dashboard';
+import { PrivateRoute } from '../components/common/PrivateRoute';
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -36,7 +38,11 @@ const AppRoutes = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           
-          <Route path='/dashboard' element={<LandingPage />} />
+          <Route path='/dashboard' element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          } />
           <Route path="/courses" element={<Courses />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/profile" element={<Profile />} />

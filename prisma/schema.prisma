@@ -436,12 +436,15 @@ model ServiceBooking {
   service     Service   @relation(fields: [serviceId], references: [id])
   userId      Int
   user        User      @relation(fields: [userId], references: [id])
-  status      String    @default("pending") // pending/accepted/rejected/completed
+  status      String    @default("pending") // pending/accepted/rejected/ongoing/completed/cancelled
   schedule    DateTime
   duration    Int       // in minutes
   notes       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  // Payment relation
+  payment     Payment?
 }
 
 model ServiceReview {
@@ -454,4 +457,34 @@ model ServiceReview {
   comment     String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+// New Payment model
+model Payment {
+  id              Int       @id @default(autoincrement())
+  bookingId       Int       @unique
+  booking         ServiceBooking @relation(fields: [bookingId], references: [id])
+  amount          Float
+  status          String    @default("pending") // pending/paid/released/refunded/cancelled
+  paymentMethod   String?   // bank_transfer/ewallet/etc
+  paymentProof    String?   // URL to payment proof image
+  paymentDate     DateTime?
+  releaseDate     DateTime? // When money is released to provider
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Transaction history
+  transactions    Transaction[]
+}
+
+// New Transaction model for payment history
+model Transaction {
+  id          Int       @id @default(autoincrement())
+  paymentId   Int
+  payment     Payment   @relation(fields: [paymentId], references: [id])
+  type        String    // payment/release/refund
+  amount      Float
+  status      String    // success/failed
+  description String?
+  createdAt   DateTime  @default(now())
 }
