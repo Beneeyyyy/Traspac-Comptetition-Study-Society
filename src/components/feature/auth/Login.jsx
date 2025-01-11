@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const Login = () => {
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -48,54 +50,9 @@ const Login = () => {
     setError('');
 
     try {
-      console.log('Attempting login with:', formData);
-      
-      const loginResponse = await fetch('http://localhost:3000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        credentials: 'include',
-        mode: 'cors',
-        body: JSON.stringify(formData)
-      });
-
-      console.log('Login response status:', loginResponse.status);
-      
-      const data = await loginResponse.json();
-      console.log('Login response data:', data);
-      
-      if (!loginResponse.ok) {
-        throw new Error(data.message || 'Failed to login');
-      }
-
-      // Tunggu sebentar untuk memastikan cookie ter-set
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Verify auth status
-      const authCheck = await fetch('http://localhost:3000/api/auth/check-auth', {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Auth check status:', authCheck.status);
-      const authData = await authCheck.json();
-      console.log('Auth check data:', authData);
-
-      if (authCheck.ok) {
-        console.log('Auth check successful, redirecting...');
-        // Redirect to the page they came from or dashboard
-        const from = location.state?.from || '/dashboard';
-        navigate(from);
-      } else {
-        console.error('Auth check failed:', authData);
-        throw new Error(authData.message || 'Failed to verify authentication');
-      }
-      
+      await login(formData.email, formData.password);
+      const from = location.state?.from || '/dashboard';
+      navigate(from);
     } catch (error) {
       console.error('Login error:', error);
       setError(error.message || 'Failed to login. Please check your credentials.');

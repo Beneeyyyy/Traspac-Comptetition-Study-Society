@@ -39,17 +39,21 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
     fetchAnswersCount();
   }, [question?.id]); // Depend on question.id
 
-  const handleVote = async (type = 'question', id = question.id, isUpvote) => {
+  const handleVote = async (type = 'post', id = question.id, isUpvote) => {
     if (isVoting) return;
+    if (!currentUser) {
+      setError('Silakan login terlebih dahulu untuk memberikan vote');
+      return;
+    }
+    
     setIsVoting(true);
+    setError(null);
+    
     try {
       await updateVote(type, id, isUpvote);
-      // Refresh question data after voting
-      await refreshQuestion(question.id);
     } catch (err) {
       console.error('Error voting:', err);
-      setError('Gagal memberikan vote. Silakan coba lagi.');
-      setTimeout(() => setError(null), 3000);
+      setError(err.message || 'Gagal memberikan vote. Silakan coba lagi.');
     } finally {
       setIsVoting(false);
     }
@@ -223,7 +227,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
           <div className="flex flex-col items-center gap-3">
             <div className="p-2 rounded-2xl bg-white/[0.02] border border-white/5">
               <button
-                onClick={() => handleVote('question', question.id, true)}
+                onClick={() => handleVote('post', question.id, true)}
                 disabled={isVoting}
                 className={`group flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-gradient-to-b hover:from-green-500/20 hover:to-green-400/5 text-white/50 hover:text-green-400 transition-all ${
                   isVoting ? 'cursor-not-allowed opacity-50' : ''
@@ -242,7 +246,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
               <div className="my-2 h-[1px] w-full bg-white/5"></div>
 
               <button
-                onClick={() => handleVote('question', question.id, false)}
+                onClick={() => handleVote('post', question.id, false)}
                 disabled={isVoting}
                 className={`group flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-gradient-to-b hover:from-red-500/20 hover:to-red-400/5 text-white/50 hover:text-red-400 transition-all ${
                   isVoting ? 'cursor-not-allowed opacity-50' : ''

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FiBook, FiUsers, FiArrowLeft } from 'react-icons/fi'
+import { useCourse } from '../../../../contexts/CourseContext'
 import Footer from '../../../layouts/Footer'
 import SubCategoryCard from './components/SubCategoryCard'
 import LoadingSkeleton from './components/LoadingSkeleton'
@@ -9,41 +10,17 @@ import ErrorState from './components/ErrorState'
 const SubCategoryPage = () => {
   const { categoryId } = useParams()
   const navigate = useNavigate()
-  const [subcategories, setSubcategories] = useState([])
-  const [category, setCategory] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { 
+    subcategories, 
+    categories,
+    isLoading, 
+    error,
+    fetchSubcategories 
+  } = useCourse()
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        // Fetch subcategories for the category
-        const response = await fetch(`http://localhost:3000/api/subcategories/category/${categoryId}`)
-        if (!response.ok) throw new Error('Failed to fetch subcategories')
-        
-        const data = await response.json()
-        setSubcategories(data)
-
-        // Fetch category details
-        const categoryResponse = await fetch(`http://localhost:3000/api/categories/${categoryId}`)
-        if (!categoryResponse.ok) throw new Error('Failed to fetch category')
-        
-        const categoryData = await categoryResponse.json()
-        setCategory(categoryData)
-
-      } catch (error) {
-        console.error('Error fetching data:', error)
-        setError(error.message)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     if (categoryId) {
-      fetchData()
+      fetchSubcategories(categoryId)
     }
   }, [categoryId])
 
@@ -58,6 +35,8 @@ const SubCategoryPage = () => {
   if (error) {
     return <ErrorState error={error} onBack={() => navigate('/courses')} />
   }
+
+  const category = categories.find(cat => cat.id === parseInt(categoryId))
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">

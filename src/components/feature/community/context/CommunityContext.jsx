@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useMemo, useEffect } from 'react'
 import axios from 'axios'
-import { useAuth } from '../../../../context/AuthContext'
+import { useAuth } from '../../../../contexts/AuthContext'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -22,7 +22,8 @@ const CommunityContext = createContext({
   currentUser: null,
   refreshQuestion: async () => {},
   addAnswer: async () => {},
-  addQuestion: async () => {}
+  addQuestion: async () => {},
+  updateVote: async () => {}
 })
 
 export function useCommunity() {
@@ -130,7 +131,7 @@ const communityReducer = (state, action) => {
       return {
         ...state,
         questions: state.questions.map(question => {
-          if (action.payload.type === 'question' && question.id === action.payload.id) {
+          if (action.payload.type === 'post' && question.id === parseInt(action.payload.id)) {
             return {
               ...question,
               upvoteCount: action.payload.upvoteCount,
@@ -142,7 +143,7 @@ const communityReducer = (state, action) => {
             return {
               ...question,
               answers: (question.answers || []).map(answer => 
-                answer.id === action.payload.id
+                answer.id === parseInt(action.payload.id)
                   ? {
                       ...answer,
                       upvoteCount: action.payload.upvoteCount,
@@ -192,7 +193,7 @@ export function CommunityProvider({ children }) {
       const fetchQuestions = async () => {
         dispatch({ type: 'FETCH_QUESTIONS_START' })
         try {
-          const response = await api.get('/forum/posts')
+          const response = await api.get('/api/forum/posts')
           const posts = response.data?.data?.posts || []
           dispatch({ type: 'FETCH_QUESTIONS_SUCCESS', payload: posts })
         } catch (error) {
@@ -209,7 +210,7 @@ export function CommunityProvider({ children }) {
     refreshQuestion: async (questionId) => {
       if (!questionId) return null
       try {
-        const response = await api.get(`/forum/posts/${questionId}`)
+        const response = await api.get(`/api/forum/posts/${questionId}`)
         const updatedQuestion = response.data?.data
         if (updatedQuestion) {
           dispatch({
@@ -225,7 +226,7 @@ export function CommunityProvider({ children }) {
     },
     addAnswer: async (questionId, answer) => {
       try {
-        const response = await api.post(`/forum/posts/${questionId}/answers`, {
+        const response = await api.post(`/api/forum/posts/${questionId}/answers`, {
           content: answer.content,
           images: answer.images || []
         })
@@ -244,7 +245,7 @@ export function CommunityProvider({ children }) {
     },
     addQuestion: async (question) => {
       try {
-        const response = await api.post('/forum/posts', question)
+        const response = await api.post('/api/forum/posts', question)
         const newQuestion = response.data?.data
         if (newQuestion) {
           dispatch({
@@ -257,12 +258,30 @@ export function CommunityProvider({ children }) {
         console.error('Error adding question:', error)
         throw error
       }
+    },
+    updateVote: async (type, id, isUpvote) => {
+      try {
+        const response = await api.post(`/api/forum/${type}/${id}/vote`, { isUpvote })
+        const { upvotes, downvotes, userVote } = response.data?.data || {}
+        
+        dispatch({
+          type: 'UPDATE_VOTE_SUCCESS',
+          payload: {
+            type,
+            id,
+            upvoteCount: upvotes,
+            downvoteCount: downvotes,
+            userVote
+          }
+        })
+        
+        return response.data?.data
+      } catch (error) {
+        console.error('Error updating vote:', error)
+        throw new Error(error.response?.data?.error || 'Failed to update vote')
+      }
     }
   }), [state])
-
-  if (authLoading) {
-    return <div>Loading...</div> // Or your loading component
-  }
 
   return (
     <CommunityContext.Provider value={value}>

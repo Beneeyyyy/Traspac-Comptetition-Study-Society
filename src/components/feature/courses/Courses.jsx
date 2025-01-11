@@ -1,6 +1,7 @@
-import React, { useState, useEffect, Suspense, lazy, useRef } from 'react'
+import React, { useEffect, Suspense, lazy, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from 'react-error-boundary'
+import { useCourse } from '../../../contexts/CourseContext'
 import Footer from '../../layouts/Footer'
 import HeroSection from '../../layouts/HeroSection'
 import { FiBook, FiUsers, FiBarChart } from 'react-icons/fi'
@@ -47,18 +48,23 @@ const ErrorFallback = ({ error }) => (
 );
 
 const Courses = () => {
-  const [isLoading, setIsLoading] = useState(true)
-  const [categories, setCategories] = useState([])
-  const [activeFilter, setActiveFilter] = useState('all')
-  const [visibleSection, setVisibleSection] = useState('hero')
-  const heroRef = useRef(null)
-  const categoryRef = useRef(null)
+  const { 
+    categories, 
+    isLoading, 
+    activeFilter, 
+    setActiveFilter,
+    fetchCategories 
+  } = useCourse();
+  
+  const [visibleSection, setVisibleSection] = React.useState('hero');
+  const heroRef = useRef(null);
+  const categoryRef = useRef(null);
 
   const courseStats = [
     { icon: FiBook, value: categories.length || '20+', label: 'Learning Paths' },
     { icon: FiUsers, value: '2.5k+', label: 'Active Learners' },
     { icon: FiBarChart, value: '94%', label: 'Success Rate' }
-  ]
+  ];
 
   useEffect(() => {
     console.log('🚀 Initial page load - Setting up observers')
@@ -95,51 +101,6 @@ const Courses = () => {
 
     return () => observer.disconnect()
   }, [])
-
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/api/categories', {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) throw new Error('Network response was not ok');
-      const data = await response.json();
-      console.log('Categories fetched:', data);
-      setCategories(data);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      // Fallback data jika terjadi error
-      setCategories([
-        {
-          id: 1,
-          name: "Web Development",
-          description: "Learn modern web development with the latest technologies",
-          _count: { materials: 12 },
-          _sum: { materials: { pointValue: 1200 } }
-        },
-        {
-          id: 2,
-          name: "Mobile Development",
-          description: "Build mobile applications for iOS and Android",
-          _count: { materials: 8 },
-          _sum: { materials: { pointValue: 800 } }
-        },
-        {
-          id: 3,
-          name: "Data Science",
-          description: "Master data analysis and machine learning",
-          _count: { materials: 15 },
-          _sum: { materials: { pointValue: 1500 } }
-        }
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-black text-white">

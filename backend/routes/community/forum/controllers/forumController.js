@@ -509,13 +509,16 @@ const forumController = {
       const upvotes = votes.filter(v => v.isUpvote).length;
       const downvotes = votes.filter(v => !v.isUpvote).length;
 
+      // Get user's current vote status
+      const currentUserVote = votes.find(v => v.userId === userId);
+
       res.json({
         success: true,
         data: {
           vote,
           upvotes,
           downvotes,
-          userVote: vote ? (vote.isUpvote ? 'upvote' : 'downvote') : null
+          userVote: currentUserVote ? (currentUserVote.isUpvote ? 'upvote' : 'downvote') : null
         }
       });
     } catch (error) {

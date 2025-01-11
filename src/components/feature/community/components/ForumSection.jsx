@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useState, useMemo, useCallback } from 'react'
 import { FiSearch, FiFilter, FiTrendingUp, FiClock, FiMessageSquare, FiHeart } from 'react-icons/fi'
-import { useDebounce } from '../../../../hooks/useDebounce'
+import { useDebounce } from '../hooks/useDebounce'
 import QuestionCardSkeleton from './forumComponents/skeletons/QuestionCardSkeleton'
 import { useCommunity } from '../context/CommunityContext'
 

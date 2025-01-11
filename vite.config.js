@@ -5,13 +5,31 @@ import { visualizer } from 'rollup-plugin-visualizer'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      // Add fast refresh options
+      fastRefresh: true,
+      // Ensure single React instance
+      jsxRuntime: 'automatic',
+    }),
     visualizer({
       open: true,
       gzipSize: true,
       brotliSize: true,
     }),
   ],
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
+    exclude: [
+      'axios',
+      '@headlessui/react',
+      'framer-motion',
+      '@tanstack/react-query'
+    ],
+    force: true,
+    esbuildOptions: {
+      target: 'es2020'
+    }
+  },
   build: {
     minify: 'terser',
     terserOptions: {
@@ -23,13 +41,20 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor': ['react', 'react-dom', 'react-router-dom', 'framer-motion', 'react-intersection-observer'],
+          'vendor': ['react', 'react-dom'],
+          'router': ['react-router-dom'],
+          'animation': ['framer-motion', 'react-intersection-observer'],
         },
       },
     },
     chunkSizeWarningLimit: 1000,
   },
+  resolve: {
+    dedupe: ['react', 'react-dom']
+  },
   server: {
+    port: 5173,
+    strictPort: true,
     headers: {
       'Cache-Control': 'public, max-age=31536000',
     },
