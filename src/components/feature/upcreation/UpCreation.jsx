@@ -10,6 +10,12 @@ const WorkCard = lazy(() => import('./components/WorkCard'))
 const WorkDetail = lazy(() => import('./components/WorkDetail'))
 const UploadForm = lazy(() => import('./components/UploadForm'))
 
+// Create axios instance with base URL
+const api = axios.create({
+  baseURL: 'http://localhost:3000',
+  withCredentials: true
+})
+
 function UpCreation() {
   const [isUploadMode, setIsUploadMode] = useState(false)
   const [selectedWork, setSelectedWork] = useState(null)
@@ -29,22 +35,32 @@ function UpCreation() {
         if (searchQuery) params.append('search', searchQuery)
         if (selectedCategory !== 'All') params.append('category', selectedCategory)
 
-        const response = await axios.get(`/api/creations?${params.toString()}`, {
-          withCredentials: true
-        })
+        const response = await api.get(`/api/creations?${params.toString()}`)
 
-        // Ensure creations is always an array
-        if (response.data && Array.isArray(response.data)) {
-          setCreations(response.data)
+        // Log the response for debugging
+        console.log('API Response:', response)
+
+        // Check if response is JSON and has the expected format
+        if (response.data && typeof response.data === 'object') {
+          if (Array.isArray(response.data)) {
+            setCreations(response.data)
+          } else if (Array.isArray(response.data.creations)) {
+            setCreations(response.data.creations)
+          } else {
+            console.error('Invalid creations data structure:', response.data)
+            setCreations([])
+            setError('Failed to load creations: Invalid data structure')
+          }
         } else {
-          console.error('Invalid creations data:', response.data)
+          console.error('Invalid response format:', response)
           setCreations([])
-          setError('Failed to load creations: Invalid data format')
+          setError('Failed to load creations: Invalid response format')
         }
       } catch (err) {
-        console.error('Error fetching creations:', err)
-        setError(err.response?.data?.message || 'Failed to load creations')
-        setCreations([]) // Reset to empty array on error
+        console.error('Error fetching creations:', err.response || err)
+        const errorMessage = err.response?.data?.message || err.message || 'Failed to load creations'
+        setError(`Error: ${errorMessage}`)
+        setCreations([])
       } finally {
         setIsLoading(false)
       }
@@ -56,10 +72,8 @@ function UpCreation() {
   // Handle like update
   const handleLikeUpdate = async (creationId, liked) => {
     try {
-      const response = await axios.post(`/api/creations/${creationId}/like`, {
+      const response = await api.post(`/api/creations/${creationId}/like`, {
         liked
-      }, {
-        withCredentials: true
       })
 
       if (response.data) {
@@ -81,8 +95,9 @@ function UpCreation() {
         }
       }
     } catch (err) {
-      console.error('Error updating like:', err)
-      setError(err.response?.data?.message || 'Failed to update like')
+      console.error('Error updating like:', err.response || err)
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update like'
+      setError(`Error: ${errorMessage}`)
     }
   }
 

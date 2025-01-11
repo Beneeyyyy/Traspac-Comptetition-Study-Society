@@ -119,7 +119,7 @@ const Navbar = () => {
             <Link to="/upcreation" className="text-white/60 hover:text-white transition-colors">
               Up Creation
             </Link>
-            <Link to="/upservice" className="text-white/60 hover:text-white transition-colors">
+            <Link to="/upservices" className="text-white/60 hover:text-white transition-colors">
               Up Service
             </Link>
           </div>
