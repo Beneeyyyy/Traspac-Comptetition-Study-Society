@@ -102,7 +102,7 @@ const SubCategoryPage = () => {
                     <SubCategoryCard
                       key={subcategory.id}
                       subcategory={subcategory}
-                      onClick={() => navigate(`/courses/${categoryId}/subcategory/${subcategory.id}/materials`)}
+                      onClick={() => navigate(`/courses/${categoryId}/subcategory/${subcategory.id}`)}
                     />
                   ))}
                 </div>

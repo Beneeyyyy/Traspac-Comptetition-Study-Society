@@ -1,125 +1,159 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useCourse } from '../../../../contexts/CourseContext';
+import { useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { FiBook, FiUsers, FiArrowLeft } from 'react-icons/fi'
+import { useCourse } from '../../../../contexts/CourseContext'
+import Footer from '../../../layouts/Footer'
+import MaterialCard from './components/MaterialCard'
+import LoadingSkeleton from './components/LoadingSkeleton'
+import ErrorState from './components/ErrorState'
 
 const MaterialsPage = () => {
-  const { categoryId, subcategoryId } = useParams();
-  const navigate = useNavigate();
-  const { getMaterials, loading, error } = useCourse();
-  const [materials, setMaterials] = useState([]);
+  const { categoryId, subcategoryId } = useParams()
+  const navigate = useNavigate()
+  const { 
+    materials,
+    subcategories,
+    isLoading,
+    error,
+    getMaterials
+  } = useCourse()
 
   useEffect(() => {
-    const fetchMaterials = async () => {
+    const loadMaterials = async () => {
       try {
-        const data = await getMaterials(categoryId, subcategoryId);
-        setMaterials(data);
+        // Validate parameters
+        if (!categoryId || !subcategoryId) {
+          throw new Error('Category ID and Subcategory ID are required');
+        }
+
+        // Validate that subcategoryId is a number
+        const parsedSubcategoryId = parseInt(subcategoryId, 10);
+        if (isNaN(parsedSubcategoryId)) {
+          throw new Error('Invalid subcategory ID format');
+        }
+
+        await getMaterials(categoryId, parsedSubcategoryId);
       } catch (err) {
-        console.error('Error fetching materials:', err);
+        console.error('Error loading materials:', err);
       }
     };
 
-    fetchMaterials();
-  }, [categoryId, subcategoryId, getMaterials]);
+    loadMaterials();
+  }, [categoryId, subcategoryId]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+  // If no subcategoryId, redirect back to categories
+  if (!subcategoryId) {
+    return <ErrorState 
+      error="No subcategory selected" 
+      onBack={() => navigate(`/courses/${categoryId}`)} 
+    />;
+  }
+
+  if (isLoading) {
+    return <LoadingSkeleton />;
   }
 
   if (error) {
-    return (
-      <div className="text-center text-red-500 p-4">
-        <p>{error}</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="mt-2 px-4 py-2 bg-red-500/20 rounded-lg hover:bg-red-500/30 transition-colors"
-        >
-          Go Back
-        </button>
-      </div>
-    );
+    return <ErrorState 
+      error={error} 
+      onBack={() => navigate(`/courses/${categoryId}`)} 
+    />;
   }
 
+  const subcategory = subcategories.find(sub => sub.id === parseInt(subcategoryId))
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="max-w-7xl mx-auto px-4 py-8"
-    >
-      {/* Header */}
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-white mb-4">Course Materials</h1>
-        <p className="text-gray-400 max-w-2xl mx-auto">
-          Learn at your own pace with our comprehensive course materials
-        </p>
-      </div>
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      {/* Main Content */}
+      <main className="relative flex-1">
+        {/* Top Gradient */}
+        <div className="absolute top-0 inset-x-0 h-[500px] pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-transparent" />
+        </div>
 
-      {/* Materials Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {materials.map((material) => (
-          <motion.div
-            key={material.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white/5 backdrop-blur-sm rounded-lg overflow-hidden hover:bg-white/10 transition-colors"
-          >
-            {/* Material Image */}
-            <div className="relative aspect-video">
-              <img
-                src={material.thumbnail || 'https://via.placeholder.com/400x225'}
-                alt={material.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <h3 className="text-lg font-medium text-white">{material.title}</h3>
-                <p className="text-sm text-gray-300">{material.duration} minutes</p>
-              </div>
-            </div>
+        {/* Content Wrapper */}
+        <div className="relative w-full">
+          <section className="py-12 pt-20">
+            <div className="container max-w-screen-2xl mx-auto px-6 lg:px-12">
+              {/* Navigation and Stats Bar */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                {/* Back Button */}
+                <button 
+                  onClick={() => navigate(`/courses/${categoryId}/subcategory`)}
+                  className="flex items-center gap-2 text-white/60 hover:text-white group w-fit"
+                >
+                  <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
+                  <span>Back to Subcategories</span>
+                </button>
 
-            {/* Material Info */}
-            <div className="p-6">
-              <p className="text-gray-300 mb-4 line-clamp-2">{material.description}</p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
-                    {material.type}
+                {/* Quick Stats */}
+                <div className="flex items-center gap-6 text-sm text-white/60">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <FiBook className="text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="text-white font-medium">{materials.length}</div>
+                      <div className="text-xs">Materials</div>
+                    </div>
                   </div>
-                  <div className="text-gray-400 text-sm">
-                    {material.completions} completions
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                      <FiUsers className="text-purple-400" />
+                    </div>
+                    <div>
+                      <div className="text-white font-medium">{Math.floor(Math.random() * 1000) + 500}</div>
+                      <div className="text-xs">Active Students</div>
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => navigate(`/courses/${categoryId}/${subcategoryId}/learn/${material.id}`)}
-                  className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
-                >
-                  Start Learning
-                </button>
               </div>
+
+              {/* Subcategory Header */}
+              <div className="mb-12">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                  <span className="text-sm font-medium text-blue-400">{subcategory?.name}</span>
+                </div>
+                <h1 className="text-4xl font-bold text-white mb-4">Available Materials</h1>
+                <p className="text-lg text-white/60 max-w-2xl">{subcategory?.description}</p>
+              </div>
+
+              {/* Materials Grid */}
+              {materials.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {materials.map((material) => (
+                    <MaterialCard
+                      key={material.id}
+                      material={material}
+                      categoryId={categoryId}
+                      subcategoryId={subcategoryId}
+                      onClick={() => navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/learn/${material.id}`)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                    <FiBook className="text-2xl text-white/40" />
+                  </div>
+                  <h3 className="text-xl font-medium text-white/60 mb-2">No materials available</h3>
+                  <p className="text-white/40 mb-6">This subcategory doesn't have any materials yet.</p>
+                  <button 
+                    onClick={() => navigate(`/courses/${categoryId}/subcategory`)}
+                    className="px-6 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                  >
+                    Explore Other Subcategories
+                  </button>
+                </div>
+              )}
             </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {materials.length === 0 && (
-        <div className="text-center text-gray-400 py-12">
-          <p>No materials available for this course yet.</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="mt-4 px-6 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
-          >
-            Go Back
-          </button>
+          </section>
         </div>
-      )}
-    </motion.div>
-  );
-};
+      </main>
+      <Footer />
+    </div>
+  )
+}
 
-export default MaterialsPage; 
+export default MaterialsPage 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { createContext, useState, useContext, useEffect } from 'react';
+import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -19,29 +20,20 @@ export function useCourse() {
 export function CourseProvider({ children }) {
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [materials, setMaterials] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('all');
 
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`${API_URL}/api/categories`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      const data = await response.json();
-      console.log('Categories fetched:', data);
-      setCategories(data);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      setError(error.message);
+      const response = await axios.get(`${API_URL}/api/categories`);
+      console.log('Fetched categories:', response.data);
+      setCategories(response.data);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setError('Failed to fetch categories');
     } finally {
       setIsLoading(false);
     }
@@ -51,21 +43,41 @@ export function CourseProvider({ children }) {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`${API_URL}/api/subcategories/category/${categoryId}`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
+      // Parse categoryId as number
+      const parsedCategoryId = parseInt(categoryId, 10);
+      console.log('Fetching subcategories for category:', parsedCategoryId);
       
-      if (!response.ok) throw new Error('Failed to fetch subcategories');
-      const data = await response.json();
-      console.log('Subcategories fetched:', data);
-      setSubcategories(data);
-    } catch (error) {
-      console.error('Error fetching subcategories:', error);
-      setError(error.message);
+      const response = await axios.get(`${API_URL}/api/subcategories/category/${parsedCategoryId}`);
+      console.log('Fetched subcategories:', response.data);
+      setSubcategories(response.data);
+    } catch (err) {
+      console.error('Error fetching subcategories:', err);
+      setError('Failed to fetch subcategories');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getMaterials = async (categoryId, subcategoryId) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Parse subcategoryId as number and validate
+      const parsedSubcategoryId = parseInt(subcategoryId, 10);
+      if (isNaN(parsedSubcategoryId)) {
+        throw new Error('Invalid subcategory ID');
+      }
+
+      // Use the correct endpoint that exists in the backend
+      const response = await axios.get(`${API_URL}/api/materials/subcategory/${parsedSubcategoryId}`);
+      console.log('Fetched materials:', response.data);
+      setMaterials(response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Error fetching materials:', err);
+      setError(err.message || 'Failed to fetch materials');
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -76,22 +88,18 @@ export function CourseProvider({ children }) {
     fetchCategories();
   }, []);
 
-  const value = React.useMemo(() => ({
+  const value = {
     categories,
     subcategories,
+    materials,
     isLoading,
     error,
-    activeFilter,
-    setActiveFilter,
     fetchCategories,
     fetchSubcategories,
-  }), [categories, subcategories, isLoading, error, activeFilter]);
+    getMaterials
+  };
 
-  return (
-    <CourseContext.Provider value={value}>
-      {children}
-    </CourseContext.Provider>
-  );
+  return <CourseContext.Provider value={value}>{children}</CourseContext.Provider>;
 }
 
 export default CourseContext; 

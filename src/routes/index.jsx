@@ -16,6 +16,7 @@ const MaterialsPage = lazy(() => import('../components/feature/courses/materials
 const Leaderboard = lazy(() => import('../components/feature/leaderboard/Leaderboard'));
 const UpCreation = lazy(() => import('../components/feature/upcreation/UpCreation'));
 const UpService = lazy(() => import('../components/feature/upservice/UpService'));
+const LearningPage = lazy(() => import('../components/feature/courses/materials/learning/LearningPage'));
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -40,7 +41,8 @@ const AppRoutes = () => {
           {/* Courses Routes */}
           <Route path="courses" element={<Courses />} />
           <Route path="courses/:categoryId" element={<SubCategoryPage />} />
-          <Route path="courses/:categoryId/:subcategoryId" element={<MaterialsPage />} />
+          <Route path="courses/:categoryId/subcategory/:subcategoryId" element={<MaterialsPage />} />
+          <Route path="courses/:categoryId/subcategory/:subcategoryId/learn/:materialId" element={<LearningPage />} />
           
           {/* Community Routes */}
           <Route path="community/*" element={<CommunityPage />} />
