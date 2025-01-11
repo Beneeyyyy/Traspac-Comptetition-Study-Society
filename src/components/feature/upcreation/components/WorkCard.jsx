@@ -1,49 +1,20 @@
 import { motion } from 'framer-motion'
 import { FiEye, FiMessageSquare, FiHeart } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 
 const WorkCard = ({ work, index, selectedWork, setSelectedWork, onLikeUpdate }) => {
   const isSelected = selectedWork?.id === work.id
   
-  // Initialize like state from work data, fallback to likeCount > 0 if liked is false
-  const [isLiked, setIsLiked] = useState(work.liked || work.likeCount > 0)
-  const [likeCount, setLikeCount] = useState(work.likeCount)
+  // Initialize like state from work data
+  const [isLiked, setIsLiked] = useState(work.liked)
+  const [likeCount, setLikeCount] = useState(work.likeCount || 0)
   const [isLikeAnimating, setIsLikeAnimating] = useState(false)
-
-  // Debug log initial props
-  useEffect(() => {
-    console.log('WorkCard mounted:', work.id, {
-      initialLiked: work.liked,
-      initialCount: work.likeCount,
-      computedLiked: work.liked || work.likeCount > 0
-    })
-  }, [])
 
   // Sync like state with props immediately when they change
   useEffect(() => {
-    const shouldBeLiked = work.liked || work.likeCount > 0
-    setIsLiked(shouldBeLiked)
-    setLikeCount(work.likeCount)
+    setIsLiked(work.liked)
+    setLikeCount(work.likeCount || 0)
   }, [work.liked, work.likeCount])
-
-  // Get the first image file from the uploaded files
-  const getThumbnail = () => {
-    if (work.files && work.files.length > 0) {
-      const imageFile = work.files.find(file => file.type.startsWith('image/'))
-      return imageFile ? imageFile.data : null
-    }
-    return null
-  }
-
-  // Get author avatar and badge from user data
-  const getAuthorAvatar = () => {
-    return work.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(work.author)}&background=0D8ABC&color=fff`
-  }
-
-  const getBadge = () => {
-    return work.user?.school?.name
-  }
 
   const handleLike = async (e) => {
     e.stopPropagation()
@@ -52,44 +23,25 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork, onLikeUpdate }) 
     const wasLiked = isLiked
     const prevCount = likeCount
     const newLiked = !wasLiked
-    const newCount = wasLiked ? prevCount - 1 : prevCount + 1
-
+    
     // Update local state immediately
     setIsLiked(newLiked)
-    setLikeCount(newCount)
-    
-    // Update parent state
-    onLikeUpdate(work.id, newLiked, newCount)
+    setLikeCount(newLiked ? prevCount + 1 : prevCount - 1)
     
     // Animate heart
     setIsLikeAnimating(true)
     setTimeout(() => setIsLikeAnimating(false), 1000)
 
+    // Call parent handler
     try {
-      const response = await axios.post(
-        `/api/creations/${work.id}/like`,
-        {},
-        { withCredentials: true }
-      )
-
-      if (!response.data.success) {
-        // Revert both states on error
-        setIsLiked(wasLiked)
-        setLikeCount(prevCount)
-        onLikeUpdate(work.id, wasLiked, prevCount)
-      }
+      await onLikeUpdate(work.id, newLiked)
     } catch (error) {
-      console.error('Error liking creation:', error)
-      // Revert both states on error
+      console.error('Error updating like:', error)
+      // Revert on error
       setIsLiked(wasLiked)
       setLikeCount(prevCount)
-      onLikeUpdate(work.id, wasLiked, prevCount)
     }
   }
-
-  const thumbnail = getThumbnail()
-  const authorAvatar = getAuthorAvatar()
-  const badge = getBadge()
 
   return (
     <motion.div
@@ -107,9 +59,9 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork, onLikeUpdate }) 
       <div className="relative w-full h-full">
         {/* Background Image */}
         <div className="absolute inset-0 bg-[#1F2937] rounded-xl overflow-hidden">
-          {thumbnail ? (
+          {work.image ? (
             <img
-              src={thumbnail}
+              src={work.image}
               alt={work.title}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
@@ -124,15 +76,15 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork, onLikeUpdate }) 
           <div className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <div className="flex items-center gap-2">
               <img
-                src={authorAvatar}
+                src={work.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(work.author)}&background=0D8ABC&color=fff`}
                 alt={work.author}
                 className="w-8 h-8 rounded-full border-2 border-white/20"
               />
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-white/90">{work.author}</span>
-                {badge && (
+                {work.user?.school?.name && (
                   <span className="px-2 py-0.5 text-xs bg-[#2563EB] text-white rounded-full">
-                    {badge}
+                    {work.user.school.name}
                   </span>
                 )}
               </div>
@@ -140,7 +92,7 @@ const WorkCard = ({ work, index, selectedWork, setSelectedWork, onLikeUpdate }) 
             <div className="flex items-center gap-3 text-white/80">
               <div className="flex items-center gap-1">
                 <FiEye className="w-4 h-4" />
-                <span className="text-sm">{work.views}</span>
+                <span className="text-sm">{work.views || 0}</span>
               </div>
               <div className="flex items-center gap-1">
                 <FiMessageSquare className="w-4 h-4" />
