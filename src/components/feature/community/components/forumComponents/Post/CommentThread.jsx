@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FiMessageSquare, FiSend, FiX, FiLoader } from 'react-icons/fi'
-import { useCommunity } from '../../../context/CommunityContext'
+import { useCommunity } from '../../../../../../contexts/CommunityContext'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const MAX_COMMENT_LENGTH = 500

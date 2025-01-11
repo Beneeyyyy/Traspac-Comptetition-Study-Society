@@ -29,20 +29,39 @@ const UploadForm = ({ setIsUploadMode }) => {
     'Other'
   ];
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+
       if (file.size > 15 * 1024 * 1024) { // 15MB limit
         setError('Image size should not exceed 15MB');
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-        setFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Convert to base64
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target.result;
+          console.log('Image processed:', {
+            type: file.type,
+            size: Math.round(file.size / 1024) + 'KB',
+            name: file.name,
+            isBase64: base64.startsWith('data:image/')
+          });
+          
+          setImagePreview(base64);
+          setFormData(prev => ({ ...prev, image: base64 }));
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Error processing image:', err);
+        setError('Failed to process image. Please try again.');
+      }
     }
   };
 
@@ -57,7 +76,37 @@ const UploadForm = ({ setIsUploadMode }) => {
     setError(null);
 
     try {
-      const response = await axios.post('/api/creations', formData, {
+      // Validate required fields
+      if (!formData.title || !formData.description || !formData.category) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      // Ensure tags is an array
+      const cleanedTags = formData.tags
+        .filter(tag => tag.trim() !== '')
+        .map(tag => tag.trim());
+
+      if (cleanedTags.length === 0) {
+        throw new Error('Please add at least one tag');
+      }
+
+      // Prepare payload
+      const payload = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        category: formData.category,
+        tags: cleanedTags,
+        image: formData.image,
+        fileUrl: formData.fileUrl?.trim()
+      };
+
+      // Log the payload for debugging
+      console.log('Sending creation payload:', {
+        ...payload,
+        image: payload.image ? 'base64_image_data' : null
+      });
+
+      const response = await axios.post('/api/creations', payload, {
         withCredentials: true,
         headers: {
           'Content-Type': 'application/json'
@@ -65,12 +114,22 @@ const UploadForm = ({ setIsUploadMode }) => {
       });
 
       if (response.data) {
+        console.log('Creation uploaded successfully:', response.data);
         setIsUploadMode(false);
         navigate('/upcreation');
       }
     } catch (err) {
-      console.error('Upload error:', err);
-      setError(err.response?.data?.error || 'Failed to upload creation');
+      console.error('Upload error:', {
+        error: err,
+        status: err.response?.status,
+        message: err.message,
+        details: err.response?.data?.error || err.response?.data?.message
+      });
+      const errorMessage = err.response?.data?.error || 
+        err.response?.data?.message || 
+        err.message ||
+        'Failed to upload creation. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

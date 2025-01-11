@@ -58,34 +58,21 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-white overflow-hidden">
       {/* Abstract Background Elements */}
-      <motion.div 
-        className="fixed inset-0 z-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-      >
+      <div className="fixed inset-0 z-0">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-radial from-blue-500/10 via-transparent to-transparent" />
         <div className="absolute bottom-0 right-0 w-full h-full bg-gradient-radial from-purple-500/10 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay" />
         <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-[url('/grid.svg')] opacity-[0.02] rotate-12" />
-      </motion.div>
+      </div>
 
       {/* Main Content */}
-      <motion.main 
-        className="relative z-10"
-        initial="hidden"
-        animate="visible"
-        variants={containerVariant}
-      >
+      <main className="relative z-10">
         <div className="max-w-7xl mx-auto px-4">
           {/* Hero Section */}
           <section className="min-h-screen flex items-center">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
               {/* Left Column */}
-              <motion.div 
-                className="space-y-8"
-                variants={fadeInUpVariant}
-              >
+              <div className="space-y-8">
                 {/* Floating Badge */}
                 <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
@@ -120,13 +107,10 @@ const LandingPage = () => {
                     Watch Demo
                   </button>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Right Column - Stats Display */}
-              <motion.div 
-                className="relative"
-                variants={fadeInUpVariant}
-              >
+              <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-3xl" />
                 <div className="relative bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-8">
                   <div className="flex items-center justify-center w-full h-full">
@@ -137,23 +121,16 @@ const LandingPage = () => {
                     />
                   </div>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </section>
 
           {/* Features Section */}
-          <motion.section 
-            className="py-32"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariant}
-          >
+          <section className="py-32">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {FEATURES_DATA.map((feature, index) => (
-                <motion.div 
+                <div 
                   key={index}
-                  variants={fadeInUpVariant}
                   className="group relative p-6 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:border-white/20 transition-colors"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
@@ -166,12 +143,12 @@ const LandingPage = () => {
                     <h3 className="text-lg font-semibold">{feature}</h3>
                     <p className="mt-2 text-white/60">Experience learning like never before with our innovative platform.</p>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.section>
+          </section>
         </div>
-      </motion.main>
+      </main>
     </div>
   )
 }

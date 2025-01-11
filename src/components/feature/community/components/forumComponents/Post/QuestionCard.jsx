@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { FiHash, FiMessageSquare, FiImage, FiSend, FiX, FiCornerUpRight, FiEdit, FiLoader, FiAlertCircle, FiEye, FiArrowUp, FiArrowDown } from 'react-icons/fi'
-import { useCommunity } from '../../../context/CommunityContext'
+import { useCommunity } from '../../../../../../contexts/CommunityContext'
 import CommentThread from './CommentThread'
 
 const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {

@@ -1,30 +1,22 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// Create context with default value
-const LeaderboardContext = createContext({
-  leaderboardData: [],
-  userRank: null,
-  timeframe: 'weekly',
-  isLoading: true,
-  error: null,
-  setTimeframe: () => {},
-  fetchLeaderboard: async () => {},
-  fetchUserRank: async () => {},
-});
+// Create the context
+const LeaderboardContext = createContext(null);
 
 // Custom hook to use the leaderboard context
-export const useLeaderboard = () => {
+export function useLeaderboard() {
   const context = useContext(LeaderboardContext);
   if (!context) {
     throw new Error('useLeaderboard must be used within a LeaderboardProvider');
   }
   return context;
-};
+}
 
 // Provider component
-export const LeaderboardProvider = ({ children }) => {
+export function LeaderboardProvider({ children }) {
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [userRank, setUserRank] = useState(null);
   const [timeframe, setTimeframe] = useState('weekly');
@@ -101,6 +93,6 @@ export const LeaderboardProvider = ({ children }) => {
       {children}
     </LeaderboardContext.Provider>
   );
-};
+}
 
 export default LeaderboardContext; 

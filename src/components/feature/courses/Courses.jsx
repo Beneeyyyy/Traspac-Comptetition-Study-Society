@@ -9,7 +9,7 @@ import iconCourse1 from '../../../assets/images/courses/iconCourse1.svg'
 
 // Lazy load components
 const CategorySection = lazy(() => import('./contentSection/CategorySection'))
-const ActivityChart = lazy(() => import('./contentSection/ActivityChart'))
+const ActivityChart = lazy(() => import('./views/overview/components/ActivityChart'))
 
 const fadeVariant = {
   hidden: { opacity: 0 },
@@ -47,7 +47,7 @@ const ErrorFallback = ({ error }) => (
   </div>
 );
 
-const Courses = () => {
+const CoursesContent = () => {
   const { 
     categories, 
     isLoading, 
@@ -168,6 +168,16 @@ const Courses = () => {
       
       <Footer />
     </div>
+  )
+}
+
+const Courses = () => {
+  return (
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <Suspense fallback={<LoadingFallback message="Loading courses..." />}>
+        <CoursesContent />
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 

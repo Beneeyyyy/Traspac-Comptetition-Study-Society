@@ -53,7 +53,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom']
   },
   server: {
-    port: 5173,
+    port: 5173, 
     strictPort: true,
     headers: {
       'Cache-Control': 'public, max-age=31536000',

@@ -3,25 +3,11 @@ import { createContext, useState, useContext, useEffect } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// Create the context with a default value
-const AuthContext = createContext({
-  user: null,
-  login: async () => {},
-  logout: async () => {},
-  checkAuth: async () => {},
-});
-
-// Custom hook to use the auth context
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+// Create the context
+const AuthContext = createContext(null);
 
 // Provider component
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -78,7 +64,6 @@ export const AuthProvider = ({ children }) => {
       if (data.user) {
         console.log('Setting user after login:', data.user);
         setUser(data.user);
-        await checkAuth();
       }
 
       return data;
@@ -111,12 +96,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     console.log('AuthProvider mounted, checking auth...');
     checkAuth();
-
-    const interval = setInterval(checkAuth, 5000);
-    return () => clearInterval(interval);
   }, []);
-
-  console.log('Current auth state:', { user });
 
   const value = React.useMemo(() => ({
     user,
@@ -131,6 +111,15 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
+
+// Custom hook to use the auth context
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
 
 export default AuthContext; 

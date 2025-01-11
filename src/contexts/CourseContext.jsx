@@ -1,30 +1,22 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// Create context with default value
-const CourseContext = createContext({
-  categories: [],
-  subcategories: [],
-  isLoading: true,
-  error: null,
-  activeFilter: 'all',
-  setActiveFilter: () => {},
-  fetchCategories: async () => {},
-  fetchSubcategories: async () => {},
-});
+// Create the context
+const CourseContext = createContext(null);
 
 // Custom hook to use the course context
-export const useCourse = () => {
+export function useCourse() {
   const context = useContext(CourseContext);
   if (!context) {
     throw new Error('useCourse must be used within a CourseProvider');
   }
   return context;
-};
+}
 
 // Provider component
-export const CourseProvider = ({ children }) => {
+export function CourseProvider({ children }) {
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,6 +92,6 @@ export const CourseProvider = ({ children }) => {
       {children}
     </CourseContext.Provider>
   );
-};
+}
 
 export default CourseContext; 

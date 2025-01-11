@@ -1,5 +1,5 @@
 import React from 'react'
-import { useCommunity } from '../context/CommunityContext'
+import { useCommunity } from '../../../../contexts/CommunityContext'
 import HeroSection from './exploreComponents/HeroSection'
 import TopSquads from './exploreComponents/TopSquads'
 import SquadNav from './exploreComponents/AllSquads'
