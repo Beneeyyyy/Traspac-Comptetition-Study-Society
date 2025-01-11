@@ -2,7 +2,7 @@ import { useState, Suspense, useEffect, useRef, lazy, useCallback, useLayoutEffe
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FiArrowLeft, FiMenu } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
-import { useAuth } from '../../../../../../../../context/AuthContext';
+import { useAuth } from '../../../../../../../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import iconCourse2 from '../../../../../../../../assets/images/courses/iconCourse2.svg';
 
@@ -46,7 +46,9 @@ const TheoryStep = ({ material }) => {
   const { user } = useAuth();
 
   const currentStage = material?.stages?.[activeSection];
-  const sortedContents = currentStage?.contents?.sort((a, b) => a.order - b.order) || [];
+  const sortedContents = Array.isArray(currentStage?.contents) 
+    ? currentStage.contents.sort((a, b) => a.order - b.order) 
+    : [];
 
   // Initialize material data
   useEffect(() => {

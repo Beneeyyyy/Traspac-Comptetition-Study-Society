@@ -35,7 +35,8 @@ export function AuthProvider({ children }) {
       }
     } catch (error) {
       console.error('Auth check error:', error);
-      setUser(null);
+      // Don't set user to null on network errors
+      // This prevents unwanted redirects during temporary network issues
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +96,27 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     console.log('AuthProvider mounted, checking auth...');
+    // Try to get user from localStorage first
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error('Error parsing saved user:', e);
+      }
+    }
+    // Then verify with server
     checkAuth();
   }, []);
+
+  // Save user to localStorage whenever it changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
 
   const value = React.useMemo(() => ({
     user,

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import CommentForm from './discussion/CommentForm';
 import CommentItem from './discussion/CommentItem';
-import { FiMessageSquare } from 'react-icons/fi';
-import { useAuth } from '../../../../../../../context/AuthContext';
+import { FiMessageSquare, FiSend } from 'react-icons/fi';
+import { useAuth } from '../../../../../../../contexts/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 

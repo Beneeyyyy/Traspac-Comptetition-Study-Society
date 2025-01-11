@@ -1,6 +1,6 @@
 import { FiArrowLeft, FiClock, FiZap } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../../../../../../../../context/AuthContext';
+import { useAuth } from '../../../../../../../../../contexts/AuthContext';
 
 const TopNavigation = ({ section, onBack, show, material, earnedPoints, completedStages = [] }) => {
   const { user } = useAuth();

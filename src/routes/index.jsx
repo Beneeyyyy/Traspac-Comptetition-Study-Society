@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import PrivateRoute from './PrivateRoute';
 import PublicRoute from './PublicRoute';
@@ -20,6 +20,12 @@ const LearningPage = lazy(() => import('../components/feature/courses/materials/
 
 const AppRoutes = () => {
   const { user } = useAuth();
+  const location = useLocation();
+
+  // If user is not authenticated and not on a public route, redirect to login
+  if (!user && !location.pathname.match(/^\/(login|signup)?$/)) {
+    return <Navigate to="/login" state={{ from: location.pathname }} />;
+  }
 
   return (
     <Suspense fallback={<LoadingScreen />}>
@@ -39,17 +45,16 @@ const AppRoutes = () => {
           <Route path="upservices" element={<UpService />} />
           
           {/* Courses Routes */}
-          <Route path="courses" element={<Courses />} />
-          <Route path="courses/:categoryId" element={<SubCategoryPage />} />
-          <Route path="courses/:categoryId/subcategory/:subcategoryId" element={<MaterialsPage />} />
-          <Route path="courses/:categoryId/subcategory/:subcategoryId/learn/:materialId/*" element={<LearningPage />} />
+          <Route path="courses">
+            <Route index element={<Courses />} />
+            <Route path=":categoryId" element={<SubCategoryPage />} />
+            <Route path=":categoryId/subcategory/:subcategoryId" element={<MaterialsPage />} />
+            <Route path=":categoryId/subcategory/:subcategoryId/learn/:materialId/*" element={<LearningPage />} />
+          </Route>
           
           {/* Community Routes */}
           <Route path="community/*" element={<CommunityPage />} />
         </Route>
-
-        {/* Fallback Route */}
-        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/"} replace />} />
       </Routes>
     </Suspense>
   );

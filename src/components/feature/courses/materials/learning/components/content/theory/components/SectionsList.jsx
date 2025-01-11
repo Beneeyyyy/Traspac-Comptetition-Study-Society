@@ -136,11 +136,16 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
                   {/* Contents List */}
                   {isActive && stage.contents && (
                     <div className="mt-2 space-y-1">
-                      {stage.contents.sort((a, b) => a.order - b.order).map((content, contentIndex) => (
-                        <div key={contentIndex} className="text-sm text-white/50 pl-2">
-                          • Content {contentIndex + 1}: {content.type}
-                        </div>
-                      ))}
+                      {Array.isArray(stage.contents) 
+                        ? stage.contents
+                            .sort((a, b) => a.order - b.order)
+                            .map((content, contentIndex) => (
+                              <div key={contentIndex} className="text-sm text-white/50 pl-2">
+                                • Content {contentIndex + 1}: {content.type}
+                              </div>
+                            ))
+                        : null
+                      }
                     </div>
                   )}
                 </div>

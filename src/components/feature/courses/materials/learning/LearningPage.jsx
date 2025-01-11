@@ -173,7 +173,7 @@ const LearningPage = () => {
         {/* Content Area */}
         <div className="relative">
           <Suspense fallback={<ContentSkeleton />}>
-            <Routes location={location}>
+            <Routes>
               <Route 
                 index 
                 element={<Navigate to="introduction" replace />} 
@@ -196,9 +196,14 @@ const LearningPage = () => {
                     <TheoryStep 
                       material={material} 
                       onComplete={handleStepComplete}
+                      key={location.search}
                     />
                   </div>
                 }
+              />
+              <Route
+                path="*"
+                element={<Navigate to="introduction" replace />}
               />
             </Routes>
           </Suspense>

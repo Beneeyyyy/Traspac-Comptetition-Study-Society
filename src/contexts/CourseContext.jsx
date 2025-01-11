@@ -1,11 +1,10 @@
-import React from 'react';
 import { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Create the context
-const CourseContext = createContext(null);
+const CourseContext = createContext();
 
 // Custom hook to use the course context
 export function useCourse() {
@@ -102,4 +101,5 @@ export function CourseProvider({ children }) {
   return <CourseContext.Provider value={value}>{children}</CourseContext.Provider>;
 }
 
-export default CourseContext; 
+export { CourseContext };
+export default CourseProvider; 
