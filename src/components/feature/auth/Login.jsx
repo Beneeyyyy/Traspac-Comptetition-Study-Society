@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 
-const Login = () => {
+export function Login() {
   const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
@@ -164,6 +164,4 @@ const Login = () => {
       </div>
     </div>
   );
-};
-
-export default Login; 
+} 

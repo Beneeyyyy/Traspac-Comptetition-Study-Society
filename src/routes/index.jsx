@@ -6,7 +6,7 @@ import PublicRoute from './PublicRoute';
 import LoadingScreen from '../components/common/LoadingScreen';
 
 // Lazy loaded components
-const Login = lazy(() => import('../components/feature/auth/Login'));
+const Login = lazy(() => import('../components/feature/auth/Login').then(module => ({ default: module.Login })));
 const Signup = lazy(() => import('../components/feature/auth/Signup'));
 const LandingPage = lazy(() => import('../components/feature/LandingPage/LandingPage'));
 const CommunityPage = lazy(() => import('../components/feature/community/CommunityPage'));
