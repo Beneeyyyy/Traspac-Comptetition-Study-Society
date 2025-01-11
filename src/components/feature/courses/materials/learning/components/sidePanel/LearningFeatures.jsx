@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiTarget, FiTrendingUp, FiClock, FiAward, FiStar } from 'react-icons/fi';
-import { useAuth } from '../../../../../../../context/AuthContext';
+import { useAuth } from '../../../../../../../contexts/AuthContext';
 
 const LearningFeatures = ({ material }) => {
   const { user } = useAuth();

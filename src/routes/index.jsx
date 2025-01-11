@@ -42,7 +42,7 @@ const AppRoutes = () => {
           <Route path="courses" element={<Courses />} />
           <Route path="courses/:categoryId" element={<SubCategoryPage />} />
           <Route path="courses/:categoryId/subcategory/:subcategoryId" element={<MaterialsPage />} />
-          <Route path="courses/:categoryId/subcategory/:subcategoryId/learn/:materialId" element={<LearningPage />} />
+          <Route path="courses/:categoryId/subcategory/:subcategoryId/learn/:materialId/*" element={<LearningPage />} />
           
           {/* Community Routes */}
           <Route path="community/*" element={<CommunityPage />} />

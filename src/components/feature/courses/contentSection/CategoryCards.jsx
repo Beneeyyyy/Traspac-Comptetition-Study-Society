@@ -86,8 +86,8 @@ const CategoryCards = ({ categories, onSelect }) => {
         <div
           key={category.id}
           onClick={() => {
-            console.log('Navigating to subcategory with ID:', category.id)
-            navigate(`/courses/${category.id}/subcategory`)
+            console.log('Navigating to category with ID:', category.id)
+            navigate(`/courses/${category.id}`)
             if (onSelect) onSelect(category)
           }}
           className="group bg-gradient-to-br from-white/[0.03] to-white/[0.01] hover:from-blue-500/10 hover:to-purple-500/5 border border-white/10 hover:border-blue-500/30 rounded-2xl p-8 cursor-pointer transition-all duration-300"
