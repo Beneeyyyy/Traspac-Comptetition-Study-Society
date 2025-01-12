@@ -1,214 +1,182 @@
 import { useState } from 'react'
-import { FiMessageSquare, FiSend, FiX, FiLoader } from 'react-icons/fi'
+import { FiMessageSquare, FiChevronUp, FiChevronDown } from 'react-icons/fi'
 import { useCommunity } from '../../../../../../contexts/CommunityContext'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../../../../../../contexts/AuthContext'
+import { timeAgo } from '../../../../../../utils/dateUtils'
 
-const MAX_COMMENT_LENGTH = 500
+const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
+  const [replyContent, setReplyContent] = useState('');
+  const [showReplies, setShowReplies] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  
+  const { addComment } = useCommunity();
+  const { user } = useAuth();
 
-const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubmit }) => {
-  const { addComment } = useCommunity()
-  const [showReplyForm, setShowReplyForm] = useState(false)
-  const [replyContent, setReplyContent] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState('')
-
-  // Limit nesting level to prevent too deep threads
-  const canReply = level < 3
-
-  const handleSubmitReply = async () => {
-    if (!replyContent.trim()) return
-    if (replyContent.length > MAX_COMMENT_LENGTH) {
-      setError(`Komentar tidak boleh lebih dari ${MAX_COMMENT_LENGTH} karakter`)
-      return
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    
+    if (!replyContent.trim()) {
+      setError('Komentar tidak boleh kosong');
+      return;
     }
 
-    setIsSubmitting(true)
-    setError('')
+    if (replyContent.length > 1000) {
+      setError('Komentar tidak boleh lebih dari 1000 karakter');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
 
     try {
       await addComment(questionId, answerId, {
         content: replyContent.trim(),
-        parentId: comment?.id // undefined for top-level comments
-      })
+        parentId: comment?.id
+      });
 
-      setReplyContent('')
-      setShowReplyForm(false)
-      onCommentSubmit?.() // Call the callback if provided
+      setReplyContent('');
+      setShowReplyForm(false);
+      onCommentSubmit?.();
     } catch (err) {
-      console.error('Error submitting comment:', err)
-      setError('Gagal mengirim komentar. Silakan coba lagi.')
+      console.error('Error submitting comment:', err);
+      setError('Gagal mengirim komentar. Silakan coba lagi.');
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
+  };
+
+  // If this is a new comment form (no comment prop)
+  if (!comment) {
+    return (
+      <div className="space-y-4">
+        <form onSubmit={handleSubmitComment}>
+          <textarea
+            value={replyContent}
+            onChange={(e) => setReplyContent(e.target.value)}
+            placeholder="Tulis komentar..."
+            className="w-full p-2 bg-gray-800 rounded-lg text-sm text-white/90 placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            rows={3}
+            disabled={isSubmitting}
+          />
+          {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+          <div className="flex justify-end mt-2">
+            <button
+              type="submit"
+              className="px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Mengirim...' : 'Kirim'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className={`relative space-y-4 ${level > 0 ? 'ml-10 pt-2' : ''}`}
-    >
-      {/* Thread Line */}
-      {level > 0 && (
-        <div className="absolute left-[-34px] -top-6 bottom-0">
-          <div className="absolute left-3 top-0 bottom-0 w-px bg-white/10" />
-          <div className="absolute left-3 top-[28px] w-7 h-px bg-white/10" />
-        </div>
-      )}
-
-      {/* Comment Content */}
-      {comment && (
-        <div className="relative flex gap-3">
-          <div className="relative">
-            <img
-              src={comment.user?.image || '/avatars/default.png'}
-              alt={comment.user?.name || 'User'}
-              className="w-7 h-7 rounded-full ring-1 ring-white/10 hover:ring-white/20 transition-all"
-            />
-            {(comment.replies?.length > 0 || showReplyForm) && (
-              <div className="absolute left-3 top-8 w-px h-full bg-gradient-to-b from-white/10 to-transparent" />
-            )}
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
+        <img 
+          src={comment.user?.image || '/assets/images/default-avatar.png'} 
+          alt={comment.user?.name || 'User'}
+          className="w-8 h-8 rounded-full object-cover"
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-white">{comment.user?.name || 'Anonymous'}</span>
+            <span className="text-xs text-white/50">•</span>
+            <span className="text-xs text-white/50">{timeAgo(comment.createdAt)}</span>
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-white/90 hover:text-white transition-colors">
-                {comment.user?.name || 'Anonymous'}
-              </span>
-              <span className="px-2 py-0.5 bg-white/[0.03] text-white/40 rounded-lg text-xs border border-white/5">
-                {comment.user?.rank || 'Member'}
-              </span>
-              <span className="text-xs text-white/40">
-                {comment.timeAgo || 'Just now'}
-              </span>
-            </div>
-            <div className="space-y-2">
-              <div className="group">
-                <p className="text-sm text-white/70 bg-white/[0.02] px-4 py-2.5 rounded-xl border border-transparent group-hover:border-white/5 transition-all">
-                  {comment.content}
-                </p>
-              </div>
-              {canReply && (
-                <button
-                  onClick={() => {
-                    setShowReplyForm(!showReplyForm)
-                    setError('')
-                    setReplyContent('')
-                  }}
-                  className="text-xs text-white/40 hover:text-white/90 transition-colors flex items-center gap-1.5"
-                >
-                  <FiMessageSquare className="text-sm" />
-                  <span>Balas</span>
-                </button>
-              )}
-            </div>
+          <p className="text-sm text-white/80 mt-1">{comment.content}</p>
+          
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              onClick={() => setShowReplyForm(!showReplyForm)}
+              className="text-xs text-white/50 hover:text-white flex items-center gap-1"
+            >
+              <FiMessageSquare className="w-3 h-3" />
+              Balas
+            </button>
           </div>
-        </div>
-      )}
 
-      {/* Reply Form */}
-      <AnimatePresence>
-        {(showReplyForm || !comment) && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className={`relative ${comment ? 'ml-10' : ''}`}
-          >
-            {level > 0 && (
-              <div className="absolute left-[-44px] -top-6 bottom-0">
-                <div className="absolute left-3 top-0 bottom-0 w-px bg-gradient-to-b from-white/10 to-transparent" />
-                <div className="absolute left-3 top-[28px] w-7 h-px bg-white/10" />
-              </div>
-            )}
-            <div className="flex items-start gap-3 group">
-              <img
-                src="/avatars/default.png"
-                alt="Your avatar"
-                className="w-7 h-7 rounded-full ring-1 ring-white/10 group-hover:ring-white/20 transition-all"
-              />
-              <div className="flex-1 space-y-2">
+          {showReplyForm && (
+            <div className="mt-3">
+              <form onSubmit={handleSubmitComment}>
                 <textarea
                   value={replyContent}
-                  onChange={(e) => {
-                    setReplyContent(e.target.value)
-                    if (e.target.value.length > MAX_COMMENT_LENGTH) {
-                      setError(`Komentar tidak boleh lebih dari ${MAX_COMMENT_LENGTH} karakter`)
-                    } else {
-                      setError('')
-                    }
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSubmitReply()
-                    }
-                  }}
-                  placeholder={comment ? "Tulis balasan..." : "Tulis komentar..."}
-                  className="w-full px-4 py-2.5 bg-white/[0.02] hover:bg-white/[0.03] border border-white/5 hover:border-white/10 rounded-xl text-sm text-white/90 placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white/10 transition-all resize-none min-h-[42px] max-h-32"
-                  rows={1}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  placeholder="Tulis balasan..."
+                  className="w-full p-2 bg-gray-800 rounded-lg text-sm text-white/90 placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  rows={2}
+                  disabled={isSubmitting}
                 />
-                {error && (
-                  <p className="text-xs text-red-400/90">{error}</p>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-white/30">
-                    {replyContent.length}/{MAX_COMMENT_LENGTH} karakter
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {comment && (
-                      <button
-                        onClick={() => {
-                          setShowReplyForm(false)
-                          setError('')
-                          setReplyContent('')
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-white/5 text-white/30 hover:text-white/90 transition-all"
-                      >
-                        <FiX className="text-lg" />
-                      </button>
-                    )}
-                    <button
-                      onClick={handleSubmitReply}
-                      disabled={!replyContent.trim() || isSubmitting || replyContent.length > MAX_COMMENT_LENGTH}
-                      className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 ${
-                        replyContent.trim() && !isSubmitting && replyContent.length <= MAX_COMMENT_LENGTH
-                          ? 'text-blue-400 hover:bg-blue-500/10'
-                          : 'text-white/20 cursor-not-allowed'
-                      }`}
-                    >
-                      {isSubmitting ? (
-                        <FiLoader className="text-lg animate-spin" />
-                      ) : (
-                        <>
-                          <FiSend className="text-base" />
-                          <span className="text-sm font-medium">Kirim</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+                <div className="flex justify-end gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReplyForm(false);
+                      setReplyContent('');
+                      setError('');
+                    }}
+                    className="px-3 py-1 text-sm text-white/50 hover:text-white"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Mengirim...' : 'Kirim'}
+                  </button>
                 </div>
-              </div>
+              </form>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      </div>
 
-      {/* Nested Comments */}
-      <AnimatePresence>
-        {comment?.replies?.map((reply) => (
-          <CommentThread
-            key={reply.id}
-            questionId={questionId}
-            answerId={answerId}
-            comment={reply}
-            level={level + 1}
-            onCommentSubmit={onCommentSubmit}
-          />
-        ))}
-      </AnimatePresence>
-    </motion.div>
-  )
-}
+      {comment.replies?.length > 0 && (
+        <div className="pl-11 border-l border-white/10">
+          <button
+            onClick={() => setShowReplies(!showReplies)}
+            className="text-xs text-white/50 hover:text-white flex items-center gap-1 mb-3"
+          >
+            {showReplies ? (
+              <>
+                <FiChevronUp className="w-4 h-4" />
+                Sembunyikan {comment.replies.length} balasan
+              </>
+            ) : (
+              <>
+                <FiChevronDown className="w-4 h-4" />
+                Lihat {comment.replies.length} balasan
+              </>
+            )}
+          </button>
+          
+          {showReplies && (
+            <div className="space-y-4">
+              {comment.replies.map((reply) => (
+                <div key={reply.id} className="relative">
+                  <div className="absolute -left-[41px] top-4 w-8 h-px bg-white/10" />
+                  <CommentThread
+                    comment={reply}
+                    questionId={questionId}
+                    answerId={answerId}
+                    onCommentSubmit={onCommentSubmit}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default CommentThread 

@@ -406,7 +406,7 @@ const forumController = {
   // Comment Controllers
   createComment: async (req, res) => {
     try {
-      const { content } = req.body;
+      const { content, parentId } = req.body;
       const { postId, answerId } = req.params;
       const userId = req.user.id;
 
@@ -417,13 +417,40 @@ const forumController = {
         });
       }
 
+      // Check if post exists
+      const post = await prisma.forumPost.findUnique({
+        where: { id: parseInt(postId) }
+      });
+
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          error: 'Post not found'
+        });
+      }
+
+      // If answerId is provided, check if answer exists
+      if (answerId) {
+        const answer = await prisma.forumAnswer.findUnique({
+          where: { id: parseInt(answerId) }
+        });
+
+        if (!answer) {
+          return res.status(404).json({
+            success: false,
+            error: 'Answer not found'
+          });
+        }
+      }
+
       // Create the comment
       const comment = await prisma.forumComment.create({
         data: {
           content,
           userId,
-          postId: postId ? parseInt(postId) : undefined,
-          answerId: answerId ? parseInt(answerId) : undefined
+          postId: parseInt(postId),
+          answerId: answerId ? parseInt(answerId) : undefined,
+          parentId: parentId ? parseInt(parentId) : undefined
         },
         include: {
           user: {
@@ -437,7 +464,7 @@ const forumController = {
         }
       });
 
-      // Get the updated post data
+      // Get the updated post data with nested comments
       const updatedPost = await prisma.forumPost.findUnique({
         where: { id: parseInt(postId) },
         include: {
@@ -460,6 +487,9 @@ const forumController = {
                 }
               },
               comments: {
+                where: {
+                  parentId: null // Only get top-level comments
+                },
                 include: {
                   user: {
                     select: {
@@ -468,6 +498,19 @@ const forumController = {
                       image: true,
                       rank: true
                     }
+                  },
+                  replies: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          image: true,
+                          rank: true
+                        }
+                      },
+                      replies: true // Get nested replies recursively
+                    }
                   }
                 }
               },
@@ -475,6 +518,9 @@ const forumController = {
             }
           },
           comments: {
+            where: {
+              parentId: null // Only get top-level comments
+            },
             include: {
               user: {
                 select: {
@@ -482,6 +528,19 @@ const forumController = {
                   name: true,
                   image: true,
                   rank: true
+                }
+              },
+              replies: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      image: true,
+                      rank: true
+                    }
+                  },
+                  replies: true // Get nested replies recursively
                 }
               }
             }

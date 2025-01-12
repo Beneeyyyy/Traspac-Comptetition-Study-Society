@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { FiHash, FiMessageSquare, FiImage, FiSend, FiX, FiCornerUpRight, FiEdit, FiLoader, FiAlertCircle, FiEye, FiArrowUp, FiArrowDown } from 'react-icons/fi'
 import { useCommunity } from '../../../../../../contexts/CommunityContext'
 import CommentThread from './CommentThread'
+import { useAuth } from '../../../../../../contexts/AuthContext'
 
 const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
   const { addAnswer, updateVote, refreshQuestion, currentUser } = useCommunity()
@@ -18,6 +19,8 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
   const [answersCount, setAnswersCount] = useState(0)
   const answerFileInputRef = useRef(null)
   const [visibleAnswersCount, setVisibleAnswersCount] = useState(4)
+
+  const { user } = useAuth()
 
   // Fetch answers count when component mounts
   useEffect(() => {
@@ -202,6 +205,16 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
     if (!user) return '/avatars/default.png'
     return user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff`
   }
+
+  const handleCommentClick = (answerId) => {
+    if (activeAnswerId === answerId && activeCommentId === answerId) {
+      setActiveAnswerId(null);
+      setActiveCommentId(null);
+    } else {
+      setActiveAnswerId(answerId);
+      setActiveCommentId(answerId);
+    }
+  };
 
   return (
     <div className="bg-gradient-to-b from-white/[0.03] to-white/[0.01] backdrop-blur-xl border border-white/10 hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/5">
@@ -553,16 +566,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                                 <span>{answer.downvoteCount || 0}</span>
                               </button>
                               <button
-                                onClick={() => {
-                                  // Toggle comment visibility
-                                  if (activeCommentId === answer.id) {
-                                    setActiveCommentId(null)
-                                    setActiveAnswerId(null)
-                                  } else {
-                                    setActiveCommentId(answer.id)
-                                    setActiveAnswerId(answer.id)
-                                  }
-                                }}
+                                onClick={() => handleCommentClick(answer.id)}
                                 className={`flex items-center gap-2 transition-colors ${
                                   activeCommentId === answer.id 
                                     ? 'text-blue-400 hover:text-blue-500' 
@@ -579,7 +583,12 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                         </div>
                         {/* Comment Thread for Answer */}
                         {(activeCommentId === answer.id || activeAnswerId === answer.id) && (
-                          <div className="mt-4 ml-14">
+                          <div className="mt-4 ml-14 space-y-4">
+                            <CommentThread
+                              questionId={question.id}
+                              answerId={answer.id}
+                              onCommentSubmit={() => handleCommentSubmit(answer.id)}
+                            />
                             {answer.comments?.map((comment) => (
                               <CommentThread
                                 key={comment.id}
@@ -589,11 +598,6 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                                 onCommentSubmit={() => handleCommentSubmit(answer.id)}
                               />
                             ))}
-                            <CommentThread
-                              questionId={question.id}
-                              answerId={answer.id}
-                              onCommentSubmit={() => handleCommentSubmit(answer.id)}
-                            />
                           </div>
                         )}
                       </div>

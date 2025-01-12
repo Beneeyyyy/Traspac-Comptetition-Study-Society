@@ -138,6 +138,7 @@ model User {
   forumAnswers  ForumAnswer[]
   forumComments ForumComment[]
   forumVotes    ForumVote[]
+  forumCommentVotes ForumCommentVote[]
   
   // UpCreation relations
   creations     Creation[]
@@ -310,19 +311,32 @@ model ForumAnswer {
 }
 
 model ForumComment {
-  id            Int       @id @default(autoincrement())
-  content       String
-  userId        Int
-  postId        Int?      
-  answerId      Int?      
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user          User       @relation(fields: [userId], references: [id])
-  post          ForumPost? @relation(fields: [postId], references: [id])
-  answer        ForumAnswer? @relation(fields: [answerId], references: [id])
-  votes         ForumVote[]
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  post      ForumPost? @relation(fields: [postId], references: [id])
+  postId    Int?
+  answer    ForumAnswer? @relation(fields: [answerId], references: [id])
+  answerId  Int?
+
+  // Parent-child relationship for nested replies
+  parent    ForumComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  parentId  Int?
+  replies   ForumComment[] @relation("CommentReplies")
+
+  // Votes
+  votes     ForumCommentVote[]
+  forumVotes ForumVote[]
+
+  @@index([userId])
+  @@index([postId])
+  @@index([answerId])
+  @@index([parentId])
 }
 
 model ForumVote {
@@ -344,6 +358,23 @@ model ForumVote {
   @@unique([userId, postId])
   @@unique([userId, answerId])
   @@unique([userId, commentId])
+}
+
+model ForumCommentVote {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  commentId     Int      
+  isUpvote      Boolean   
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  user          User       @relation(fields: [userId], references: [id])
+  comment       ForumComment @relation(fields: [commentId], references: [id])
+
+  // Unique constraints
+  @@unique([userId, commentId])
+  @@index([userId])
+  @@index([commentId])
 }
 
 model Creation {
