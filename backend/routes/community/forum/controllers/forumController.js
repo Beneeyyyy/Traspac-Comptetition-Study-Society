@@ -110,6 +110,9 @@ const forumController = {
               },
               votes: true,
               comments: {
+                where: {
+                  parentId: null // Only get top-level comments
+                },
                 include: {
                   user: {
                     select: {
@@ -119,12 +122,41 @@ const forumController = {
                       rank: true
                     }
                   },
-                  votes: true
+                  votes: true,
+                  replies: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          image: true,
+                          rank: true
+                        }
+                      },
+                      votes: true,
+                      replies: {
+                        include: {
+                          user: {
+                            select: {
+                              id: true,
+                              name: true,
+                              image: true,
+                              rank: true
+                            }
+                          },
+                          votes: true
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
           },
           comments: {
+            where: {
+              parentId: null // Only get top-level comments
+            },
             include: {
               user: {
                 select: {
@@ -134,7 +166,33 @@ const forumController = {
                   rank: true
                 }
               },
-              votes: true
+              votes: true,
+              replies: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      image: true,
+                      rank: true
+                    }
+                  },
+                  votes: true,
+                  replies: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          image: true,
+                          rank: true
+                        }
+                      },
+                      votes: true
+                    }
+                  }
+                }
+              }
             }
           },
           votes: {
@@ -460,6 +518,33 @@ const forumController = {
               image: true,
               rank: true
             }
+          },
+          votes: true,
+          replies: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                  rank: true
+                }
+              },
+              votes: true,
+              replies: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      image: true,
+                      rank: true
+                    }
+                  },
+                  votes: true
+                }
+              }
+            }
           }
         }
       });
@@ -499,6 +584,7 @@ const forumController = {
                       rank: true
                     }
                   },
+                  votes: true,
                   replies: {
                     include: {
                       user: {
@@ -509,7 +595,20 @@ const forumController = {
                           rank: true
                         }
                       },
-                      replies: true // Get nested replies recursively
+                      votes: true,
+                      replies: {
+                        include: {
+                          user: {
+                            select: {
+                              id: true,
+                              name: true,
+                              image: true,
+                              rank: true
+                            }
+                          },
+                          votes: true
+                        }
+                      }
                     }
                   }
                 }
@@ -530,6 +629,7 @@ const forumController = {
                   rank: true
                 }
               },
+              votes: true,
               replies: {
                 include: {
                   user: {
@@ -540,7 +640,20 @@ const forumController = {
                       rank: true
                     }
                   },
-                  replies: true // Get nested replies recursively
+                  votes: true,
+                  replies: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          image: true,
+                          rank: true
+                        }
+                      },
+                      votes: true
+                    }
+                  }
                 }
               }
             }

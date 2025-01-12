@@ -6,10 +6,11 @@ import { timeAgo } from '../../../../../../utils/dateUtils'
 
 const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
   const [replyContent, setReplyContent] = useState('');
-  const [showReplies, setShowReplies] = useState(true);
+  const [showReplies, setShowReplies] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showReplyForm, setShowReplyForm] = useState(false);
+  const [showAllReplies, setShowAllReplies] = useState(false);
   
   const { addComment } = useCommunity();
   const { user } = useAuth();
@@ -38,6 +39,7 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
 
       setReplyContent('');
       setShowReplyForm(false);
+      setShowReplies(true);
       onCommentSubmit?.();
     } catch (err) {
       console.error('Error submitting comment:', err);
@@ -74,6 +76,13 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
       </div>
     );
   }
+
+  // Get visible replies based on showAllReplies state
+  const visibleReplies = showAllReplies 
+    ? comment.replies 
+    : comment.replies?.slice(0, 5);
+
+  const hasMoreReplies = comment.replies?.length > 5;
 
   return (
     <div className="space-y-4">
@@ -160,7 +169,7 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
           
           {showReplies && (
             <div className="space-y-4">
-              {comment.replies.map((reply) => (
+              {visibleReplies.map((reply) => (
                 <div key={reply.id} className="relative">
                   <div className="absolute -left-[41px] top-4 w-8 h-px bg-white/10" />
                   <CommentThread
@@ -171,6 +180,15 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
                   />
                 </div>
               ))}
+
+              {hasMoreReplies && !showAllReplies && (
+                <button
+                  onClick={() => setShowAllReplies(true)}
+                  className="text-xs text-blue-500 hover:text-blue-400 mt-2"
+                >
+                  Lihat {comment.replies.length - 5} balasan lainnya
+                </button>
+              )}
             </div>
           )}
         </div>
