@@ -706,6 +706,24 @@ const forumController = {
         });
       }
 
+      // If voting on an answer, get the parent post ID
+      let parentPostId;
+      if (type === 'answer') {
+        const answer = await prisma.forumAnswer.findUnique({
+          where: { id: parseInt(id) },
+          select: { postId: true }
+        });
+        
+        if (!answer) {
+          return res.status(404).json({
+            success: false,
+            error: 'Answer not found'
+          });
+        }
+        
+        parentPostId = answer.postId;
+      }
+
       const voteData = {
         userId,
         isUpvote,
@@ -754,13 +772,39 @@ const forumController = {
       // Get user's current vote status
       const currentUserVote = votes.find(v => v.userId === userId);
 
+      // Get the updated item with votes
+      let updatedItem;
+      if (type === 'answer') {
+        updatedItem = await prisma.forumAnswer.findUnique({
+          where: { id: parseInt(id) },
+          include: {
+            votes: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                rank: true
+              }
+            }
+          }
+        });
+      }
+
       res.json({
         success: true,
         data: {
           vote,
           upvotes,
           downvotes,
-          userVote: currentUserVote ? (currentUserVote.isUpvote ? 'upvote' : 'downvote') : null
+          userVote: currentUserVote ? (currentUserVote.isUpvote ? 'upvote' : 'downvote') : null,
+          postId: type === 'post' ? parseInt(id) : parentPostId,
+          updatedItem: updatedItem ? {
+            ...updatedItem,
+            upvotes,
+            downvotes,
+            userVote: currentUserVote ? (currentUserVote.isUpvote ? 'upvote' : 'downvote') : null
+          } : null
         }
       });
     } catch (error) {

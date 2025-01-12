@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { FiHash, FiMessageSquare, FiImage, FiSend, FiX, FiCornerUpRight, FiEdit, FiLoader, FiAlertCircle, FiEye, FiArrowUp, FiArrowDown } from 'react-icons/fi'
+import { FiHash, FiMessageSquare, FiImage, FiSend, FiX, FiCornerUpRight, FiEdit, FiLoader, FiAlertCircle, FiEye, FiArrowUp, FiArrowDown, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
 import { useCommunity } from '../../../../../../contexts/CommunityContext'
 import CommentThread from './CommentThread'
 import { useAuth } from '../../../../../../contexts/AuthContext'
 
 const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
-  const { addAnswer, updateVote, refreshQuestion, currentUser } = useCommunity()
+  const { addAnswer, refreshQuestion, currentUser, handleVote } = useCommunity()
   const [answerContent, setAnswerContent] = useState('')
   const [answerImages, setAnswerImages] = useState([])
   const [showAnswerForm, setShowAnswerForm] = useState(false)
@@ -42,21 +42,24 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
     fetchAnswersCount();
   }, [question?.id]); // Depend on question.id
 
-  const handleVote = async (type = 'post', id = question.id, isUpvote) => {
-    if (isVoting) return;
+  const handleVoteClick = async (type, id, isUpvote) => {
     if (!currentUser) {
       setError('Silakan login terlebih dahulu untuk memberikan vote');
       return;
     }
-    
+
     setIsVoting(true);
     setError(null);
     
     try {
-      await updateVote(type, id, isUpvote);
-    } catch (err) {
-      console.error('Error voting:', err);
-      setError(err.message || 'Gagal memberikan vote. Silakan coba lagi.');
+      const updatedQuestion = await handleVote(type, id, isUpvote);
+      if (updatedQuestion) {
+        // Update local state if needed
+        setAnswersCount(updatedQuestion.answers?.length || 0);
+      }
+    } catch (error) {
+      console.error('Error voting:', error);
+      setError('Gagal memberikan vote. Silakan coba lagi.');
     } finally {
       setIsVoting(false);
     }
@@ -241,39 +244,31 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
           <div className="flex flex-col items-center gap-3">
             <div className="p-2 rounded-2xl bg-white/[0.02] border border-white/5">
               <button
-                onClick={() => handleVote('post', question.id, true)}
+                onClick={() => handleVoteClick('post', question.id, true)}
                 disabled={isVoting}
-                className={`group flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-gradient-to-b hover:from-green-500/20 hover:to-green-400/5 text-white/50 hover:text-green-400 transition-all ${
-                  isVoting ? 'cursor-not-allowed opacity-50' : ''
-                } ${question.userVote === 'upvote' ? 'bg-green-500/20 text-green-400' : ''}`}
+                className={`flex items-center gap-1 ${
+                  question.userVote?.type === 'upvote' 
+                    ? 'text-green-500' 
+                    : 'text-gray-400 hover:text-green-500'
+                } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {isVoting ? (
-                  <FiLoader className="text-xl animate-spin" />
-                ) : (
-                  <FiArrowUp className="text-xl group-hover:scale-110 transition-transform" />
-                )}
-                <span className="text-xs font-medium">
-                  {question.upvoteCount || 0}
-                </span>
+                <FiThumbsUp className={question.userVote?.type === 'upvote' ? 'fill-current' : ''} />
+                <span>{question.upvotes || 0}</span>
               </button>
 
               <div className="my-2 h-[1px] w-full bg-white/5"></div>
 
               <button
-                onClick={() => handleVote('post', question.id, false)}
+                onClick={() => handleVoteClick('post', question.id, false)}
                 disabled={isVoting}
-                className={`group flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-gradient-to-b hover:from-red-500/20 hover:to-red-400/5 text-white/50 hover:text-red-400 transition-all ${
-                  isVoting ? 'cursor-not-allowed opacity-50' : ''
-                } ${question.userVote === 'downvote' ? 'bg-red-500/20 text-red-400' : ''}`}
+                className={`flex items-center gap-1 ${
+                  question.userVote?.type === 'downvote' 
+                    ? 'text-red-500' 
+                    : 'text-gray-400 hover:text-red-500'
+                } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {isVoting ? (
-                  <FiLoader className="text-xl animate-spin" />
-                ) : (
-                  <FiArrowDown className="text-xl group-hover:scale-110 transition-transform" />
-                )}
-                <span className="text-xs font-medium">
-                  {question.downvoteCount || 0}
-                </span>
+                <FiThumbsDown className={question.userVote?.type === 'downvote' ? 'fill-current' : ''} />
+                <span>{question.downvotes || 0}</span>
               </button>
             </div>
           </div>
@@ -552,18 +547,32 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                             )}
                             <div className="mt-4 flex items-center gap-4">
                               <button
-                                onClick={() => handleVote('answer', answer.id, true)}
-                                className="flex items-center gap-2 text-white/50 hover:text-green-400 transition-colors"
+                                onClick={() => handleVoteClick('answer', answer.id, true)}
+                                disabled={isVoting}
+                                className={`flex items-center gap-2 ${
+                                  isVoting ? 'opacity-50 cursor-not-allowed' : ''
+                                } ${
+                                  answer.userVote === 'upvote'
+                                    ? 'text-green-400'
+                                    : 'text-white/50 hover:text-green-400'
+                                } transition-colors`}
                               >
                                 <FiArrowUp className="text-lg" />
-                                <span>{answer.upvoteCount || 0}</span>
+                                <span>{answer.upvotes || 0}</span>
                               </button>
                               <button
-                                onClick={() => handleVote('answer', answer.id, false)}
-                                className="flex items-center gap-2 text-white/50 hover:text-red-400 transition-colors"
+                                onClick={() => handleVoteClick('answer', answer.id, false)}
+                                disabled={isVoting}
+                                className={`flex items-center gap-2 ${
+                                  isVoting ? 'opacity-50 cursor-not-allowed' : ''
+                                } ${
+                                  answer.userVote === 'downvote'
+                                    ? 'text-red-400'
+                                    : 'text-white/50 hover:text-red-400'
+                                } transition-colors`}
                               >
                                 <FiArrowDown className="text-lg" />
-                                <span>{answer.downvoteCount || 0}</span>
+                                <span>{answer.downvotes || 0}</span>
                               </button>
                               <button
                                 onClick={() => handleCommentClick(answer.id)}
