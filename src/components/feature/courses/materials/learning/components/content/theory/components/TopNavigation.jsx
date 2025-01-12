@@ -1,14 +1,18 @@
 import { FiArrowLeft, FiClock, FiZap } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../../../../../../../contexts/AuthContext';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const TopNavigation = ({ section, onBack, show, material, earnedPoints, completedStages = [] }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { categoryId, subcategoryId } = useParams();
+  
   console.log('🔍 TopNavigation Props:', {
     material,
     earnedPoints,
     completedStages,
-    section
+    show
   });
 
   const [showPointNotification, setShowPointNotification] = useState(false);
@@ -57,10 +61,11 @@ const TopNavigation = ({ section, onBack, show, material, earnedPoints, complete
           {/* Left Side - Back Button & Title */}
           <div className="flex items-center gap-3">
             <button
-              onClick={onBack}
-              className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+              onClick={() => navigate(`/courses/${categoryId}/subcategory/${subcategoryId}`)}
+              className="flex items-center gap-2 text-white/60 hover:text-white group"
             >
-              <FiArrowLeft className="w-5 h-5" />
+              <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
+              <span>Back to Materials</span>
             </button>
             <div>
               <h2 className="font-medium text-white">

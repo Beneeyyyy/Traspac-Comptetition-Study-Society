@@ -420,115 +420,99 @@ async function createCategories() {
 }
 
 // Create materials
-async function createMaterials(categories) {
-  const materials = [];
-  
-  for (const category of categories) {
-    for (const subcategory of category.subcategories) {
-      // Create multiple materials for each subcategory
-      const materialTemplates = [
-        {
-          title: `Introduction to ${subcategory.name}`,
-          description: `Learn the basic concepts of ${subcategory.name}`,
-          xp_reward: 100,
-          estimated_time: 30
-        },
-        {
-          title: `Intermediate ${subcategory.name}`,
-          description: `Deepen your understanding of ${subcategory.name}`,
-          xp_reward: 150,
-          estimated_time: 45
-        },
-        {
-          title: `Advanced ${subcategory.name}`,
-          description: `Master complex topics in ${subcategory.name}`,
-          xp_reward: 200,
-          estimated_time: 60
-        }
-      ];
-
-      for (const template of materialTemplates) {
-        const material = {
-          ...template,
-          image: 'https://example.com/material.jpg',
-          subcategoryId: subcategory.id,
-          is_published: true,
-          stages: {
-            create: [
+async function createMaterials(subcategories) {
+  const materials = [
+    {
+      title: 'Pengenalan Aljabar Dasar',
+      description: 'Memahami konsep dasar aljabar dan penggunaannya',
+      image: 'https://example.com/algebra-intro.jpg',
+      subcategoryId: subcategories[0].id,
+      xp_reward: 100,
+      estimated_time: 30,
+      is_published: true,
+      stages: {
+        create: [
+          {
+            title: 'Pengertian Aljabar',
+            order: 1,
+            contents: [
               {
-                title: '1. Konsep Dasar',
-                order: 1,
-                contents: {
-                  sections: [
-                    {
-                      type: 'text',
-                      content: `Basic concepts of ${subcategory.name}`
-                    },
-                    {
-                      type: 'image',
-                      url: 'https://example.com/concept.jpg'
-                    }
-                  ]
-                }
+                type: 'text',
+                content: 'Aljabar adalah cabang matematika yang mempelajari tentang simbol dan aturan untuk memanipulasi simbol-simbol tersebut.',
+                order: 1
               },
               {
-                title: '2. Eksplorasi',
-                order: 2,
-                contents: {
-                  sections: [
-                    {
-                      type: 'text',
-                      content: 'Practice problems and exercises'
-                    },
-                    {
-                      type: 'quiz',
-                      questions: [
-                        {
-                          question: 'Sample question 1?',
-                          options: ['A', 'B', 'C', 'D'],
-                          answer: 0
-                        },
-                        {
-                          question: 'Sample question 2?',
-                          options: ['A', 'B', 'C', 'D'],
-                          answer: 1
-                        }
-                      ]
-                    }
-                  ]
-                }
+                type: 'image',
+                content: 'https://example.com/algebra-symbols.jpg',
+                caption: 'Simbol-simbol dalam aljabar',
+                order: 2
               },
               {
-                title: '3. Penerapan',
-                order: 3,
-                contents: {
-                  sections: [
-                    {
-                      type: 'text',
-                      content: 'Real-world applications and examples'
-                    },
-                    {
-                      type: 'video',
-                      url: 'https://example.com/application.mp4'
-                    }
-                  ]
-                }
+                type: 'text',
+                content: 'Dalam aljabar, kita menggunakan huruf untuk mewakili angka yang belum diketahui. Huruf-huruf ini disebut variabel.',
+                order: 3
+              }
+            ]
+          },
+          {
+            title: 'Operasi Dasar Aljabar',
+            order: 2,
+            contents: [
+              {
+                type: 'text',
+                content: 'Mari kita pelajari operasi dasar dalam aljabar:',
+                order: 1
+              },
+              {
+                type: 'text',
+                content: '1. Penjumlahan dan Pengurangan\nUntuk menjumlahkan atau mengurangkan bentuk aljabar, kita hanya bisa menggabungkan suku-suku yang sejenis.',
+                order: 2
+              },
+              {
+                type: 'code',
+                content: '2x + 3x = 5x\n3x - x = 2x',
+                language: 'text',
+                order: 3
+              }
+            ]
+          },
+          {
+            title: 'Latihan dan Penerapan',
+            order: 3,
+            contents: [
+              {
+                type: 'text',
+                content: 'Sekarang saatnya berlatih dengan beberapa soal:',
+                order: 1
+              },
+              {
+                type: 'exercise',
+                content: 'Selesaikan operasi aljabar berikut:\n1. 2x + 3x = ?\n2. 5x - 2x = ?\n3. 3(x + 2) = ?',
+                order: 2
+              },
+              {
+                type: 'text',
+                content: 'Petunjuk: Ingat untuk menggabungkan suku-suku sejenis dan mengikuti aturan operasi aljabar.',
+                order: 3
               }
             ]
           }
-        };
-        
-        const createdMaterial = await prisma.material.create({
-          data: material,
-          include: {
-            stages: true
-          }
-        });
-        materials.push(createdMaterial);
+        ]
       }
     }
+  ];
+
+  const createdMaterials = [];
+  for (const material of materials) {
+    const createdMaterial = await prisma.material.create({
+      data: material,
+      include: {
+        stages: true
+      }
+    });
+    createdMaterials.push(createdMaterial);
   }
-  return materials;
+  return createdMaterials;
 }
 
 // Create forum posts and interactions
@@ -702,44 +686,29 @@ async function createServices(users) {
 
 // Main function to run all seed operations
 async function main() {
-  console.log('🌱 Starting database seeding...');
+  console.log('Starting seeding...');
   
-  try {
-    console.log('Clearing existing data...');
-    await clearDatabase();
+  await clearDatabase();
+  
+  const schools = await createSchools();
+  console.log('Created schools');
+  
+  const users = await createUsers(schools);
+  console.log('Created users');
+  
+  const categories = await createCategories();
+  console.log('Created categories');
 
-    console.log('Creating schools...');
-    const schools = await createSchools();
-    
-    console.log('Creating users...');
-    const users = await createUsers(schools);
-    
-    console.log('Creating categories and subcategories...');
-    const categories = await createCategories();
-    
-    console.log('Creating materials...');
-    const materials = await createMaterials(categories);
-    
-    console.log('Creating forum content...');
-    const forumPosts = await createForumContent(users);
-    
-    console.log('Creating creations...');
-    const creations = await createCreations(users);
-    
-    console.log('Creating services...');
-    const services = await createServices(users);
+  const subcategories = await prisma.subcategory.findMany();
+  const materials = await createMaterials(subcategories);
+  console.log('Created materials with stages and contents');
 
-    console.log('✅ Database seeding completed successfully!');
-    
-  } catch (error) {
-    console.error('❌ Error during seeding:', error);
-    throw error;
-  }
+  console.log('Seeding finished');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error in seed:', e);
+    console.error(e);
     process.exit(1);
   })
   .finally(async () => {

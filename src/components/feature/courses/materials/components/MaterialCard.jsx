@@ -1,10 +1,13 @@
 import { FiBook, FiArrowRight, FiClock, FiCheckCircle } from 'react-icons/fi'
+import { useNavigate } from 'react-router-dom'
 
 const MaterialCard = ({ material, categoryId, subcategoryId, onClick }) => {
+  const navigate = useNavigate()
+
   return (
     <div
       className="group relative bg-black hover:bg-gradient-to-t hover:from-blue-500/5 hover:to-transparent border border-white/[0.08] hover:border-blue-500/20 rounded-2xl overflow-hidden cursor-pointer transition-all duration-500"
-      onClick={onClick}
+      onClick={() => navigate(`/courses/${categoryId}/subcategory/${subcategoryId}/learn/${material.id}`)}
     >
       <div className="relative flex flex-col">
         {/* Image Section with Overlaid Content */}
