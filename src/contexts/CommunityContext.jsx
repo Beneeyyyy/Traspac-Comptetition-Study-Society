@@ -54,6 +54,13 @@ function communityReducer(state, action) {
       };
     case 'SET_COMMUNITIES':
       return { ...state, communities: action.payload };
+    case 'UPDATE_QUESTION':
+      return {
+        ...state,
+        questions: state.questions.map(q => 
+          q.id === action.payload.questionId ? action.payload.question : q
+        )
+      };
     default:
       return state;
   }
@@ -120,23 +127,42 @@ export function CommunityProvider({ children }) {
     }
   };
 
+  // Define refreshQuestion outside the value object
+  const refreshQuestion = async (questionId) => {
+    if (!questionId) return null;
+    try {
+      const response = await api.get(`/api/forum/posts/${questionId}`);
+      const updatedQuestion = response.data?.data;
+      if (updatedQuestion) {
+        dispatch({
+          type: 'REFRESH_QUESTION_SUCCESS',
+          payload: updatedQuestion
+        });
+      }
+      return updatedQuestion;
+    } catch (error) {
+      console.error('Error refreshing question:', error);
+      return null;
+    }
+  };
+
   const value = useMemo(() => ({
     ...state,
-    refreshQuestion: async (questionId) => {
-      if (!questionId) return null;
+    refreshQuestion,
+    addQuestion: async (title, content, tags = [], images = []) => {
       try {
-        const response = await api.get(`/api/forum/posts/${questionId}`);
-        const updatedQuestion = response.data?.data;
-        if (updatedQuestion) {
+        const response = await api.post('/api/forum/posts', { title, content, tags, images });
+        const newQuestion = response.data?.data;
+        if (newQuestion) {
           dispatch({
-            type: 'REFRESH_QUESTION_SUCCESS',
-            payload: updatedQuestion
+            type: 'FETCH_QUESTIONS_SUCCESS',
+            payload: [...state.questions, newQuestion]
           });
         }
-        return updatedQuestion;
+        return newQuestion;
       } catch (error) {
-        console.error('Error refreshing question:', error);
-        return null;
+        console.error('Error creating question:', error);
+        throw error;
       }
     },
     fetchCommunities,
@@ -160,7 +186,10 @@ export function CommunityProvider({ children }) {
     },
     addAnswer: async (questionId, content, images = []) => {
       try {
-        const response = await api.post(`/api/forum/posts/${questionId}/answers`, { content, images });
+        const response = await api.post(`/api/forum/posts/${questionId}/answers`, {
+          content,
+          images
+        });
         const updatedQuestion = response.data?.data;
         if (updatedQuestion) {
           dispatch({
@@ -171,6 +200,38 @@ export function CommunityProvider({ children }) {
         return updatedQuestion;
       } catch (error) {
         console.error('Error adding answer:', error);
+        throw error;
+      }
+    },
+    addComment: async (questionId, answerId, data) => {
+      try {
+        const endpoint = answerId 
+          ? `/api/forum/posts/${questionId}/answers/${answerId}/comments`
+          : `/api/forum/posts/${questionId}/comments`;
+
+        console.log('Sending comment to:', endpoint, 'with data:', data);
+        const response = await api.post(endpoint, data);
+        console.log('Response from server:', response.data);
+        
+        if (response.data?.success) {
+          const updatedQuestion = response.data.data;
+          console.log('Updated question structure:', {
+            id: updatedQuestion.id,
+            answers: updatedQuestion.answers?.map(a => ({
+              id: a.id,
+              comments: a.comments?.length
+            }))
+          });
+          
+          // Update questions state with new data
+          dispatch({
+            type: 'REFRESH_QUESTION_SUCCESS',
+            payload: updatedQuestion
+          });
+          return response.data;
+        }
+      } catch (error) {
+        console.error('Error adding comment:', error);
         throw error;
       }
     }

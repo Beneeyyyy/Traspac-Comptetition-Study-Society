@@ -17,7 +17,7 @@ router.patch('/posts/:postId/answers/:answerId/accept', forumController.acceptAn
 
 // Comment routes
 router.post('/posts/:postId/comments', forumController.createComment);
-router.post('/answers/:answerId/comments', forumController.createComment);
+router.post('/posts/:postId/answers/:answerId/comments', forumController.createComment);
 
 // Vote routes
 router.post('/:type/:id/vote', forumController.handleVote);

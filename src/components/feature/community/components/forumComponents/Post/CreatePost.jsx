@@ -100,13 +100,13 @@ const CreatePost = () => {
     setError(null);
 
     try {
-      // Kirim data post dengan base64 images
-      const response = await addQuestion({
-        title: title.trim(),
-        content: content.trim(),
-        tags: tags.length > 0 ? tags : ['general'],
-        images: images // Kirim base64 strings langsung
-      });
+      // Pass parameters separately instead of as an object
+      const response = await addQuestion(
+        title.trim(),
+        content.trim(),
+        tags.length > 0 ? tags : ['general'],
+        images
+      );
 
       // Reset form setelah berhasil
       setTitle('');

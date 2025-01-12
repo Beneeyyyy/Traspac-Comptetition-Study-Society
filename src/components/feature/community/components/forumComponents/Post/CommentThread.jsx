@@ -7,10 +7,13 @@ const MAX_COMMENT_LENGTH = 500
 
 const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubmit }) => {
   const { addComment } = useCommunity()
-  const [showReplyForm, setShowReplyForm] = useState(!comment) // Show form by default if no comment
+  const [showReplyForm, setShowReplyForm] = useState(false)
   const [replyContent, setReplyContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  // Limit nesting level to prevent too deep threads
+  const canReply = level < 3
 
   const handleSubmitReply = async () => {
     if (!replyContent.trim()) return
@@ -25,29 +28,19 @@ const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubm
     try {
       await addComment(questionId, answerId, {
         content: replyContent.trim(),
-        parentId: comment?.id, // undefined for top-level comments
-        timeAgo: 'Baru saja'
+        parentId: comment?.id // undefined for top-level comments
       })
 
       setReplyContent('')
       setShowReplyForm(false)
       onCommentSubmit?.() // Call the callback if provided
     } catch (err) {
+      console.error('Error submitting comment:', err)
       setError('Gagal mengirim komentar. Silakan coba lagi.')
     } finally {
       setIsSubmitting(false)
     }
   }
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmitReply()
-    }
-  }
-
-  // Limit nesting level to prevent too deep threads
-  const canReply = level < 3
 
   return (
     <motion.div
@@ -59,9 +52,7 @@ const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubm
       {/* Thread Line */}
       {level > 0 && (
         <div className="absolute left-[-34px] -top-6 bottom-0">
-          {/* Vertical line */}
           <div className="absolute left-3 top-0 bottom-0 w-px bg-white/10" />
-          {/* Horizontal line */}
           <div className="absolute left-3 top-[28px] w-7 h-px bg-white/10" />
         </div>
       )}
@@ -75,13 +66,11 @@ const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubm
               alt={comment.user?.name || 'User'}
               className="w-7 h-7 rounded-full ring-1 ring-white/10 hover:ring-white/20 transition-all"
             />
-            {/* Vertical line extension below avatar for replies */}
             {(comment.replies?.length > 0 || showReplyForm) && (
               <div className="absolute left-3 top-8 w-px h-full bg-gradient-to-b from-white/10 to-transparent" />
             )}
           </div>
           <div className="flex-1">
-            {/* Comment Header */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-medium text-white/90 hover:text-white transition-colors">
                 {comment.user?.name || 'Anonymous'}
@@ -117,21 +106,18 @@ const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubm
         </div>
       )}
 
-      {/* Reply/Comment Form */}
+      {/* Reply Form */}
       <AnimatePresence>
         {(showReplyForm || !comment) && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className={`relative ${comment ? 'ml-10' : ''} ${showReplyForm ? 'mb-8' : ''}`}
+            className={`relative ${comment ? 'ml-10' : ''}`}
           >
-            {/* Thread Line for Reply Form */}
             {level > 0 && (
               <div className="absolute left-[-44px] -top-6 bottom-0">
-                {/* Vertical line */}
                 <div className="absolute left-3 top-0 bottom-0 w-px bg-gradient-to-b from-white/10 to-transparent" />
-                {/* Horizontal line */}
                 <div className="absolute left-3 top-[28px] w-7 h-px bg-white/10" />
               </div>
             )}
@@ -152,7 +138,12 @@ const CommentThread = ({ questionId, answerId, comment, level = 0, onCommentSubm
                       setError('')
                     }
                   }}
-                  onKeyPress={handleKeyPress}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSubmitReply()
+                    }
+                  }}
                   placeholder={comment ? "Tulis balasan..." : "Tulis komentar..."}
                   className="w-full px-4 py-2.5 bg-white/[0.02] hover:bg-white/[0.03] border border-white/5 hover:border-white/10 rounded-xl text-sm text-white/90 placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white/10 transition-all resize-none min-h-[42px] max-h-32"
                   rows={1}

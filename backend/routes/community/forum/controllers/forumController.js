@@ -417,6 +417,7 @@ const forumController = {
         });
       }
 
+      // Create the comment
       const comment = await prisma.forumComment.create({
         data: {
           content,
@@ -436,9 +437,78 @@ const forumController = {
         }
       });
 
+      // Get the updated post data
+      const updatedPost = await prisma.forumPost.findUnique({
+        where: { id: parseInt(postId) },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              rank: true
+            }
+          },
+          answers: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                  rank: true
+                }
+              },
+              comments: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      image: true,
+                      rank: true
+                    }
+                  }
+                }
+              },
+              votes: true
+            }
+          },
+          comments: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                  rank: true
+                }
+              }
+            }
+          },
+          votes: {
+            where: {
+              userId
+            }
+          }
+        }
+      });
+
+      // Transform post data
+      const upvotes = updatedPost.votes.filter(vote => vote.isUpvote).length;
+      const downvotes = updatedPost.votes.filter(vote => !vote.isUpvote).length;
+      const userVote = updatedPost.votes[0];
+
+      const { votes, ...postWithoutVotes } = updatedPost;
+      const transformedPost = {
+        ...postWithoutVotes,
+        score: upvotes - downvotes,
+        userVote: userVote ? (userVote.isUpvote ? 'upvote' : 'downvote') : null
+      };
+
       res.json({
         success: true,
-        data: comment
+        data: transformedPost
       });
     } catch (error) {
       console.error('Error in createComment:', error);

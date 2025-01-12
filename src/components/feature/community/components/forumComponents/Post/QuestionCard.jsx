@@ -117,11 +117,12 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
     setError(null);
 
     try {
-      // Kirim jawaban dengan base64 data untuk diupload ke Cloudinary
-      const response = await addAnswer(question.id, {
-        content: answerContent.trim(),
-        images: answerImages.map(img => img.data) // Kirim base64 untuk diupload
-      });
+      // Pass content and images correctly
+      const response = await addAnswer(
+        question.id,
+        answerContent.trim(),
+        answerImages.map(img => img.data) // Extract base64 data from images
+      );
 
       // Reset form
       setAnswerContent('');
@@ -192,8 +193,8 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
 
   // Handler for when a comment is successfully submitted
   const handleCommentSubmit = (answerId) => {
-    setActiveCommentId(null) // Hide the comment form
     setActiveAnswerId(answerId) // Show comments for this answer
+    setActiveCommentId(answerId) // Keep the comment form open
   }
 
   // Helper function untuk mendapatkan user avatar
@@ -552,23 +553,46 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                                 <span>{answer.downvoteCount || 0}</span>
                               </button>
                               <button
-                                onClick={() => setActiveCommentId(activeCommentId === answer.id ? null : answer.id)}
-                                className="flex items-center gap-2 text-white/50 hover:text-white/90 transition-colors"
+                                onClick={() => {
+                                  // Toggle comment visibility
+                                  if (activeCommentId === answer.id) {
+                                    setActiveCommentId(null)
+                                    setActiveAnswerId(null)
+                                  } else {
+                                    setActiveCommentId(answer.id)
+                                    setActiveAnswerId(answer.id)
+                                  }
+                                }}
+                                className={`flex items-center gap-2 transition-colors ${
+                                  activeCommentId === answer.id 
+                                    ? 'text-blue-400 hover:text-blue-500' 
+                                    : 'text-white/50 hover:text-white/90'
+                                }`}
                               >
                                 <FiMessageSquare className="text-lg" />
-                                <span>Komentar</span>
+                                <span>
+                                  {answer.comments?.length || 0} Komentar
+                                </span>
                               </button>
                             </div>
                           </div>
                         </div>
                         {/* Comment Thread for Answer */}
-                        {activeCommentId === answer.id && (
+                        {(activeCommentId === answer.id || activeAnswerId === answer.id) && (
                           <div className="mt-4 ml-14">
+                            {answer.comments?.map((comment) => (
+                              <CommentThread
+                                key={comment.id}
+                                questionId={question.id}
+                                answerId={answer.id}
+                                comment={comment}
+                                onCommentSubmit={() => handleCommentSubmit(answer.id)}
+                              />
+                            ))}
                             <CommentThread
                               questionId={question.id}
                               answerId={answer.id}
                               onCommentSubmit={() => handleCommentSubmit(answer.id)}
-                              maxComments={5}
                             />
                           </div>
                         )}
