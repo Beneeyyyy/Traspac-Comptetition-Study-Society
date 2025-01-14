@@ -72,16 +72,17 @@ export function ForumProvider({ children }) {
     }
   };
 
-  const addComment = async (questionId, answerId, content) => {
+  const addComment = async (questionId, answerId, content, parentId = null) => {
     try {
-      const newComment = await forumService.addComment(questionId, answerId, content);
+      const newComment = await forumService.addComment(questionId, answerId, content, parentId);
       if (newComment) {
         dispatch({ 
           type: ACTIONS.ADD_COMMENT, 
           payload: {
             ...newComment,
             questionId,
-            answerId
+            answerId,
+            parentId
           }
         });
       }

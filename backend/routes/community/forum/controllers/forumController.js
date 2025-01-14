@@ -141,6 +141,40 @@ const forumController = {
                         where: userId ? {
                           userId: userId
                         } : undefined
+                      },
+                      replies: {
+                        include: {
+                          user: {
+                            select: {
+                              id: true,
+                              name: true,
+                              image: true,
+                              rank: true
+                            }
+                          },
+                          votes: {
+                            where: userId ? {
+                              userId: userId
+                            } : undefined
+                          },
+                          replies: {
+                            include: {
+                              user: {
+                                select: {
+                                  id: true,
+                                  name: true,
+                                  image: true,
+                                  rank: true
+                                }
+                              },
+                              votes: {
+                                where: userId ? {
+                                  userId: userId
+                                } : undefined
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -180,6 +214,40 @@ const forumController = {
                     where: userId ? {
                       userId: userId
                     } : undefined
+                  },
+                  replies: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          image: true,
+                          rank: true
+                        }
+                      },
+                      votes: {
+                        where: userId ? {
+                          userId: userId
+                        } : undefined
+                      },
+                      replies: {
+                        include: {
+                          user: {
+                            select: {
+                              id: true,
+                              name: true,
+                              image: true,
+                              rank: true
+                            }
+                          },
+                          votes: {
+                            where: userId ? {
+                              userId: userId
+                            } : undefined
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }

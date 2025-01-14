@@ -11,25 +11,41 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
   const { user } = useAuth()
   const { addComment } = useForum()
 
-  const handleSubmitReply = async (e) => {
-    e.preventDefault()
-    if (!replyContent.trim() || isSubmitting) return
+  // Debug logging
+  console.log('CommentThread rendered:', {
+    commentId: comment.id,
+    content: comment.content,
+    repliesCount: comment.replies?.length,
+    replies: comment.replies
+  });
 
-    setIsSubmitting(true)
-    setError(null)
+  const handleSubmitReply = async (e) => {
+    e.preventDefault();
+    
+    if (!user) {
+      setError('Silakan login terlebih dahulu untuk membalas');
+      return;
+    }
+
+    if (!replyContent.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
 
     try {
-      await addComment(questionId, answerId, replyContent.trim(), comment.id)
-      setReplyContent('')
-      setShowReplyForm(false)
-      onCommentSubmit()
+      // Menambahkan parentId ke dalam request
+      const content = replyContent.trim();
+      await addComment(questionId, answerId, content, comment.id);
+      setReplyContent('');
+      setShowReplyForm(false);
+      onCommentSubmit();
     } catch (err) {
-      console.error('Error submitting reply:', err)
-      setError(err.message || 'Gagal mengirim balasan. Silakan coba lagi.')
+      console.error('Error submitting reply:', err);
+      setError('Gagal mengirim balasan. Silakan coba lagi.');
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="relative">

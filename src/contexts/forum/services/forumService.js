@@ -55,13 +55,16 @@ export const forumService = {
     return response.data?.data;
   },
 
-  async addComment(questionId, answerId, content) {
+  async addComment(questionId, answerId, content, parentId = null) {
     try {
       const endpoint = answerId 
         ? `/api/forum/posts/${questionId}/answers/${answerId}/comments`
         : `/api/forum/posts/${questionId}/comments`;
 
-      const response = await api.post(endpoint, { content });
+      const response = await api.post(endpoint, { 
+        content,
+        parentId: parentId ? parseInt(parentId) : null
+      });
       
       if (!response.data?.success) {
         throw new Error(response.data?.error || 'Failed to add comment');
