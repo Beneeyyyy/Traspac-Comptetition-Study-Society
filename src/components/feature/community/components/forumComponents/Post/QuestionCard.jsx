@@ -3,6 +3,7 @@ import { FiHash, FiMessageSquare, FiImage, FiSend, FiX, FiCornerUpRight, FiEdit,
 import { useForum } from '../../../../../../contexts/forum/ForumContext'
 import CommentThread from './CommentThread'
 import { useAuth } from '../../../../../../contexts/AuthContext'
+import AnswerCard from './AnswerCard'
 
 const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
   const { addAnswer, refreshQuestion, handleVote } = useForum()
@@ -489,122 +490,13 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                 {visibleAnswers.length > 0 ? (
                   <>
                     {visibleAnswers.map((answer) => (
-                      <div 
-                        key={`answer-${answer.id}`} 
-                        id={`answer-${answer.id}`} // Add ID for scrolling
-                        className="border-t border-white/5 pt-6 animate-fade-in"
-                      >
-                        <div className="flex gap-4">
-                          {/* User Profile Section */}
-                          <div className="flex items-start gap-3">
-                            <img
-                              src={getUserAvatar(answer.user)}
-                              alt={answer.user?.name || 'User'}
-                              className="w-11 h-11 rounded-full ring-2 ring-white/10 hover:ring-white/20 transition-all"
-                            />
-                            <div className="flex flex-col">
-                              <span className="font-medium text-white/90">
-                                {answer.user?.name || 'Anonymous'}
-                              </span>
-                              <span className="px-2 py-0.5 bg-white/[0.03] text-white/40 rounded-lg text-xs border border-white/5 mt-1 whitespace-nowrap">
-                                {answer.user?.rank || 'Member'}
-                              </span>
-                              <span className="text-xs text-white/40 mt-1">
-                                {answer.timeAgo || 'Just now'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Answer Content Section */}
-                          <div className="flex-1">
-                            <div className="prose prose-invert max-w-none">
-                              <p className="text-white/70 whitespace-pre-wrap">
-                                {answer.content}
-                              </p>
-                            </div>
-                            {answer.images?.length > 0 && (
-                              <div className="grid grid-cols-2 gap-4 mt-4">
-                                {answer.images.map((imageUrl, index) => (
-                                  <div key={`answer-image-${answer.id}-${index}`} className="relative group">
-                                    <img
-                                      src={imageUrl} // URL Cloudinary dari database
-                                      alt={`Answer image ${index + 1}`}
-                                      className="rounded-lg border border-white/10 w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
-                                      onError={(e) => {
-                                        console.error('Failed to load answer image:', imageUrl);
-                                        e.target.src = '/images/placeholder.png';
-                                      }}
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            <div className="mt-4 flex items-center gap-4">
-                              <button
-                                onClick={() => handleVoteClick('answer', answer.id, true)}
-                                disabled={isVoting}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-                                  isVoting ? 'opacity-50 cursor-not-allowed' : ''
-                                } ${
-                                  answer.userVote === 'upvote'
-                                    ? 'text-green-400 bg-green-500/10'
-                                    : 'text-white/50 hover:text-green-400 hover:bg-green-500/5'
-                                }`}
-                              >
-                                <FiArrowUp className={answer.userVote === 'upvote' ? 'text-lg fill-current' : 'text-lg'} />
-                                <span className="text-sm font-medium">{answer.upvotes || 0}</span>
-                              </button>
-                              <button
-                                onClick={() => handleVoteClick('answer', answer.id, false)}
-                                disabled={isVoting}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-                                  isVoting ? 'opacity-50 cursor-not-allowed' : ''
-                                } ${
-                                  answer.userVote === 'downvote'
-                                    ? 'text-red-400 bg-red-500/10'
-                                    : 'text-white/50 hover:text-red-400 hover:bg-red-500/5'
-                                }`}
-                              >
-                                <FiArrowDown className={answer.userVote === 'downvote' ? 'text-lg fill-current' : 'text-lg'} />
-                                <span className="text-sm font-medium">{answer.downvotes || 0}</span>
-                              </button>
-                              <button
-                                onClick={() => handleCommentClick(answer.id)}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-                                  activeCommentId === answer.id 
-                                    ? 'text-blue-400 bg-blue-500/10 hover:bg-blue-500/20' 
-                                    : 'text-white/50 hover:text-white/90 hover:bg-white/5'
-                                }`}
-                              >
-                                <FiMessageSquare className="text-lg" />
-                                <span className="text-sm font-medium">
-                                  {answer.comments?.length || 0} Komentar
-                                </span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                        {/* Comment Thread for Answer */}
-                        {(activeCommentId === answer.id || activeAnswerId === answer.id) && (
-                          <div className="mt-4 ml-14 space-y-4">
-                            <CommentThread
-                              questionId={question.id}
-                              answerId={answer.id}
-                              onCommentSubmit={() => handleCommentSubmit(answer.id)}
-                            />
-                            {answer.comments?.map((comment) => (
-                              <CommentThread
-                                key={comment.id}
-                                questionId={question.id}
-                                answerId={answer.id}
-                                comment={comment}
-                                onCommentSubmit={() => handleCommentSubmit(answer.id)}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <AnswerCard
+                        key={answer.id}
+                        answer={answer}
+                        isQuestioner={answer.userId === question.userId}
+                        isLastAnswer={answer === visibleAnswers[visibleAnswers.length - 1]}
+                        questionId={question.id}
+                      />
                     ))}
                     
                     {remainingAnswersCount > 0 && (

@@ -55,9 +55,23 @@ export const forumService = {
     return response.data?.data;
   },
 
-  async addComment(type, id, data) {
-    const response = await api.post(`/api/forum/${type}s/${id}/comments`, data);
-    return response.data?.data;
+  async addComment(questionId, answerId, content) {
+    try {
+      const endpoint = answerId 
+        ? `/api/forum/posts/${questionId}/answers/${answerId}/comments`
+        : `/api/forum/posts/${questionId}/comments`;
+
+      const response = await api.post(endpoint, { content });
+      
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to add comment');
+      }
+      
+      return response.data.data;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
   },
 
   async handleVote(type, id, isUpvote) {

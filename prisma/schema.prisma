@@ -302,6 +302,8 @@ model ForumAnswer {
   userId        Int       
   postId        Int       
   isAccepted    Boolean   @default(false)
+  upvotes       Int       @default(0)
+  downvotes     Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

@@ -752,7 +752,8 @@ const forumController = {
       // Execute vote operation in transaction
       const result = await prisma.$transaction(async (tx) => {
         // Get item with current votes
-        const item = await tx[`forum${type.charAt(0).toUpperCase() + type.slice(1)}`].findUnique({
+        const modelName = type === 'post' ? 'forumPost' : type === 'answer' ? 'forumAnswer' : 'forumComment';
+        const item = await tx[modelName].findUnique({
           where: { id: parseInt(id) },
           include: {
             votes: true,
@@ -821,21 +822,13 @@ const forumController = {
         const downvotes = votes.filter(v => !v.isUpvote).length;
 
         // Update item with new vote counts
-        const updatedItem = await tx[`forum${type.charAt(0).toUpperCase() + type.slice(1)}`].update({
-          where: { id: parseInt(id) },
+        const updatedItem = await tx[modelName].update({
+          where: { 
+            id: parseInt(id) 
+          },
           data: {
             upvotes,
             downvotes
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-                rank: true
-              }
-            }
           }
         });
 
@@ -843,17 +836,11 @@ const forumController = {
         const userVote = action === 'delete' ? null : isUpvote ? 'upvote' : 'downvote';
 
         return {
+          ...updatedItem,
           upvotes,
           downvotes,
           userVote,
-          postId: type === 'post' ? updatedItem.id : updatedItem.postId,
-          updatedItem: {
-            ...updatedItem,
-            upvotes,
-            downvotes,
-            userVote,
-            score: upvotes - downvotes
-          }
+          score: upvotes - downvotes
         };
       });
 

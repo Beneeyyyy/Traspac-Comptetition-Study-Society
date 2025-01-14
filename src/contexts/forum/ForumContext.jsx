@@ -72,16 +72,16 @@ export function ForumProvider({ children }) {
     }
   };
 
-  const addComment = async (type, id, data) => {
+  const addComment = async (questionId, answerId, content) => {
     try {
-      const newComment = await forumService.addComment(type, id, data);
+      const newComment = await forumService.addComment(questionId, answerId, content);
       if (newComment) {
         dispatch({ 
           type: ACTIONS.ADD_COMMENT, 
           payload: {
             ...newComment,
-            questionId: type === 'question' ? id : undefined,
-            answerId: type === 'answer' ? id : undefined
+            questionId,
+            answerId
           }
         });
       }

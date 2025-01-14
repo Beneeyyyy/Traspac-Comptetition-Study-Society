@@ -1,169 +1,233 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { FiArrowUp, FiHeart, FiShare2, FiMoreHorizontal, FiMessageSquare, FiSend } from 'react-icons/fi'
+import { FiMessageSquare, FiArrowUp, FiArrowDown, FiCornerUpRight } from 'react-icons/fi'
+import { useAuth } from '../../../../../../contexts/AuthContext'
+import { useForum } from '../../../../../../contexts/forum/ForumContext'
+import CommentThread from './CommentThread'
 
-const AnswerCard = ({ answer, isQuestioner, isLastAnswer }) => {
-  const [expandedComments, setExpandedComments] = useState(null)
-  const [activeReplyId, setActiveReplyId] = useState(null)
+const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
+  const [isVoting, setIsVoting] = useState(false)
+  const [error, setError] = useState(null)
+  const [showCommentForm, setShowCommentForm] = useState(false)
+  const [commentContent, setCommentContent] = useState('')
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+  const { user } = useAuth()
+  const { handleVote, refreshQuestion, addComment } = useForum()
+
+  const handleVoteClick = async (type, id, isUpvote) => {
+    if (!user) {
+      setError('Silakan login terlebih dahulu untuk memberikan vote');
+      return;
+    }
+
+    if (isVoting) return;
+
+    setIsVoting(true);
+    setError(null);
+    
+    try {
+      const result = await handleVote(type, id, isUpvote);
+      await refreshQuestion(questionId);
+    } catch (error) {
+      console.error('Error voting:', error);
+      setError('Gagal memberikan vote. Silakan coba lagi.');
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!user) {
+      setError('Silakan login terlebih dahulu untuk mengomentari');
+      return;
+    }
+
+    if (!commentContent.trim() || isSubmittingComment) return;
+
+    setIsSubmittingComment(true);
+    setError(null);
+
+    try {
+      await addComment(questionId, answer.id, commentContent);
+      setCommentContent('');
+      setShowCommentForm(false);
+      await refreshQuestion(questionId);
+    } catch (err) {
+      console.error('Error submitting comment:', err);
+      setError('Gagal mengirim komentar. Silakan coba lagi.');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
 
   return (
-    <div className={`group flex bg-white/[0.01] ${!isLastAnswer ? 'border-b border-white/10' : ''}`}>
-      {/* Vote Column */}
-      <div className="py-4 px-3 flex flex-col items-center gap-1.5 border-r border-white/10 min-w-[60px]">
-        <button className="p-1.5 rounded-md hover:bg-blue-500/10 text-white/60 hover:text-blue-400 transition-colors">
-          <FiArrowUp className="text-base" />
-        </button>
-        <span className="text-base font-medium text-white/80">
-          {answer.votes}
-        </span>
-        <button className="p-1.5 rounded-md hover:bg-red-500/10 text-white/60 hover:text-red-400 transition-colors rotate-180">
-          <FiArrowUp className="text-base" />
-        </button>
-      </div>
+    <div 
+      key={`answer-${answer.id}`} 
+      id={`answer-${answer.id}`}
+      className={`group bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden ${!isLastAnswer ? 'mb-6' : ''}`}
+    >
+      <div className="flex">
+        {/* Vote Column */}
+        <div className="py-6 px-4 flex flex-col items-center gap-2 border-r border-white/10 min-w-[80px]">
+          <button
+            onClick={() => handleVoteClick('answer', answer.id, true)}
+            disabled={isVoting}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
+              answer.userVote === 'upvote'
+                ? 'text-green-500 bg-green-500/10 fill-current' 
+                : 'text-gray-400 hover:text-green-500 hover:bg-green-500/5'
+            } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <FiArrowUp className="text-xl" />
+            <span className="text-sm font-medium">{answer.upvotes || 0}</span>
+          </button>
 
-      {/* Answer Content */}
-      <div className={`flex-1 p-4 ${isQuestioner ? 'bg-blue-500/5' : ''}`}>
-        <div className="flex items-center gap-3 mb-3">
-          <img
-            src={answer.user.avatar}
-            alt={answer.user.name}
-            className="w-8 h-8 rounded-full ring-1 ring-white/20"
-          />
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-white/80 hover:text-white cursor-pointer">
-                {answer.user.name}
-              </span>
-              {isQuestioner && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-medium">
-                  Penanya
-                </span>
-              )}
-              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400/80 font-medium">
-                {answer.user.badge}
-              </span>
-            </div>
-            <span className="text-sm text-white/40">{answer.timeAgo}</span>
-          </div>
+          <div className="w-8 h-[2px] bg-white/5 rounded-full"></div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white/90 transition-colors">
-              <FiHeart className="text-base" />
-            </button>
-            <button className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white/90 transition-colors">
-              <FiShare2 className="text-base" />
-            </button>
-            <button className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white/90 transition-colors">
-              <FiMoreHorizontal className="text-base" />
-            </button>
-          </div>
+          <button
+            onClick={() => handleVoteClick('answer', answer.id, false)}
+            disabled={isVoting}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
+              answer.userVote === 'downvote'
+                ? 'text-red-500 bg-red-500/10 fill-current' 
+                : 'text-gray-400 hover:text-red-500 hover:bg-red-500/5'
+            } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <FiArrowDown className="text-xl" />
+            <span className="text-sm font-medium">{answer.downvotes || 0}</span>
+          </button>
         </div>
 
-        {/* Answer Content */}
-        <div className="pl-11">
-          <p className="text-sm text-white/70 leading-relaxed">{answer.content}</p>
-          
-          <div className="mt-4 flex items-center gap-4">
-            {/* Inline Comment Form */}
-            <div className="flex-1 flex items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Tambahkan komentar..."
-                  className="w-full py-1.5 pl-3 pr-9 bg-white/[0.03] border border-white/10 rounded-lg text-sm text-white/70 placeholder:text-white/30 focus:outline-none focus:border-white/20 transition-colors"
-                />
-                <button 
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-white/5 text-white/50 hover:text-white/90 transition-colors"
-                  title="Kirim komentar"
-                >
-                  <FiSend className="text-sm" />
-                </button>
+        {/* Content Column */}
+        <div className="flex-1 p-6">
+          {/* User Info */}
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+            <div className="relative group">
+              <img
+                src={answer.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(answer.user?.name)}&background=0D8ABC&color=fff`}
+                alt={answer.user?.name || 'User'}
+                className="w-14 h-14 rounded-xl ring-2 ring-white/10 group-hover:ring-blue-500/50 transition-all duration-300 object-cover"
+              />
+              <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-gradient-to-br from-blue-500/20 to-blue-400/10 rounded-lg flex items-center justify-center ring-2 ring-white/10 group-hover:ring-blue-500/50 transition-all duration-300">
+                <span className="text-[11px] font-medium text-blue-400">{answer.user?.level || 1}</span>
               </div>
             </div>
-
-            <button 
-              onClick={() => setExpandedComments(expandedComments === answer.id ? null : answer.id)}
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white/70 transition-colors"
-            >
-              <FiMessageSquare className="text-base" />
-              <span>{answer.comments?.length || 0} komentar</span>
-            </button>
+            <div>
+              <h3 className="font-medium text-white/90 text-lg group-hover:text-white transition-colors">
+                {answer.user?.name || 'Anonymous'}
+              </h3>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="px-3 py-1 rounded-lg text-xs bg-gradient-to-r from-white/[0.03] to-white/[0.02] text-white/50 border border-white/5 hover:text-white/70 transition-all">
+                  {answer.user?.rank || 'Member'}
+                </span>
+                <span className="text-xs text-white/40">
+                  {answer.timeAgo || 'Just now'}
+                </span>
+              </div>
+            </div>
           </div>
-          
-          {/* Comments Section - Only show when expanded */}
-          <AnimatePresence>
-            {expandedComments === answer.id && answer.comments && answer.comments.length > 0 && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="mt-4"
-              >
-                <div className="space-y-4 pl-4 border-l border-white/10">
-                  {answer.comments.map((comment) => (
-                    <div key={comment.id} className="group">
-                      <div className="flex items-start gap-3">
-                        <img
-                          src={comment.user.avatar}
-                          alt={comment.user.name}
-                          className="w-6 h-6 rounded-full ring-1 ring-white/20"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-white/80 text-sm hover:text-white cursor-pointer">
-                              {comment.user.name}
-                            </span>
-                            <span className="text-xs text-white/40">{comment.timeAgo}</span>
-                          </div>
-                          <p className="text-sm text-white/70">{comment.content}</p>
-                          
-                          {/* Comment Actions */}
-                          <div className="flex items-center gap-4 mt-2">
-                            <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-blue-400 transition-colors">
-                              <FiHeart className="text-sm" />
-                              <span>{comment.likes}</span>
-                            </button>
-                            <button 
-                              onClick={() => setActiveReplyId(activeReplyId === comment.id ? null : comment.id)}
-                              className="text-xs text-white/40 hover:text-white/60 transition-colors"
-                            >
-                              Balas
-                            </button>
-                          </div>
 
-                          {/* Reply Form - Only show when activeReplyId matches */}
-                          {activeReplyId === comment.id && (
-                            <div className="mt-3 flex items-center gap-3">
-                              <img
-                                src="https://ui-avatars.com/api/?name=You"
-                                alt="Your avatar"
-                                className="w-6 h-6 rounded-full ring-1 ring-white/20"
-                              />
-                              <div className="flex-1 relative">
-                                <input
-                                  type="text"
-                                  placeholder="Balas komentar..."
-                                  className="w-full py-2 pl-3 pr-10 bg-white/[0.03] border border-white/10 rounded-lg text-sm text-white/70 placeholder:text-white/30 focus:outline-none focus:border-white/20 transition-colors"
-                                />
-                                <button 
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-white/5 text-white/50 hover:text-white/90 transition-colors"
-                                  title="Kirim balasan"
-                                >
-                                  <FiSend className="text-base" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
+          {/* Answer Content */}
+          <div className="mt-6">
+            <div className="prose prose-invert max-w-none">
+              <p className="text-white/80 whitespace-pre-wrap leading-relaxed">
+                {answer.content}
+              </p>
+            </div>
+
+            {answer.images?.length > 0 && (
+              <div className="grid grid-cols-2 gap-4 mt-6">
+                {answer.images.map((imageUrl, index) => (
+                  <div key={`answer-image-${answer.id}-${index}`} className="relative group">
+                    <img
+                      src={imageUrl}
+                      alt={`Answer image ${index + 1}`}
+                      className="rounded-xl border border-white/10 w-full h-48 object-cover transition-all duration-300 group-hover:scale-[1.02] group-hover:border-blue-500/20"
+                      onError={(e) => {
+                        console.error('Failed to load answer image:', imageUrl);
+                        e.target.src = '/images/placeholder.png';
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl" />
+                  </div>
+                ))}
+              </div>
             )}
-          </AnimatePresence>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-500/10 text-red-400 rounded-lg text-sm border border-red-500/20">
+              {error}
+            </div>
+          )}
+
+          {/* Comments Section */}
+          <div className="mt-6 pt-6 border-t border-white/5">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-medium text-white/70">
+                Komentar ({answer.comments?.length || 0})
+              </h4>
+              <button
+                onClick={() => setShowCommentForm(!showCommentForm)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.05] text-white/60 hover:text-white/90 transition-all border border-white/5 hover:border-white/10 text-sm"
+              >
+                <FiMessageSquare className="text-base" />
+                <span>Tambah Komentar</span>
+              </button>
+            </div>
+
+            {/* Comment Form */}
+            {showCommentForm && (
+              <div className="mb-6">
+                <form onSubmit={handleCommentSubmit} className="space-y-3">
+                  <textarea
+                    value={commentContent}
+                    onChange={(e) => setCommentContent(e.target.value)}
+                    placeholder="Tulis komentar..."
+                    className="w-full px-4 py-3 bg-white/[0.02] border border-white/5 rounded-xl text-white/80 text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all resize-none"
+                    rows={3}
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCommentForm(false);
+                        setCommentContent('');
+                        setError(null);
+                      }}
+                      className="px-4 py-2 text-xs text-white/50 hover:text-white/70 transition-colors"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!commentContent.trim() || isSubmittingComment}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500/80 to-blue-600/80 hover:from-blue-500 hover:to-blue-600 text-white text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSubmittingComment ? 'Mengirim...' : 'Kirim Komentar'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Comment Threads */}
+            <div className="space-y-4">
+              {answer.comments?.map((comment) => (
+                <CommentThread
+                  key={comment.id}
+                  comment={comment}
+                  questionId={questionId}
+                  answerId={answer.id}
+                  onCommentSubmit={async () => {
+                    await refreshQuestion(questionId);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
