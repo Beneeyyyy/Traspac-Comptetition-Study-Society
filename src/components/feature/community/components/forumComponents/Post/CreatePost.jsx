@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react'
 import { FiImage, FiX, FiMessageSquare, FiLink, FiHash, FiLoader } from 'react-icons/fi'
-import { useCommunity } from '../../../../../../contexts/CommunityContext'
+import { useForum } from '../../../../../../contexts/forum/ForumContext'
 
 const CreatePost = () => {
-  const { addQuestion } = useCommunity()
+  const { addQuestion } = useForum()
   const [isExpanded, setIsExpanded] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')

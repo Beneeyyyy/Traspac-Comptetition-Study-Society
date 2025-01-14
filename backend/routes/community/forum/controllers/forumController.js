@@ -111,7 +111,7 @@ const forumController = {
               votes: true,
               comments: {
                 where: {
-                  parentId: null // Only get top-level comments
+                  parentId: null
                 },
                 include: {
                   user: {
@@ -122,7 +122,11 @@ const forumController = {
                       rank: true
                     }
                   },
-                  votes: true,
+                  votes: {
+                    where: userId ? {
+                      userId: userId
+                    } : undefined
+                  },
                   replies: {
                     include: {
                       user: {
@@ -133,19 +137,10 @@ const forumController = {
                           rank: true
                         }
                       },
-                      votes: true,
-                      replies: {
-                        include: {
-                          user: {
-                            select: {
-                              id: true,
-                              name: true,
-                              image: true,
-                              rank: true
-                            }
-                          },
-                          votes: true
-                        }
+                      votes: {
+                        where: userId ? {
+                          userId: userId
+                        } : undefined
                       }
                     }
                   }
@@ -155,7 +150,7 @@ const forumController = {
           },
           comments: {
             where: {
-              parentId: null // Only get top-level comments
+              parentId: null
             },
             include: {
               user: {
@@ -166,7 +161,11 @@ const forumController = {
                   rank: true
                 }
               },
-              votes: true,
+              votes: {
+                where: userId ? {
+                  userId: userId
+                } : undefined
+              },
               replies: {
                 include: {
                   user: {
@@ -177,28 +176,19 @@ const forumController = {
                       rank: true
                     }
                   },
-                  votes: true,
-                  replies: {
-                    include: {
-                      user: {
-                        select: {
-                          id: true,
-                          name: true,
-                          image: true,
-                          rank: true
-                        }
-                      },
-                      votes: true
-                    }
+                  votes: {
+                    where: userId ? {
+                      userId: userId
+                    } : undefined
                   }
                 }
               }
             }
           },
           votes: {
-            where: {
+            where: userId ? {
               userId: userId
-            }
+            } : undefined
           }
         }
       });
@@ -210,16 +200,61 @@ const forumController = {
         });
       }
 
-      // Transform post to include vote status
-      const upvotes = post.votes.filter(vote => vote.isUpvote).length;
-      const downvotes = post.votes.filter(vote => !vote.isUpvote).length;
-      const userVote = post.votes[0];
+      // Transform post votes
+      const postUpvotes = post.votes.filter(vote => vote.isUpvote).length;
+      const postDownvotes = post.votes.filter(vote => !vote.isUpvote).length;
+      const postUserVote = post.votes[0];
 
-      const { votes, ...postWithoutVotes } = post;
+      // Transform answers with vote data
+      const transformedAnswers = post.answers.map(answer => {
+        const answerUpvotes = answer.votes.filter(vote => vote.isUpvote).length;
+        const answerDownvotes = answer.votes.filter(vote => !vote.isUpvote).length;
+        const answerUserVote = answer.votes.find(vote => vote.userId === userId);
+
+        // Transform comments with vote data
+        const transformedComments = answer.comments.map(comment => {
+          const commentUpvotes = comment.votes.filter(vote => vote.isUpvote).length;
+          const commentDownvotes = comment.votes.filter(vote => !vote.isUpvote).length;
+          const commentUserVote = comment.votes[0];
+
+          const { votes: commentVotes, ...commentWithoutVotes } = comment;
+          return {
+            ...commentWithoutVotes,
+            score: commentUpvotes - commentDownvotes,
+            userVote: commentUserVote ? (commentUserVote.isUpvote ? 'upvote' : 'downvote') : null
+          };
+        });
+
+        const { votes: answerVotes, comments, ...answerWithoutVotes } = answer;
+        return {
+          ...answerWithoutVotes,
+          score: answerUpvotes - answerDownvotes,
+          userVote: answerUserVote ? (answerUserVote.isUpvote ? 'upvote' : 'downvote') : null,
+          comments: transformedComments
+        };
+      });
+
+      // Transform comments with vote data
+      const transformedComments = post.comments.map(comment => {
+        const commentUpvotes = comment.votes.filter(vote => vote.isUpvote).length;
+        const commentDownvotes = comment.votes.filter(vote => !vote.isUpvote).length;
+        const commentUserVote = comment.votes[0];
+
+        const { votes: commentVotes, ...commentWithoutVotes } = comment;
+        return {
+          ...commentWithoutVotes,
+          score: commentUpvotes - commentDownvotes,
+          userVote: commentUserVote ? (commentUserVote.isUpvote ? 'upvote' : 'downvote') : null
+        };
+      });
+
+      const { votes, answers, comments, ...postWithoutVotes } = post;
       const transformedPost = {
         ...postWithoutVotes,
-        score: upvotes - downvotes,
-        userVote: userVote ? (userVote.isUpvote ? 'upvote' : 'downvote') : null
+        score: postUpvotes - postDownvotes,
+        userVote: postUserVote ? (postUserVote.isUpvote ? 'upvote' : 'downvote') : null,
+        answers: transformedAnswers,
+        comments: transformedComments
       };
 
       res.json({
@@ -696,7 +731,15 @@ const forumController = {
     try {
       const { type, id } = req.params;
       const { isUpvote } = req.body;
-      const userId = req.user.id;
+      const userId = req.user?.id;
+
+      // Validate user
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        });
+      }
 
       // Validate vote type
       if (!['post', 'answer', 'comment'].includes(type)) {
@@ -706,76 +749,10 @@ const forumController = {
         });
       }
 
-      // If voting on an answer, get the parent post ID
-      let parentPostId;
-      if (type === 'answer') {
-        const answer = await prisma.forumAnswer.findUnique({
-          where: { id: parseInt(id) },
-          select: { postId: true }
-        });
-        
-        if (!answer) {
-          return res.status(404).json({
-            success: false,
-            error: 'Answer not found'
-          });
-        }
-        
-        parentPostId = answer.postId;
-      }
-
-      const voteData = {
-        userId,
-        isUpvote,
-        [`${type}Id`]: parseInt(id)
-      };
-
-      // Check if vote exists
-      const existingVote = await prisma.forumVote.findFirst({
-        where: {
-          userId,
-          [`${type}Id`]: parseInt(id)
-        }
-      });
-
-      let vote;
-      if (existingVote) {
-        if (existingVote.isUpvote === isUpvote) {
-          // Remove vote if same type
-          vote = await prisma.forumVote.delete({
-            where: { id: existingVote.id }
-          });
-        } else {
-          // Update vote if different type
-          vote = await prisma.forumVote.update({
-            where: { id: existingVote.id },
-            data: { isUpvote }
-          });
-        }
-      } else {
-        // Create new vote
-        vote = await prisma.forumVote.create({
-          data: voteData
-        });
-      }
-
-      // Get updated vote counts
-      const votes = await prisma.forumVote.findMany({
-        where: {
-          [`${type}Id`]: parseInt(id)
-        }
-      });
-
-      const upvotes = votes.filter(v => v.isUpvote).length;
-      const downvotes = votes.filter(v => !v.isUpvote).length;
-
-      // Get user's current vote status
-      const currentUserVote = votes.find(v => v.userId === userId);
-
-      // Get the updated item with votes
-      let updatedItem;
-      if (type === 'answer') {
-        updatedItem = await prisma.forumAnswer.findUnique({
+      // Execute vote operation in transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // Get item with current votes
+        const item = await tx[`forum${type.charAt(0).toUpperCase() + type.slice(1)}`].findUnique({
           where: { id: parseInt(id) },
           include: {
             votes: true,
@@ -789,29 +766,107 @@ const forumController = {
             }
           }
         });
-      }
 
-      res.json({
-        success: true,
-        data: {
-          vote,
+        if (!item) {
+          throw new Error(`${type} not found`);
+        }
+
+        // Check existing vote
+        const existingVote = await tx.forumVote.findFirst({
+          where: {
+            userId,
+            [`${type}Id`]: parseInt(id)
+          }
+        });
+
+        let action = 'none';
+
+        // Handle vote
+        if (existingVote) {
+          if (existingVote.isUpvote === isUpvote) {
+            // Delete vote if same type (unvote)
+            await tx.forumVote.delete({
+              where: { id: existingVote.id }
+            });
+            action = 'delete';
+          } else {
+            // Update vote if different type
+            await tx.forumVote.update({
+              where: { id: existingVote.id },
+              data: { isUpvote }
+            });
+            action = 'update';
+          }
+        } else {
+          // Create new vote
+          await tx.forumVote.create({
+            data: {
+              userId,
+              isUpvote,
+              [`${type}Id`]: parseInt(id)
+            }
+          });
+          action = 'create';
+        }
+
+        // Get fresh vote counts
+        const votes = await tx.forumVote.findMany({
+          where: {
+            [`${type}Id`]: parseInt(id)
+          }
+        });
+
+        // Calculate vote counts
+        const upvotes = votes.filter(v => v.isUpvote).length;
+        const downvotes = votes.filter(v => !v.isUpvote).length;
+
+        // Update item with new vote counts
+        const updatedItem = await tx[`forum${type.charAt(0).toUpperCase() + type.slice(1)}`].update({
+          where: { id: parseInt(id) },
+          data: {
+            upvotes,
+            downvotes
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                rank: true
+              }
+            }
+          }
+        });
+
+        // Get user's current vote status
+        const userVote = action === 'delete' ? null : isUpvote ? 'upvote' : 'downvote';
+
+        return {
           upvotes,
           downvotes,
-          userVote: currentUserVote ? (currentUserVote.isUpvote ? 'upvote' : 'downvote') : null,
-          postId: type === 'post' ? parseInt(id) : parentPostId,
-          updatedItem: updatedItem ? {
+          userVote,
+          postId: type === 'post' ? updatedItem.id : updatedItem.postId,
+          updatedItem: {
             ...updatedItem,
             upvotes,
             downvotes,
-            userVote: currentUserVote ? (currentUserVote.isUpvote ? 'upvote' : 'downvote') : null
-          } : null
-        }
+            userVote,
+            score: upvotes - downvotes
+          }
+        };
+      });
+
+      res.json({
+        success: true,
+        data: result
       });
     } catch (error) {
       console.error('Error in handleVote:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to handle vote'
+        error: 'Failed to handle vote',
+        details: error.message
       });
     }
   }

@@ -1,7 +1,7 @@
-import React from 'react';
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useMemo } from 'react';
+import { initializeApi } from '../utils/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = 'http://localhost:3000';
 
 // Create the context
 const AuthContext = createContext(null);
@@ -11,6 +11,14 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Function to get token
+  const getToken = () => localStorage.getItem('token');
+
+  // Initialize API with token getter
+  useEffect(() => {
+    initializeApi(getToken);
+  }, []);
+
   const checkAuth = async () => {
     try {
       console.log('Checking auth status...');
@@ -19,7 +27,8 @@ export function AuthProvider({ children }) {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`
         }
       });
 
@@ -29,14 +38,19 @@ export function AuthProvider({ children }) {
       if (response.ok && data.user) {
         console.log('Setting user data:', data.user);
         setUser(data.user);
+        // Update token if provided
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
       } else {
         console.log('No user data found');
         setUser(null);
+        localStorage.removeItem('token');
       }
     } catch (error) {
       console.error('Auth check error:', error);
-      // Don't set user to null on network errors
-      // This prevents unwanted redirects during temporary network issues
+      // Clear token on error
+      localStorage.removeItem('token');
     } finally {
       setIsLoading(false);
     }
@@ -65,6 +79,10 @@ export function AuthProvider({ children }) {
       if (data.user) {
         console.log('Setting user after login:', data.user);
         setUser(data.user);
+        // Store token in localStorage
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
       }
 
       return data;
@@ -87,10 +105,13 @@ export function AuthProvider({ children }) {
 
       if (response.ok) {
         setUser(null);
+        // Remove token from localStorage
+        localStorage.removeItem('token');
       }
     } catch (error) {
       console.error('Logout error:', error);
       setUser(null);
+      localStorage.removeItem('token');
     }
   };
 
@@ -118,12 +139,13 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  const value = React.useMemo(() => ({
+  const value = useMemo(() => ({
     user,
     login,
     logout,
     checkAuth,
-    isLoading
+    isLoading,
+    getToken // Export getToken function
   }), [user, isLoading]);
 
   return (

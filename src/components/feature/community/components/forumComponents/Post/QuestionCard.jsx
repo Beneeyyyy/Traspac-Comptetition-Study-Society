@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { FiHash, FiMessageSquare, FiImage, FiSend, FiX, FiCornerUpRight, FiEdit, FiLoader, FiAlertCircle, FiEye, FiArrowUp, FiArrowDown, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
-import { useCommunity } from '../../../../../../contexts/CommunityContext'
+import { useForum } from '../../../../../../contexts/forum/ForumContext'
 import CommentThread from './CommentThread'
 import { useAuth } from '../../../../../../contexts/AuthContext'
 
 const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
-  const { addAnswer, refreshQuestion, currentUser, handleVote } = useCommunity()
+  const { addAnswer, refreshQuestion, handleVote } = useForum()
+  const { user } = useAuth()
   const [answerContent, setAnswerContent] = useState('')
   const [answerImages, setAnswerImages] = useState([])
   const [showAnswerForm, setShowAnswerForm] = useState(false)
@@ -16,47 +17,48 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
   const [error, setError] = useState(null)
   const [isVoting, setIsVoting] = useState(false)
   const [isLoadingAnswers, setIsLoadingAnswers] = useState(false)
-  const [answersCount, setAnswersCount] = useState(0)
+  
   const answerFileInputRef = useRef(null)
   const [visibleAnswersCount, setVisibleAnswersCount] = useState(4)
+  const showAnswersRef = useRef(showAllAnswers)
 
-  const { user } = useAuth()
-
-  // Fetch answers count when component mounts
   useEffect(() => {
-    const fetchAnswersCount = async () => {
-      if (!question?.id) return; // Skip if no question id
-      
-      try {
-        const updatedQuestion = await refreshQuestion(question.id);
-        if (updatedQuestion) {
-          setAnswersCount(updatedQuestion.answers?.length || 0);
-        }
-      } catch (err) {
-        console.error('Error fetching answers count:', err);
-        // Set default value on error
-        setAnswersCount(question.answers?.length || 0);
-      }
+    showAnswersRef.current = showAllAnswers;
+  }, [showAllAnswers]);
+
+  // Memoize answers data
+  const { answers, answersCount } = useMemo(() => {
+    const sortedAnswers = [...(question.answers || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return {
+      answers: sortedAnswers,
+      answersCount: sortedAnswers.length
     };
-    
-    fetchAnswersCount();
-  }, [question?.id]); // Depend on question.id
+  }, [question.answers]);
+
+  // Memoize visible answers
+  const visibleAnswers = useMemo(() => {
+    return answers.slice(0, visibleAnswersCount);
+  }, [answers, visibleAnswersCount]);
+
+  // Memoize remaining answers count
+  const remainingAnswersCount = useMemo(() => {
+    return Math.max(0, answers.length - visibleAnswers.length);
+  }, [answers.length, visibleAnswers.length]);
 
   const handleVoteClick = async (type, id, isUpvote) => {
-    if (!currentUser) {
+    if (!user) {
       setError('Silakan login terlebih dahulu untuk memberikan vote');
       return;
     }
+
+    if (isVoting) return;
 
     setIsVoting(true);
     setError(null);
     
     try {
-      const updatedQuestion = await handleVote(type, id, isUpvote);
-      if (updatedQuestion) {
-        // Update local state if needed
-        setAnswersCount(updatedQuestion.answers?.length || 0);
-      }
+      const result = await handleVote(type, id, isUpvote);
+      await refreshQuestion(question.id); // Refresh data setelah voting
     } catch (error) {
       console.error('Error voting:', error);
       setError('Gagal memberikan vote. Silakan coba lagi.');
@@ -161,15 +163,6 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
 
   const isExpanded = expandedQuestion === question.id
 
-  // Get all answers
-  const answers = question.answers || []
-  // Sort answers by date (newest first)
-  const sortedAnswers = [...answers].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  // Get visible answers
-  const visibleAnswers = sortedAnswers.slice(0, visibleAnswersCount)
-  // Get remaining answers count
-  const remainingAnswersCount = sortedAnswers.length - visibleAnswers.length
-
   // Handler untuk menampilkan lebih banyak jawaban
   const handleShowMoreAnswers = () => {
     setVisibleAnswersCount(prev => prev + 3)
@@ -177,25 +170,27 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
 
   // Handler untuk menampilkan/menyembunyikan jawaban
   const handleToggleAnswers = async () => {
-    if (!showAllAnswers) {
-      setIsLoadingAnswers(true)
+    const newShowAllAnswers = !showAllAnswers;
+    setShowAllAnswers(newShowAllAnswers);
+    showAnswersRef.current = newShowAllAnswers;
+    
+    if (newShowAllAnswers) {
+      setIsLoadingAnswers(true);
       try {
-        const updatedQuestion = await refreshQuestion(question.id)
-        setAnswersCount(updatedQuestion.answers?.length || 0)
-        // Reset visible answers count when showing answers
-        setVisibleAnswersCount(4)
+        if (!answers.length) {
+          await refreshQuestion(question.id);
+        }
+        setVisibleAnswersCount(4);
       } catch (err) {
-        console.error('Error loading answers:', err)
-        setError('Gagal memuat jawaban. Silakan coba lagi.')
+        console.error('Error loading answers:', err);
+        setError('Gagal memuat jawaban. Silakan coba lagi.');
       } finally {
-        setIsLoadingAnswers(false)
+        setIsLoadingAnswers(false);
       }
     } else {
-      // Reset visible answers count when hiding answers
-      setVisibleAnswersCount(4)
+      setVisibleAnswersCount(4);
     }
-    setShowAllAnswers(!showAllAnswers)
-  }
+  };
 
   // Handler for when a comment is successfully submitted
   const handleCommentSubmit = (answerId) => {
@@ -246,29 +241,29 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
               <button
                 onClick={() => handleVoteClick('post', question.id, true)}
                 disabled={isVoting}
-                className={`flex items-center gap-1 ${
-                  question.userVote?.type === 'upvote' 
-                    ? 'text-green-500' 
-                    : 'text-gray-400 hover:text-green-500'
+                className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
+                  question.userVote === 'upvote'
+                    ? 'text-green-500 bg-green-500/10' 
+                    : 'text-gray-400 hover:text-green-500 hover:bg-green-500/5'
                 } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <FiThumbsUp className={question.userVote?.type === 'upvote' ? 'fill-current' : ''} />
-                <span>{question.upvotes || 0}</span>
+                <FiArrowUp className={question.userVote === 'upvote' ? 'text-xl fill-current' : 'text-xl'} />
+                <span className="text-sm font-medium">{question.upvotes || 0}</span>
               </button>
 
-              <div className="my-2 h-[1px] w-full bg-white/5"></div>
+              <div className="my-1 h-[1px] w-full bg-white/5"></div>
 
               <button
                 onClick={() => handleVoteClick('post', question.id, false)}
                 disabled={isVoting}
-                className={`flex items-center gap-1 ${
-                  question.userVote?.type === 'downvote' 
-                    ? 'text-red-500' 
-                    : 'text-gray-400 hover:text-red-500'
+                className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
+                  question.userVote === 'downvote'
+                    ? 'text-red-500 bg-red-500/10' 
+                    : 'text-gray-400 hover:text-red-500 hover:bg-red-500/5'
                 } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <FiThumbsDown className={question.userVote?.type === 'downvote' ? 'fill-current' : ''} />
-                <span>{question.downvotes || 0}</span>
+                <FiArrowDown className={question.userVote === 'downvote' ? 'text-xl fill-current' : 'text-xl'} />
+                <span className="text-sm font-medium">{question.downvotes || 0}</span>
               </button>
             </div>
           </div>
@@ -549,41 +544,41 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                               <button
                                 onClick={() => handleVoteClick('answer', answer.id, true)}
                                 disabled={isVoting}
-                                className={`flex items-center gap-2 ${
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
                                   isVoting ? 'opacity-50 cursor-not-allowed' : ''
                                 } ${
                                   answer.userVote === 'upvote'
-                                    ? 'text-green-400'
-                                    : 'text-white/50 hover:text-green-400'
-                                } transition-colors`}
+                                    ? 'text-green-400 bg-green-500/10'
+                                    : 'text-white/50 hover:text-green-400 hover:bg-green-500/5'
+                                }`}
                               >
-                                <FiArrowUp className="text-lg" />
-                                <span>{answer.upvotes || 0}</span>
+                                <FiArrowUp className={answer.userVote === 'upvote' ? 'text-lg fill-current' : 'text-lg'} />
+                                <span className="text-sm font-medium">{answer.upvotes || 0}</span>
                               </button>
                               <button
                                 onClick={() => handleVoteClick('answer', answer.id, false)}
                                 disabled={isVoting}
-                                className={`flex items-center gap-2 ${
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
                                   isVoting ? 'opacity-50 cursor-not-allowed' : ''
                                 } ${
                                   answer.userVote === 'downvote'
-                                    ? 'text-red-400'
-                                    : 'text-white/50 hover:text-red-400'
-                                } transition-colors`}
+                                    ? 'text-red-400 bg-red-500/10'
+                                    : 'text-white/50 hover:text-red-400 hover:bg-red-500/5'
+                                }`}
                               >
-                                <FiArrowDown className="text-lg" />
-                                <span>{answer.downvotes || 0}</span>
+                                <FiArrowDown className={answer.userVote === 'downvote' ? 'text-lg fill-current' : 'text-lg'} />
+                                <span className="text-sm font-medium">{answer.downvotes || 0}</span>
                               </button>
                               <button
                                 onClick={() => handleCommentClick(answer.id)}
-                                className={`flex items-center gap-2 transition-colors ${
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
                                   activeCommentId === answer.id 
-                                    ? 'text-blue-400 hover:text-blue-500' 
-                                    : 'text-white/50 hover:text-white/90'
+                                    ? 'text-blue-400 bg-blue-500/10 hover:bg-blue-500/20' 
+                                    : 'text-white/50 hover:text-white/90 hover:bg-white/5'
                                 }`}
                               >
                                 <FiMessageSquare className="text-lg" />
-                                <span>
+                                <span className="text-sm font-medium">
                                   {answer.comments?.length || 0} Komentar
                                 </span>
                               </button>

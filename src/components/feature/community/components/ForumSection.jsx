@@ -2,20 +2,60 @@ import React, { Suspense, lazy, useState, useMemo, useCallback } from 'react'
 import { FiSearch, FiFilter, FiTrendingUp, FiClock, FiMessageSquare, FiHeart } from 'react-icons/fi'
 import { useDebounce } from '../hooks/useDebounce'
 import QuestionCardSkeleton from './forumComponents/skeletons/QuestionCardSkeleton'
-import { useCommunity } from '../../../../contexts/CommunityContext'
+import { useForum } from '../../../../contexts/forum/ForumContext'
 
 // Lazy load components
 const CreatePost = lazy(() => import('./forumComponents/Post/CreatePost'))
 const QuestionCard = lazy(() => import('./forumComponents/Post/QuestionCard'))
 
 const ForumSection = () => {
-  const { questions = [], isLoading } = useCommunity() || {}
+  const forum = useForum();
+  
+  if (!forum) {
+    console.error('Forum context not available');
+    return null;
+  }
+
+  const questions = Array.isArray(forum.questions) ? forum.questions : [];
+  const isLoading = forum.isLoading || false;
+  const error = forum.error;
+
+  // Add debug logging
+  console.log('Forum data:', {
+    questions,
+    isLoading,
+    error,
+    rawQuestions: forum.questions
+  });
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [expandedQuestion, setExpandedQuestion] = useState(null)
 
   // Debounce search query to prevent excessive filtering
   const debouncedSearch = useDebounce(searchQuery, 300)
+
+  // Memoize filtered questions
+  const filteredQuestions = useMemo(() => {
+    if (!debouncedSearch) return questions;
+    
+    return questions.filter(question => 
+      (question?.title || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (question?.content || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (question?.tags || []).some(tag => 
+        (tag || '').toLowerCase().includes(debouncedSearch.toLowerCase())
+      )
+    );
+  }, [questions, debouncedSearch]);
+
+  if (error) {
+    console.error('Forum error:', error);
+    return (
+      <div className="text-center py-12">
+        <p className="text-lg text-red-400">Terjadi kesalahan saat memuat forum</p>
+      </div>
+    );
+  }
 
   // Memoize filters to prevent unnecessary re-renders
   const filters = useMemo(() => [
@@ -25,16 +65,6 @@ const ForumSection = () => {
     { id: 'unanswered', label: 'Belum Dijawab', icon: FiMessageSquare },
     { id: 'following', label: 'Diikuti', icon: FiHeart }
   ], [])
-
-  // Memoize filtered questions
-  const filteredQuestions = useMemo(() => {
-    if (!questions || !debouncedSearch) return questions || []
-    return questions.filter(question => 
-      question.title?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      question.content?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      question.tags?.some(tag => tag.toLowerCase().includes(debouncedSearch.toLowerCase()))
-    )
-  }, [questions, debouncedSearch])
 
   // Memoize search handler
   const handleSearch = useCallback((e) => {

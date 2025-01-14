@@ -283,6 +283,8 @@ model ForumPost {
   userId        Int       
   tags          String[]  
   viewCount     Int       @default(0)
+  upvotes       Int       @default(0)
+  downvotes     Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

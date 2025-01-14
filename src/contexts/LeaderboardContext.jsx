@@ -1,5 +1,4 @@
-import React from 'react';
-import { createContext, useState, useContext, useEffect } from 'react';
+import { React, createContext, useState, useContext, useEffect, useMemo } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -77,7 +76,7 @@ export function LeaderboardProvider({ children }) {
     fetchUserRank();
   }, []);
 
-  const value = React.useMemo(() => ({
+  const value = useMemo(() => ({
     leaderboardData,
     userRank,
     timeframe,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { FiMessageSquare, FiChevronUp, FiChevronDown, FiEdit2, FiTrash2, FiFlag, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
-import { useCommunity } from '../../../../../../contexts/CommunityContext'
+import { FiMessageSquare, FiChevronUp, FiChevronDown, FiEdit2, FiTrash2, FiFlag, FiThumbsUp, FiThumbsDown, FiSend } from 'react-icons/fi'
+import { useForum } from '../../../../../../contexts/forum/ForumContext'
 import { useAuth } from '../../../../../../contexts/AuthContext'
 import { timeAgo } from '../../../../../../utils/dateUtils'
 
@@ -15,7 +15,7 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
   const [editContent, setEditContent] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
   
-  const { addComment, updateComment, deleteComment, handleVote } = useCommunity();
+  const { addComment, updateComment, deleteComment, handleVote } = useForum();
   const { user } = useAuth();
 
   const isCommentOwner = user?.id === comment?.user?.id;

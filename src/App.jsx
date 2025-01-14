@@ -1,8 +1,9 @@
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext'
-import { CommunityProvider } from './contexts/CommunityContext'
 import { CourseProvider } from './contexts/CourseContext'
+import { ForumProvider } from './contexts/forum/ForumContext'
+import { CommunityProvider } from '@/contexts/community/CommunityContext'
 import { LeaderboardProvider } from './contexts/LeaderboardContext'
 import { AnimatePresence, LazyMotion, domAnimation } from 'framer-motion'
 import AppRoutes from './routes'
@@ -25,13 +26,15 @@ const App = () => {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <CourseProvider>
-              <LeaderboardProvider>
+              <ForumProvider>
                 <CommunityProvider>
-                  <AnimatePresence mode="wait">
-                    <AppRoutes />
-                  </AnimatePresence>
+                  <LeaderboardProvider>
+                    <AnimatePresence mode="wait">
+                      <AppRoutes />
+                    </AnimatePresence>
+                  </LeaderboardProvider>
                 </CommunityProvider>
-              </LeaderboardProvider>
+              </ForumProvider>
             </CourseProvider>
           </AuthProvider>
         </QueryClientProvider>
