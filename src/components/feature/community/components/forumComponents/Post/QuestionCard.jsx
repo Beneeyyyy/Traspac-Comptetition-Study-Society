@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { FiHash, FiMessageSquare, FiImage, FiSend, FiX, FiCornerUpRight, FiEdit, FiLoader, FiAlertCircle, FiEye, FiArrowUp, FiArrowDown, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
+import { FiHash, FiMessageSquare, FiImage, FiSend, FiX, FiCornerUpRight, FiEdit, FiLoader, FiAlertCircle, FiEye, FiArrowUp, FiArrowDown, FiThumbsUp, FiThumbsDown, FiMinimize2, FiMaximize2 } from 'react-icons/fi'
 import { useForum } from '../../../../../../contexts/forum/ForumContext'
 import CommentThread from './CommentThread'
 import { useAuth } from '../../../../../../contexts/AuthContext'
@@ -22,6 +22,10 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
   const answerFileInputRef = useRef(null)
   const [visibleAnswersCount, setVisibleAnswersCount] = useState(4)
   const showAnswersRef = useRef(showAllAnswers)
+
+  const [answerBlocks, setAnswerBlocks] = useState([
+    { type: 'text', content: '', id: 'initial' }
+  ]);
 
   useEffect(() => {
     showAnswersRef.current = showAllAnswers;
@@ -86,16 +90,16 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
     }
 
     try {
-      // Convert files to base64
       const newImages = await Promise.all(
         files.map(async (file) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => {
               resolve({
-                data: reader.result, // Use base64 for both preview and upload
-                name: file.name,
-                type: file.type
+                type: 'image',
+                content: reader.result,
+                isFullWidth: true,
+                id: Date.now() + Math.random().toString(36).substring(7)
               });
             };
             reader.onerror = reject;
@@ -104,10 +108,18 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
         })
       );
 
-      // Update state dengan preview images
-      setAnswerImages(prev => {
-        const combined = [...prev, ...newImages];
-        return combined.slice(0, 4); // Maksimal 4 gambar
+      setAnswerBlocks(prev => {
+        // Add a new text block after each image
+        const newBlocks = [];
+        newImages.forEach(image => {
+          newBlocks.push(image);
+          newBlocks.push({
+            type: 'text',
+            content: '',
+            id: Date.now() + Math.random().toString(36).substring(7)
+          });
+        });
+        return [...prev, ...newBlocks];
       });
     } catch (err) {
       console.error('Error processing images:', err);
@@ -115,9 +127,34 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
     }
   };
 
+  const handleAnswerBlockChange = (id, content) => {
+    setAnswerBlocks(prev => prev.map(block => 
+      block.id === id ? { ...block, content } : block
+    ));
+  };
+
+  const toggleImageWidth = (id) => {
+    setAnswerBlocks(prev => prev.map(block =>
+      block.id === id && block.type === 'image'
+        ? { ...block, isFullWidth: !block.isFullWidth }
+        : block
+    ));
+  };
+
+  const removeBlock = (id) => {
+    setAnswerBlocks(prev => {
+      const filtered = prev.filter(block => block.id !== id);
+      // Ensure there's always at least one text block
+      if (filtered.length === 0) {
+        return [{ type: 'text', content: '', id: 'initial' }];
+      }
+      return filtered;
+    });
+  };
+
   const handleSubmitAnswer = async () => {
-    if (!answerContent.trim() || isSubmitting) return;
-    if (!currentUser) {
+    if (answerBlocks.every(b => b.type === 'text' && !b.content.trim()) || isSubmitting) return;
+    if (!user) {
       setError('Silakan login terlebih dahulu untuk menjawab');
       return;
     }
@@ -126,26 +163,27 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
     setError(null);
 
     try {
-      // Pass content and images correctly
-      const response = await addAnswer(
-        question.id,
-        answerContent.trim(),
-        answerImages.map(img => img.data) // Extract base64 data from images
-      );
+      // Format blocks for submission
+      const formattedBlocks = answerBlocks.map((block, index) => ({
+        type: block.type,
+        content: block.content,
+        isFullWidth: block.type === 'image' ? block.isFullWidth : undefined,
+        order: index
+      }));
+
+      const response = await addAnswer(question.id, formattedBlocks);
 
       // Reset form
-      setAnswerContent('');
-      setAnswerImages([]);
+      setAnswerBlocks([{ type: 'text', content: '', id: 'initial' }]);
       setShowAnswerForm(false);
       
       // Refresh data dan update UI
       const updatedQuestion = await refreshQuestion(question.id);
-      setAnswersCount(updatedQuestion.answers?.length || 0);
       setShowAllAnswers(true);
       setVisibleAnswersCount(4);
       
       setTimeout(() => {
-        const answersSection = document.getElementById(`answer-${updatedQuestion.answers[0].id}`);
+        const answersSection = document.getElementById(`answer-${response.id}`);
         if (answersSection) {
           answersSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -387,38 +425,67 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                     {/* User Profile */}
                     <div className="flex items-start gap-4">
                       <img
-                        src={getUserAvatar(currentUser)}
-                        alt={currentUser?.name || 'User'}
+                        src={getUserAvatar(user)}
+                        alt={user?.name || 'User'}
                         className="w-12 h-12 rounded-xl ring-2 ring-white/10 hover:ring-blue-500/50 transition-all"
                       />
                       <div>
                         <span className="font-medium text-white/90">
-                          {currentUser?.name || 'Anonymous'}
+                          {user?.name || 'Anonymous'}
                         </span>
                         <span className="px-3 py-1 bg-white/[0.03] text-white/40 rounded-lg text-xs border border-white/5 mt-2 block">
-                          {currentUser?.rank || 'Member'}
+                          {user?.rank || 'Member'}
                         </span>
                       </div>
                     </div>
 
                     {/* Answer Form Content */}
-                    <div className="flex-1">
-                      <textarea
-                        value={answerContent}
-                        onChange={(e) => setAnswerContent(e.target.value)}
-                        placeholder="Tulis jawabanmu..."
-                        rows={4}
-                        className="w-full px-4 py-3 bg-black/40 hover:bg-black/60 border border-white/10 rounded-xl text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all resize-none"
-                      />
+                    <div className="flex-1 space-y-4">
+                      {answerBlocks.map((block, index) => (
+                        <div key={block.id} className="relative group">
+                          {block.type === 'text' ? (
+                            <textarea
+                              value={block.content}
+                              onChange={(e) => handleAnswerBlockChange(block.id, e.target.value)}
+                              placeholder={index === 0 ? "Tulis jawabanmu..." : "Lanjutkan menulis..."}
+                              rows={Math.max(2, block.content.split('\n').length)}
+                              className="w-full px-4 py-3 bg-black/40 hover:bg-black/60 border border-white/10 rounded-xl text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all resize-none"
+                            />
+                          ) : block.type === 'image' && (
+                            <div className={`relative ${block.isFullWidth ? 'w-full' : 'w-1/2 float-left mr-4 mb-4'}`}>
+                              <img
+                                src={block.content}
+                                alt="Content"
+                                className="w-full rounded-xl border border-white/10"
+                              />
+                              <div className="absolute top-2 right-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => toggleImageWidth(block.id)}
+                                  className="p-1.5 rounded-lg bg-black/50 text-white/80 hover:bg-black/70 hover:text-white transition-all"
+                                  title={block.isFullWidth ? "Set to half width" : "Set to full width"}
+                                >
+                                  {block.isFullWidth ? <FiMinimize2 /> : <FiMaximize2 />}
+                                </button>
+                                <button
+                                  onClick={() => removeBlock(block.id)}
+                                  className="p-1.5 rounded-lg bg-black/50 text-white/80 hover:bg-black/70 hover:text-white transition-all"
+                                >
+                                  <FiX />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
                       <div className="flex justify-between items-center mt-4">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => answerFileInputRef.current?.click()}
                             className="p-2.5 rounded-lg hover:bg-white/5 text-white/50 hover:text-white/90 transition-all border border-white/5 hover:border-white/10"
-                            title="Tambah gambar (Maks. 4 gambar, 15MB/gambar)"
+                            title="Tambah gambar"
                           >
                             <FiImage className="text-xl" />
-                            <span className="text-xs ml-1">{answerImages.length}/4</span>
                           </button>
                           <input
                             type="file"
@@ -431,9 +498,9 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                         </div>
                         <button
                           onClick={handleSubmitAnswer}
-                          disabled={!answerContent.trim() || isSubmitting}
+                          disabled={answerBlocks.every(b => b.type === 'text' && !b.content.trim()) || isSubmitting}
                           className={`px-5 py-2.5 rounded-lg transition-all flex items-center gap-2 ${
-                            answerContent.trim() && !isSubmitting
+                            !answerBlocks.every(b => b.type === 'text' && !b.content.trim()) && !isSubmitting
                               ? 'bg-gradient-to-r from-blue-500/20 to-blue-400/10 text-blue-400 hover:from-blue-500/30 hover:to-blue-400/20 border border-blue-500/10 hover:border-blue-500/20'
                               : 'bg-white/[0.02] text-white/30 cursor-not-allowed border border-white/5'
                           }`}
@@ -450,32 +517,6 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                       </div>
                     </div>
                   </div>
-
-                  {/* Answer Image Previews */}
-                  {answerImages.length > 0 && (
-                    <div className="grid grid-cols-4 gap-4 mt-6">
-                      {answerImages.map((image, index) => (
-                        <div key={`preview-${index}`} className="relative group">
-                          <img
-                            src={image} // base64 untuk preview saja
-                            alt={`Preview ${index + 1}`}
-                            className="h-24 w-full object-cover rounded-lg border border-white/10 group-hover:border-white/20 transition-all"
-                            onError={(e) => {
-                              console.error('Failed to load preview:', index);
-                              e.target.src = '/images/placeholder.png';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                          <button
-                            onClick={() => removeAnswerImage(index)}
-                            className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white/80 hover:bg-black/70 hover:text-white opacity-0 group-hover:opacity-100 transition-all"
-                          >
-                            <FiX className="text-sm" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
 

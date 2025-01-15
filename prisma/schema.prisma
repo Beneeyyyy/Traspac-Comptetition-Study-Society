@@ -300,7 +300,8 @@ model ForumPost {
 
 model ForumAnswer {
   id            Int       @id @default(autoincrement())
-  content       String    
+  content       String    @db.Text
+  blocks        Json?     // Array of content blocks (text and images)
   images        String[]  
   userId        Int       
   postId        Int       
@@ -315,6 +316,9 @@ model ForumAnswer {
   post          ForumPost @relation(fields: [postId], references: [id])
   votes         ForumVote[]
   comments      ForumComment[]
+
+  @@index([userId])
+  @@index([postId])
 }
 
 model ForumComment {

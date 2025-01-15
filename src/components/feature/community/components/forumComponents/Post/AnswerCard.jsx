@@ -126,31 +126,22 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
           </div>
 
           {/* Answer Content */}
-          <div className="mt-6">
-            <div className="prose prose-invert max-w-none">
-              <p className="text-white/80 whitespace-pre-wrap leading-relaxed">
-                {answer.content}
-              </p>
-            </div>
-
-            {answer.images?.length > 0 && (
-              <div className="grid grid-cols-2 gap-4 mt-6">
-                {answer.images.map((imageUrl, index) => (
-                  <div key={`answer-image-${answer.id}-${index}`} className="relative group">
-                    <img
-                      src={imageUrl}
-                      alt={`Answer image ${index + 1}`}
-                      className="rounded-xl border border-white/10 w-full h-48 object-cover transition-all duration-300 group-hover:scale-[1.02] group-hover:border-blue-500/20"
-                      onError={(e) => {
-                        console.error('Failed to load answer image:', imageUrl);
-                        e.target.src = '/images/placeholder.png';
-                      }}
+          <div className="mt-6 text-white/80">
+            {answer.blocks?.sort((a, b) => a.order - b.order).map((block, index) => (
+              <div key={index}>
+                {block.type === 'text' ? (
+                  <p className="whitespace-pre-wrap mb-4">{block.content}</p>
+                ) : block.type === 'image' && (
+                  <div className={`${block.isFullWidth ? 'w-full' : 'w-1/2 float-left mr-4 mb-4'}`}>
+                    <img 
+                      src={block.content}
+                      alt={`Content ${index + 1}`}
+                      className="w-full rounded-xl border border-white/10"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl" />
                   </div>
-                ))}
+                )}
               </div>
-            )}
+            ))}
           </div>
 
           {/* Error Message */}

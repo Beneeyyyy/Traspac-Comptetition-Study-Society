@@ -424,61 +424,101 @@ const forumController = {
   // Answer Controllers
   createAnswer: async (req, res) => {
     try {
+      const { blocks } = req.body;
       const { postId } = req.params;
-      const { content, images } = req.body;
-      const userId = req.user.id;
+      const userId = parseInt(req.user.id);
 
-      console.log('Creating answer with images:', images?.length || 0);
+      console.log('Creating answer with raw data:', { 
+        postId,
+        postIdType: typeof postId,
+        blocksCount: blocks?.length 
+      });
 
-      if (!content) {
+      // Validate input
+      if (!blocks || !Array.isArray(blocks) || blocks.length === 0) {
         return res.status(400).json({
           success: false,
-          error: 'Content is required'
+          error: 'Blocks are required and must be a non-empty array'
         });
       }
 
-      // Upload images ke Cloudinary jika ada
-      const uploadedImages = await Promise.all(
-        (images || []).map(async (base64Image, index) => {
+      // Parse and validate postId
+      const parsedPostId = parseInt(postId);
+      if (isNaN(parsedPostId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid post ID format'
+        });
+      }
+
+      // Validate post exists
+      const post = await prisma.forumPost.findUnique({
+        where: { 
+          id: parsedPostId
+        }
+      });
+
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          error: 'Post not found'
+        });
+      }
+
+      // Process blocks and upload images to Cloudinary
+      const processedBlocks = await Promise.all(blocks.map(async (block, index) => {
+        if (block.type === 'image' && block.content) {
           try {
-            if (!base64Image) {
-              console.log(`Image ${index + 1} is empty, skipping...`);
-              return null;
-            }
-
-            // Skip jika sudah berupa URL Cloudinary
-            if (base64Image.includes('cloudinary.com')) {
+            console.log(`Processing image block ${index + 1}...`);
+            
+            // Skip if already a Cloudinary URL
+            if (block.content.includes('cloudinary.com')) {
               console.log(`Image ${index + 1} is already a Cloudinary URL`);
-              return base64Image;
+              return { ...block, order: index };
             }
 
-            console.log(`Uploading image ${index + 1} to Cloudinary...`);
-            const imageUrl = await uploadImage(base64Image);
+            const imageUrl = await uploadImage(block.content);
             
             if (!imageUrl) {
               console.error(`Failed to get URL for image ${index + 1}`);
-              return null;
+              throw new Error('Failed to upload image');
             }
 
             console.log(`Image ${index + 1} uploaded successfully:`, imageUrl);
-            return imageUrl;
+            return {
+              type: 'image',
+              content: imageUrl,
+              isFullWidth: block.isFullWidth || false,
+              order: index
+            };
           } catch (err) {
             console.error(`Error uploading image ${index + 1}:`, err);
-            return null; // Skip failed uploads
+            throw new Error(`Failed to upload image ${index + 1}`);
           }
-        })
-      );
+        }
+        return { ...block, order: index };
+      }));
 
-      // Filter out null values and log results
-      const validImages = uploadedImages.filter(url => url !== null);
-      console.log('Successfully uploaded images:', validImages);
+      // Extract text content and image URLs for backward compatibility
+      const textContent = processedBlocks
+        .filter(b => b.type === 'text')
+        .map(b => b.content)
+        .join('\n\n');
+      
+      const imageUrls = processedBlocks
+        .filter(b => b.type === 'image')
+        .map(b => b.content);
 
+      // Create answer with processed blocks
       const answer = await prisma.forumAnswer.create({
         data: {
-          content,
-          images: validImages, // Save only valid Cloudinary URLs
+          content: textContent || '',
+          blocks: processedBlocks,
+          images: imageUrls || [],
           userId,
-          postId: parseInt(postId)
+          postId: parsedPostId,
+          upvotes: 0,
+          downvotes: 0
         },
         include: {
           user: {
@@ -489,42 +529,43 @@ const forumController = {
               rank: true
             }
           },
-          votes: true,
           comments: {
             include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                  rank: true
+              user: true,
+              replies: {
+                include: {
+                  user: true
                 }
               }
             }
-          }
+          },
+          votes: true
         }
       });
 
-      console.log('Answer created with images:', answer.images);
-
-      // Transform answer to include vote counts
+      // Transform the answer data
       const transformedAnswer = {
         ...answer,
-        upvoteCount: answer.votes.filter(vote => vote.isUpvote).length,
-        downvoteCount: answer.votes.filter(vote => !vote.isUpvote).length,
-        userVote: null // New answer has no votes yet
+        userVote: null,
+        comments: answer.comments.map(comment => ({
+          ...comment,
+          userVote: null,
+          replies: comment.replies.map(reply => ({
+            ...reply,
+            userVote: null
+          }))
+        }))
       };
 
-      // Remove votes array from response
-      delete transformedAnswer.votes;
+      console.log('Answer created successfully:', transformedAnswer.id);
 
       res.json({
         success: true,
         data: transformedAnswer
       });
     } catch (error) {
-      console.error('Error in createAnswer:', error);
-      res.status(500).json({
+      console.error('Error creating answer:', error);
+      res.status(400).json({
         success: false,
         error: error.message || 'Failed to create answer'
       });
