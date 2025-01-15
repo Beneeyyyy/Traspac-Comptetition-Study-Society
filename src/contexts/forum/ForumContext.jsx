@@ -55,9 +55,11 @@ export function ForumProvider({ children }) {
     }
   };
 
-  const addQuestion = async (data) => {
+  const addQuestion = async (title, blocks, tags) => {
     try {
-      const newQuestion = await forumService.addQuestion(data);
+      console.log('Adding question:', { title, blocksCount: blocks?.length, tags });
+      const newQuestion = await forumService.addQuestion(title, blocks, tags);
+      
       if (newQuestion) {
         dispatch({ type: ACTIONS.ADD_QUESTION, payload: newQuestion });
       }

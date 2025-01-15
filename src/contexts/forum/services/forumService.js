@@ -45,9 +45,42 @@ export const forumService = {
     }
   },
 
-  async addQuestion(data) {
-    const response = await api.post('/api/forum/posts', data);
-    return response.data?.data;
+  async addQuestion(title, blocks, tags) {
+    try {
+      console.log('Sending question data:', {
+        title,
+        blocksCount: blocks?.length,
+        tags
+      });
+      
+      // Send to backend
+      const response = await api.post('/api/forum/posts', {
+        title,
+        blocks,
+        tags: tags || ['general']
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity
+      });
+      
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to create question');
+      }
+
+      console.log('Question created successfully:', response.data?.data);
+      return response.data?.data;
+    } catch (error) {
+      console.error('Error creating question:', {
+        message: error.response?.data || error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
+      throw error;
+    }
   },
 
   async addAnswer(questionId, data) {

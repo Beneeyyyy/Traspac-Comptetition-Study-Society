@@ -278,10 +278,11 @@ model Like {
 model ForumPost {
   id            Int       @id @default(autoincrement())
   title         String    
-  content       String    
-  images        String[]  
-  userId        Int       
+  content       String    @db.Text
+  blocks        Json?     // Array of content blocks (text and images)
   tags          String[]  
+  images        String[]  // Keep for backward compatibility
+  userId        Int       
   viewCount     Int       @default(0)
   upvotes       Int       @default(0)
   downvotes     Int       @default(0)
@@ -293,6 +294,8 @@ model ForumPost {
   answers       ForumAnswer[]
   votes         ForumVote[]
   comments      ForumComment[]
+
+  @@index([userId])
 }
 
 model ForumAnswer {
@@ -493,3 +496,4 @@ model ServiceReview {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
+

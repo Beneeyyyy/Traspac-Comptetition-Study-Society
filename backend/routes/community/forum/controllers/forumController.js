@@ -324,59 +324,73 @@ const forumController = {
 
   createPost: async (req, res) => {
     try {
-      const { title, content, tags, images } = req.body;
+      const { title, blocks, tags } = req.body;
       const userId = req.user.id;
 
-      if (!title || !content) {
+      console.log('Creating post with data:', { title, blocksCount: blocks?.length, tags });
+
+      if (!title || !blocks || !Array.isArray(blocks)) {
         return res.status(400).json({
           success: false,
-          error: 'Title and content are required'
+          error: 'Title and blocks are required'
         });
       }
 
-      // Upload images ke Cloudinary jika ada
-      const uploadedImages = await Promise.all(
-        (images || []).map(async (base64Image, index) => {
+      // Process blocks and upload images
+      const processedBlocks = await Promise.all(blocks.map(async (block, index) => {
+        if (block.type === 'image' && block.content) {
           try {
-            if (!base64Image) {
-              console.log(`Image ${index + 1} is empty, skipping...`);
-              return null;
-            }
-
-            // Skip jika sudah berupa URL Cloudinary
-            if (base64Image.includes('cloudinary.com')) {
+            console.log(`Processing image block ${index + 1}...`);
+            
+            // Skip if already a Cloudinary URL
+            if (block.content.includes('cloudinary.com')) {
               console.log(`Image ${index + 1} is already a Cloudinary URL`);
-              return base64Image;
+              return { ...block, order: index };
             }
 
-            console.log(`Uploading image ${index + 1} to Cloudinary...`);
-            const imageUrl = await uploadImage(base64Image);
+            const imageUrl = await uploadImage(block.content);
             
             if (!imageUrl) {
               console.error(`Failed to get URL for image ${index + 1}`);
-              return null;
+              throw new Error('Failed to upload image');
             }
 
             console.log(`Image ${index + 1} uploaded successfully:`, imageUrl);
-            return imageUrl;
+            return {
+              type: 'image',
+              content: imageUrl,
+              isFullWidth: block.isFullWidth || false,
+              order: index
+            };
           } catch (err) {
             console.error(`Error uploading image ${index + 1}:`, err);
-            return null; // Skip failed uploads
+            throw new Error(`Failed to upload image ${index + 1}`);
           }
-        })
-      );
+        }
+        return { ...block, order: index };
+      }));
 
-      // Filter out null values dan gunakan hanya URL Cloudinary yang valid
-      const validImages = uploadedImages.filter(url => url !== null);
-      console.log('Successfully uploaded images:', validImages);
+      console.log('Processed blocks:', processedBlocks);
 
+      // Extract text content and image URLs for backward compatibility
+      const textContent = processedBlocks
+        .filter(b => b.type === 'text')
+        .map(b => b.content)
+        .join('\n\n');
+      
+      const imageUrls = processedBlocks
+        .filter(b => b.type === 'image')
+        .map(b => b.content);
+
+      // Create post with processed blocks
       const post = await prisma.forumPost.create({
         data: {
           title,
-          content,
-          tags: tags || [],
-          images: validImages, // Simpan hanya URL Cloudinary yang valid
-          userId
+          content: textContent,
+          blocks: processedBlocks,
+          images: imageUrls,
+          tags: tags || ['general'],
+          userId: parseInt(userId),
         },
         include: {
           user: {
@@ -386,19 +400,23 @@ const forumController = {
               image: true,
               rank: true
             }
-          }
-        }
+          },
+          votes: true,
+        },
       });
 
-      res.json({
+      console.log('Post created:', post);
+
+      res.status(201).json({
         success: true,
         data: post
       });
     } catch (error) {
-      console.error('Error in createPost:', error);
-      res.status(500).json({
+      console.error('Error creating post:', error);
+      res.status(500).json({ 
         success: false,
-        error: 'Failed to create post'
+        message: error.message || 'Failed to create post',
+        details: error.stack
       });
     }
   },
@@ -979,6 +997,88 @@ const forumController = {
         success: false,
         error: 'Failed to handle vote',
         details: error.message
+      });
+    }
+  },
+
+  createQuestion: async (req, res) => {
+    try {
+      const { title, blocks, tags } = req.body;
+      const userId = req.user.id;
+
+      console.log('Creating question with data:', { title, blocksCount: blocks?.length, tags });
+
+      // Validate input
+      if (!title || !blocks || !Array.isArray(blocks)) {
+        return res.status(400).json({ message: 'Invalid input data' });
+      }
+
+      // Upload images to Cloudinary and process blocks
+      const processedBlocks = await Promise.all(blocks.map(async (block, index) => {
+        if (block.type === 'image') {
+          try {
+            console.log(`Processing image block ${index + 1}...`);
+            const imageUrl = await uploadImage(block.content);
+            
+            if (!imageUrl) {
+              console.error(`Failed to get URL for image ${index + 1}`);
+              throw new Error('Failed to upload image');
+            }
+
+            console.log(`Image ${index + 1} uploaded successfully:`, imageUrl);
+            return {
+              type: 'image',
+              content: imageUrl,
+              isFullWidth: block.isFullWidth,
+              order: index
+            };
+          } catch (err) {
+            console.error(`Error uploading image ${index + 1}:`, err);
+            throw new Error('Failed to upload image');
+          }
+        }
+        return { ...block, order: index };
+      }));
+
+      console.log('Processed blocks:', processedBlocks);
+
+      // Create post with processed blocks
+      const post = await prisma.forumPost.create({
+        data: {
+          title,
+          content: processedBlocks
+            .filter(b => b.type === 'text')
+            .map(b => b.content)
+            .join('\n\n'),
+          blocks: processedBlocks,
+          tags: tags || ['general'],
+          userId: parseInt(userId),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              rank: true
+            }
+          },
+          votes: true,
+        },
+      });
+
+      console.log('Post created:', post);
+
+      res.status(201).json({
+        success: true,
+        data: post
+      });
+    } catch (error) {
+      console.error('Error creating post:', error);
+      res.status(500).json({ 
+        success: false,
+        message: error.message || 'Failed to create post',
+        details: error.stack
       });
     }
   }
