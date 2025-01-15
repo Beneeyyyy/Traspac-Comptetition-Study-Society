@@ -65,7 +65,7 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
     <div 
       key={`answer-${answer.id}`} 
       id={`answer-${answer.id}`}
-      className={`group bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden ${!isLastAnswer ? 'mb-6' : ''}`}
+      className="group bg-black/40 border border-white/10 rounded-xl overflow-hidden"
     >
       <div className="flex">
         {/* Vote Column */}
@@ -102,7 +102,7 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
         {/* Content Column */}
         <div className="flex-1 p-6">
           {/* User Info */}
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-black/20 border border-white/5">
             <div className="relative group">
               <img
                 src={answer.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(answer.user?.name)}&background=0D8ABC&color=fff`}
@@ -118,11 +118,8 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
                 {answer.user?.name || 'Anonymous'}
               </h3>
               <div className="flex items-center gap-2 mt-1.5">
-                <span className="px-3 py-1 rounded-lg text-xs bg-gradient-to-r from-white/[0.03] to-white/[0.02] text-white/50 border border-white/5 hover:text-white/70 transition-all">
+                <span className="px-3 py-1 rounded-lg text-xs bg-black/40 text-white/50 border border-white/5 hover:text-white/70 transition-all">
                   {answer.user?.rank || 'Member'}
-                </span>
-                <span className="text-xs text-white/40">
-                  {answer.timeAgo || 'Just now'}
                 </span>
               </div>
             </div>
@@ -171,7 +168,7 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
               </h4>
               <button
                 onClick={() => setShowCommentForm(!showCommentForm)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.05] text-white/60 hover:text-white/90 transition-all border border-white/5 hover:border-white/10 text-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-black/20 hover:bg-black/40 text-white/60 hover:text-white/90 transition-all border border-white/5 hover:border-white/10 text-sm"
               >
                 <FiMessageSquare className="text-base" />
                 <span>Tambah Komentar</span>
@@ -186,7 +183,7 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
                     value={commentContent}
                     onChange={(e) => setCommentContent(e.target.value)}
                     placeholder="Tulis komentar..."
-                    className="w-full px-4 py-3 bg-white/[0.02] border border-white/5 rounded-xl text-white/80 text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all resize-none"
+                    className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-white/80 text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all resize-none"
                     rows={3}
                   />
                   <div className="flex items-center justify-end gap-2">

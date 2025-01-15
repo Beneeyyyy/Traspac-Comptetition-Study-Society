@@ -216,7 +216,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
   };
 
   return (
-    <div className="bg-gradient-to-b from-white/[0.03] to-white/[0.01] backdrop-blur-xl border border-white/10 hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/5">
+    <div className="bg-black/60 backdrop-blur-xl border border-white/10 hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/5">
       <div className="p-10">
         {/* Question Header */}
         <div className="flex items-center justify-between mb-8">
@@ -272,7 +272,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
           {/* Content Column */}
           <div className="flex-1 space-y-8">
             {/* User Info */}
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.01] border border-white/5">
               <div className="relative group">
                 <img
                   src={getUserAvatar(question.user)}
@@ -387,7 +387,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
 
             {/* Answer Form */}
             {showAnswerForm && (
-              <div className="mt-8 p-6 rounded-xl bg-white/[0.02] border border-white/5">
+              <div className="mt-8 p-6 rounded-xl bg-black/40 border border-white/5">
                 <div className="flex gap-4">
                   {/* User Profile */}
                   <div className="flex items-start gap-4">
@@ -413,7 +413,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                       onChange={(e) => setAnswerContent(e.target.value)}
                       placeholder="Tulis jawabanmu..."
                       rows={4}
-                      className="w-full px-4 py-3 bg-white/[0.03] hover:bg-white/[0.05] border border-white/10 rounded-xl text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all resize-none"
+                      className="w-full px-4 py-3 bg-black/40 hover:bg-black/60 border border-white/10 rounded-xl text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all resize-none"
                     />
                     <div className="flex justify-between items-center mt-4">
                       <div className="flex items-center gap-2">

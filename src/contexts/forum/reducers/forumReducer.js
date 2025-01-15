@@ -10,6 +10,15 @@ export function forumReducer(state, action) {
       return { ...state, isLoading: false, error: action.payload };
     case ACTIONS.SET_USER:
       return { ...state, currentUser: action.payload };
+    case ACTIONS.SET_VOTE_STATUS:
+      const { type, id, status } = action.payload;
+      return {
+        ...state,
+        voteStatus: {
+          ...state.voteStatus,
+          [`${type}-${id}`]: status
+        }
+      };
     case ACTIONS.REFRESH_QUESTION:
       return {
         ...state,
@@ -36,6 +45,38 @@ export function forumReducer(state, action) {
               ? { ...a, ...action.payload }
               : a
           ) || []
+        }))
+      };
+    case ACTIONS.UPDATE_COMMENT:
+      return {
+        ...state,
+        questions: state.questions.map(q => ({
+          ...q,
+          comments: q.comments?.map(c => 
+            c.id === action.payload.id
+              ? { ...c, ...action.payload }
+              : c.replies?.some(r => r.id === action.payload.id)
+                ? { ...c, replies: c.replies.map(r => 
+                    r.id === action.payload.id
+                      ? { ...r, ...action.payload }
+                      : r
+                  )}
+                : c
+          ) || [],
+          answers: q.answers?.map(a => ({
+            ...a,
+            comments: a.comments?.map(c => 
+              c.id === action.payload.id
+                ? { ...c, ...action.payload }
+                : c.replies?.some(r => r.id === action.payload.id)
+                  ? { ...c, replies: c.replies.map(r => 
+                      r.id === action.payload.id
+                        ? { ...r, ...action.payload }
+                        : r
+                    )}
+                  : c
+            ) || []
+          })) || []
         }))
       };
     case ACTIONS.ADD_QUESTION:

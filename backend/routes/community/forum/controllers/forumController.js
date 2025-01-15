@@ -110,6 +110,9 @@ const forumController = {
               },
               votes: true,
               comments: {
+                orderBy: {
+                  createdAt: 'asc'
+                },
                 where: {
                   parentId: null
                 },
@@ -128,6 +131,9 @@ const forumController = {
                     } : undefined
                   },
                   replies: {
+                    orderBy: {
+                      createdAt: 'asc'
+                    },
                     include: {
                       user: {
                         select: {
@@ -143,6 +149,9 @@ const forumController = {
                         } : undefined
                       },
                       replies: {
+                        orderBy: {
+                          createdAt: 'asc'
+                        },
                         include: {
                           user: {
                             select: {
@@ -156,23 +165,6 @@ const forumController = {
                             where: userId ? {
                               userId: userId
                             } : undefined
-                          },
-                          replies: {
-                            include: {
-                              user: {
-                                select: {
-                                  id: true,
-                                  name: true,
-                                  image: true,
-                                  rank: true
-                                }
-                              },
-                              votes: {
-                                where: userId ? {
-                                  userId: userId
-                                } : undefined
-                              }
-                            }
                           }
                         }
                       }
@@ -183,6 +175,9 @@ const forumController = {
             }
           },
           comments: {
+            orderBy: {
+              createdAt: 'asc'
+            },
             where: {
               parentId: null
             },
@@ -201,6 +196,9 @@ const forumController = {
                 } : undefined
               },
               replies: {
+                orderBy: {
+                  createdAt: 'asc'
+                },
                 include: {
                   user: {
                     select: {
@@ -216,6 +214,9 @@ const forumController = {
                     } : undefined
                   },
                   replies: {
+                    orderBy: {
+                      createdAt: 'asc'
+                    },
                     include: {
                       user: {
                         select: {
@@ -229,23 +230,6 @@ const forumController = {
                         where: userId ? {
                           userId: userId
                         } : undefined
-                      },
-                      replies: {
-                        include: {
-                          user: {
-                            select: {
-                              id: true,
-                              name: true,
-                              image: true,
-                              rank: true
-                            }
-                          },
-                          votes: {
-                            where: userId ? {
-                              userId: userId
-                            } : undefined
-                          }
-                        }
                       }
                     }
                   }
@@ -897,19 +881,92 @@ const forumController = {
           data: {
             upvotes,
             downvotes
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                rank: true
+              }
+            },
+            votes: {
+              where: {
+                userId
+              }
+            },
+            ...(type === 'comment' && {
+              replies: {
+                orderBy: {
+                  createdAt: 'asc'
+                },
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      image: true,
+                      rank: true
+                    }
+                  },
+                  votes: {
+                    where: {
+                      userId
+                    }
+                  },
+                  replies: {
+                    orderBy: {
+                      createdAt: 'asc'
+                    },
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          image: true,
+                          rank: true
+                        }
+                      },
+                      votes: {
+                        where: {
+                          userId
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            })
           }
         });
 
         // Get user's current vote status
         const userVote = action === 'delete' ? null : isUpvote ? 'upvote' : 'downvote';
 
-        return {
+        // Transform the item to include vote status
+        const transformedItem = {
           ...updatedItem,
-          upvotes,
-          downvotes,
           userVote,
           score: upvotes - downvotes
         };
+
+        // If it's a comment, transform nested replies
+        if (type === 'comment' && transformedItem.replies) {
+          transformedItem.replies = transformedItem.replies.map(reply => {
+            const replyUpvotes = reply.votes.filter(v => v.isUpvote).length;
+            const replyDownvotes = reply.votes.filter(v => !v.isUpvote).length;
+            const replyUserVote = reply.votes[0];
+
+            return {
+              ...reply,
+              score: replyUpvotes - replyDownvotes,
+              userVote: replyUserVote ? (replyUserVote.isUpvote ? 'upvote' : 'downvote') : null
+            };
+          });
+        }
+
+        return transformedItem;
       });
 
       res.json({

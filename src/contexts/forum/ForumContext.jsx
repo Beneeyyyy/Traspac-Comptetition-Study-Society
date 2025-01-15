@@ -10,11 +10,20 @@ export function useForum() {
 }
 
 export function ForumProvider({ children }) {
+  // Load initial vote status from localStorage
+  const initialVoteStatus = JSON.parse(localStorage.getItem('forumVoteStatus') || '{}');
+
   const [state, dispatch] = useReducer(forumReducer, {
     questions: [],
     isLoading: true,
-    error: null
+    error: null,
+    voteStatus: initialVoteStatus
   });
+
+  // Save vote status to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('forumVoteStatus', JSON.stringify(state.voteStatus));
+  }, [state.voteStatus]);
 
   // Fetch questions when component mounts
   useEffect(() => {
@@ -25,7 +34,7 @@ export function ForumProvider({ children }) {
     try {
       dispatch({ type: ACTIONS.FETCH_START });
       const questions = await forumService.fetchQuestions();
-      console.log('Fetched questions:', questions); // Debug log
+      console.log('Fetched questions:', questions);
       dispatch({ type: ACTIONS.FETCH_SUCCESS, payload: questions });
     } catch (error) {
       console.error('Error fetching questions:', error);
@@ -95,6 +104,18 @@ export function ForumProvider({ children }) {
 
   const handleVote = async (type, id, isUpvote) => {
     try {
+      // Update local vote status immediately
+      const newStatus = isUpvote ? 'upvote' : 'downvote';
+      
+      dispatch({
+        type: ACTIONS.SET_VOTE_STATUS,
+        payload: {
+          type,
+          id,
+          status: newStatus
+        }
+      });
+
       const updatedItem = await forumService.handleVote(type, id, isUpvote);
       
       if (updatedItem) {
@@ -108,11 +129,25 @@ export function ForumProvider({ children }) {
             type: ACTIONS.UPDATE_ANSWER, 
             payload: updatedItem
           });
+        } else if (type === 'comment') {
+          dispatch({
+            type: ACTIONS.UPDATE_COMMENT,
+            payload: updatedItem
+          });
         }
       }
       
       return updatedItem;
     } catch (error) {
+      // Revert vote status on error
+      dispatch({
+        type: ACTIONS.SET_VOTE_STATUS,
+        payload: {
+          type,
+          id,
+          status: null
+        }
+      });
       console.error('Error handling vote:', error);
       throw error;
     }
@@ -122,13 +157,14 @@ export function ForumProvider({ children }) {
     questions: state.questions || [],
     isLoading: state.isLoading,
     error: state.error,
+    voteStatus: state.voteStatus,
     fetchQuestions,
     refreshQuestion,
     addQuestion,
     addAnswer,
     addComment,
     handleVote
-  }), [state.questions, state.isLoading, state.error]);
+  }), [state.questions, state.isLoading, state.error, state.voteStatus]);
 
   return (
     <ForumContext.Provider value={value}>

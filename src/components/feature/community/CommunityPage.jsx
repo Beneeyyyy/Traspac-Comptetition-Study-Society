@@ -8,7 +8,7 @@ const CommunityPage = () => {
   return (
     <CommunityProvider>
       <ForumProvider>
-        <main className="min-h-screen bg-[#0A0A0A] text-white pb-20">
+        <main className="min-h-screen bg-black text-white pb-20">
           <div className="container mx-auto pt-8">
             <div className="space-y-8">
               <ExploreSection />
