@@ -4,69 +4,64 @@ const prisma = new PrismaClient();
 const pointController = {
   createPoint: async (req, res) => {
     try {
-      const { userId, materialId, categoryId, subcategoryId, value } = req.body;
+      const { userId, materialId, categoryId, subcategoryId, value, stageIndex } = req.body;
+      
+      console.log('Creating point:', { userId, materialId, stageIndex });
 
-      // Validate required fields
-      if (!userId || !materialId || !categoryId || !subcategoryId || !value) {
-        console.error('Missing required fields:', { userId, materialId, categoryId, subcategoryId, value });
+      // 1. Check if point already exists for this stage
+      const existingPoint = await prisma.point.findFirst({
+        where: {
+          userId: parseInt(userId),
+          materialId: parseInt(materialId),
+          stageIndex: parseInt(stageIndex)
+        }
+      });
+
+      // 2. If point exists, return error
+      if (existingPoint) {
+        console.log('Point already exists for stage:', stageIndex);
         return res.status(400).json({
           success: false,
-          error: 'Missing required fields'
+          message: 'Points already awarded for this stage'
         });
       }
 
-      try {
-        // Create point record
-        const point = await prisma.point.create({
-          data: {
-            userId: parseInt(userId),
-            materialId: parseInt(materialId),
-            categoryId: parseInt(categoryId),
-            subcategoryId: parseInt(subcategoryId),
-            value: parseInt(value)
-          }
-        });
+      // 3. If no existing point, create new one
+      const point = await prisma.point.create({
+        data: {
+          userId: parseInt(userId),
+          materialId: parseInt(materialId),
+          categoryId: parseInt(categoryId),
+          subcategoryId: parseInt(subcategoryId),
+          value: parseInt(value),
+          stageIndex: parseInt(stageIndex)
+        }
+      });
 
-        // Update user's total points
-        const user = await prisma.user.update({
-          where: { id: parseInt(userId) },
-          data: {
-            totalPoints: {
-              increment: parseInt(value)
-            },
-            totalXP: {
-              increment: parseInt(value)
-            }
+      // 4. Update user's total points
+      await prisma.user.update({
+        where: { id: parseInt(userId) },
+        data: {
+          totalPoints: {
+            increment: parseInt(value)
           }
-        });
+        }
+      });
 
-        return res.status(201).json({
-          success: true,
-          data: {
-            point,
-            user: {
-              id: user.id,
-              totalPoints: user.totalPoints,
-              totalXP: user.totalXP
-            }
-          }
-        });
+      console.log('Point created successfully:', point);
 
-      } catch (dbError) {
-        console.error('Database error:', dbError);
-        return res.status(500).json({
-          success: false,
-          error: 'Database error',
-          details: dbError.message
-        });
-      }
+      return res.status(201).json({
+        success: true,
+        message: 'Point created successfully',
+        point: point
+      });
 
     } catch (error) {
-      console.error('Server error:', error);
+      console.error('Error creating point:', error);
       return res.status(500).json({
         success: false,
-        error: 'Server error',
-        details: error.message
+        message: 'Failed to create point',
+        error: error.message
       });
     }
   },
@@ -106,14 +101,6 @@ const pointController = {
     try {
       console.log('Fetching points for:', { materialId, userId });
 
-      // Validasi input
-      if (!materialId || !userId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing materialId or userId'
-        });
-      }
-
       // Parse ID ke integer
       const parsedMaterialId = parseInt(materialId);
       const parsedUserId = parseInt(userId);
@@ -130,23 +117,18 @@ const pointController = {
         where: {
           materialId: parsedMaterialId,
           userId: parsedUserId
-        },
-        select: {
-          id: true,
-          value: true,
-          materialId: true,
-          userId: true,
-          createdAt: true
         }
       });
 
-      console.log('Found points:', points);
+      const total = points.reduce((sum, point) => sum + point.value, 0);
 
-      // Selalu kembalikan response sukses
+      console.log('Found points:', { points, total });
+
       return res.json({
         success: true,
-        points: points || [],
-        total: points ? points.reduce((sum, point) => sum + point.value, 0) : 0
+        total: total,
+        points: points,
+        completedStages: points.map(p => p.stageIndex)
       });
 
     } catch (error) {
@@ -584,6 +566,45 @@ const pointController = {
       return res.status(500).json({
         success: false,
         error: 'Failed to recalculate points',
+        details: error.message
+      });
+    }
+  },
+
+  checkStagePoints: async (req, res) => {
+    const { userId, materialId, stageIndex } = req.params;
+
+    try {
+      console.log('Checking points for:', { userId, materialId, stageIndex });
+
+      // Parse parameters to integers
+      const parsedUserId = parseInt(userId);
+      const parsedMaterialId = parseInt(materialId);
+      const parsedStageIndex = parseInt(stageIndex);
+
+      // Find any existing points for this user, material, and stage
+      const existingPoints = await prisma.point.findFirst({
+        where: {
+          AND: [
+            { userId: parsedUserId },
+            { materialId: parsedMaterialId },
+            { stageIndex: parsedStageIndex }
+          ]
+        }
+      });
+
+      console.log('Existing points found:', existingPoints);
+
+      return res.json({
+        success: true,
+        hasPoints: !!existingPoints,
+        points: existingPoints
+      });
+    } catch (error) {
+      console.error('Error checking points:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to check points',
         details: error.message
       });
     }

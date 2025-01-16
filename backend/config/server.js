@@ -11,7 +11,6 @@ const authRoutes = require('../routes/usersManagement/routes/authRoutes');
 const categoryRoutes = require('../routes/coursesManagement/routes/categoryRoutes');
 const subcategoryRoutes = require('../routes/coursesManagement/routes/subcategoryRoutes');
 const materialRoutes = require('../routes/coursesManagement/routes/materialRoutes');
-const pointRoutes = require('../routes/points');
 const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoolRoutes');
 const progressRoutes = require('../routes/progress/progressRoutes');
 const stageProgressRoutes = require('../routes/progress/stageProgressRoutes');
@@ -20,6 +19,9 @@ const discussionRoutes = require('../routes/coursesManagement/routes/discussionR
 const forumRoutes = require('../routes/community/forum/routes/forumRoutes');
 const creationRoutes = require('../routes/upCreation/routes/creationRoutes');
 const serviceRoutes = require('../routes/upService/routes/serviceRoutes');
+const pointController = require('../routes/points/controllers/pointController');
+// Temporarily disable payment routes until we have valid credentials
+// const paymentRoutes = require('../routes/payment/paymentRoutes');
 
 
 
@@ -85,7 +87,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subcategoryRoutes);
 app.use('/api/materials', materialRoutes);
-app.use('/api/points', pointRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/stage-progress', stageProgressRoutes);
@@ -94,6 +95,18 @@ app.use('/api/discussions', discussionRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/creations', creationRoutes);
 app.use('/api/services', serviceRoutes);
+// Temporarily disable payment routes
+// app.use('/api/payment', paymentRoutes);
+
+// Points routes
+app.post('/api/points', pointController.createPoint);
+app.get('/api/points/user/:userId', pointController.getUserPoints);
+app.get('/api/points/material/:materialId/:userId', pointController.getMaterialPoints);
+app.get('/api/points/check/:userId/:materialId/:stageIndex', pointController.checkStagePoints);
+app.get('/api/points/leaderboard/:timeframe', pointController.getLeaderboard);
+app.get('/api/points/leaderboard/:timeframe/:scope', pointController.getLeaderboard);
+app.get('/api/points/schools/rankings', pointController.getSchoolRankings);
+app.get('/api/points/recalculate', pointController.recalculateUserPoints);
 
 // Global error handling
 app.use((err, req, res, next) => {

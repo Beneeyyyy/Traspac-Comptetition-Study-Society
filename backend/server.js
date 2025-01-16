@@ -20,10 +20,12 @@ app.use(cookieParser());
 const authRoutes = require('./routes/auth/authRoutes');
 const serviceRoutes = require('./routes/upservice/serviceRoutes');
 const paymentRoutes = require('./routes/payment/paymentRoutes');
+const categoryRoutes = require('./routes/coursesManagement/routes/categoryRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

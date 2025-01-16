@@ -83,7 +83,7 @@ model Stage {
   updatedAt   DateTime  @updatedAt
   
   // Relations
-  material    Material  @relation(fields: [materialId], references: [id])
+  material    Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
 }
 
 model User {
@@ -155,15 +155,18 @@ model User {
 model Point {
   id            Int      @id @default(autoincrement())
   userId        Int
-  user          User     @relation(fields: [userId], references: [id])
-  categoryId    Int
-  category      Category @relation(fields: [categoryId], references: [id])
-  subcategoryId Int
-  subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
   materialId    Int
-  material      Material @relation(fields: [materialId], references: [id])
-  value         Int      @default(0)
+  categoryId    Int
+  subcategoryId Int
+  value         Int
+  stageIndex    Int
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
+  material      Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  category      Category @relation(fields: [categoryId], references: [id])
+  subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
 }
 
 model UserAchievement {
@@ -201,7 +204,7 @@ model MaterialProgress {
   userId      Int
   user        User     @relation(fields: [userId], references: [id])
   materialId  Int
-  material    Material @relation(fields: [materialId], references: [id])
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
   progress    Float    @default(0)
   completed   Boolean  @default(false)
   lastAccessed DateTime @default(now())
@@ -225,8 +228,8 @@ model Discussion {
   updatedAt       DateTime  @updatedAt
 
   user           User      @relation(fields: [userId], references: [id])
-  material       Material  @relation(fields: [materialId], references: [id])
-  resolvedReply  Reply?    @relation("ResolvedDiscussion", fields: [resolvedReplyId], references: [id])
+  material       Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  resolvedReply  Reply?    @relation("ResolvedDiscussion", fields: [resolvedReplyId], references: [id], onDelete: SetNull)
   replies        Reply[]   @relation("DiscussionReplies")
   likes          Like[]    @relation("DiscussionLikes")
 
@@ -246,8 +249,8 @@ model Reply {
   updatedAt      DateTime   @updatedAt
 
   user           User       @relation(fields: [userId], references: [id])
-  discussion     Discussion @relation("DiscussionReplies", fields: [discussionId], references: [id])
-  parent         Reply?     @relation("ReplyToReply", fields: [parentId], references: [id])
+  discussion     Discussion @relation("DiscussionReplies", fields: [discussionId], references: [id], onDelete: Cascade)
+  parent         Reply?     @relation("ReplyToReply", fields: [parentId], references: [id], onDelete: Cascade)
   children       Reply[]    @relation("ReplyToReply")
   resolvedFor    Discussion? @relation("ResolvedDiscussion")
   likes          Like[]     @relation("ReplyLikes")
@@ -264,8 +267,8 @@ model Like {
   createdAt     DateTime   @default(now())
 
   user          User       @relation(fields: [userId], references: [id])
-  discussion    Discussion? @relation("DiscussionLikes", fields: [discussionId], references: [id])
-  reply         Reply?     @relation("ReplyLikes", fields: [replyId], references: [id])
+  discussion    Discussion? @relation("DiscussionLikes", fields: [discussionId], references: [id], onDelete: Cascade)
+  reply         Reply?      @relation("ReplyLikes", fields: [replyId], references: [id], onDelete: Cascade)
 
   @@unique([userId, discussionId])
   @@unique([userId, replyId])

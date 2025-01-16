@@ -306,22 +306,28 @@ const updateMaterial = async (req, res) => {
 
 // Delete material
 const deleteMaterial = async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const { id } = req.params;
-    await prisma.material.delete({
-      where: { id: parseInt(id) }
+    const parsedId = parseInt(id);
+
+    // Delete the material and all related records will be deleted automatically
+    const material = await prisma.material.delete({
+      where: { id: parsedId }
     });
-    res.json({ message: 'Materi berhasil dihapus' });
+
+    return res.json({
+      success: true,
+      message: 'Material deleted successfully'
+    });
+
   } catch (error) {
     console.error('Error deleting material:', error);
-    if (error.code === 'P2025') {
-      res.status(404).json({ error: 'Materi tidak ditemukan' });
-    } else {
-      res.status(500).json({ 
-        error: 'Gagal menghapus materi',
-        details: error.message
-      });
-    }
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete material',
+      details: error.message
+    });
   }
 };
 

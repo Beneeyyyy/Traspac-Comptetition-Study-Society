@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FiMessageSquare, FiArrowUp, FiArrowDown, FiCornerUpRight } from 'react-icons/fi'
+import { FiMessageSquare, FiArrowUp, FiArrowDown, FiCornerUpRight, FiMoreHorizontal, FiChevronUp } from 'react-icons/fi'
 import { useAuth } from '../../../../../../contexts/AuthContext'
 import { useForum } from '../../../../../../contexts/forum/ForumContext'
 import CommentThread from './CommentThread'
@@ -11,8 +11,16 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
   const [showCommentForm, setShowCommentForm] = useState(false)
   const [commentContent, setCommentContent] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+  const [showAllComments, setShowAllComments] = useState(false)
   const { user } = useAuth()
   const { handleVote, refreshQuestion, addComment } = useForum()
+
+  // Batasi jumlah komentar yang ditampilkan
+  const MAX_VISIBLE_COMMENTS = 5;
+  const visibleComments = showAllComments 
+    ? answer.comments 
+    : answer.comments?.slice(0, MAX_VISIBLE_COMMENTS);
+  const hasMoreComments = answer.comments?.length > MAX_VISIBLE_COMMENTS;
 
   const handleVoteClick = async (type, id, isUpvote) => {
     if (!user) {
@@ -204,7 +212,7 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
 
             {/* Comment Threads */}
             <div className="space-y-4">
-              {answer.comments?.map((comment) => (
+              {visibleComments?.map((comment) => (
                 <CommentThread
                   key={comment.id}
                   comment={comment}
@@ -215,6 +223,28 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
                   }}
                 />
               ))}
+
+              {/* Show More Comments Button */}
+              {hasMoreComments && !showAllComments && (
+                <button
+                  onClick={() => setShowAllComments(true)}
+                  className="flex items-center gap-2 text-sm text-white/40 hover:text-blue-400 transition-colors mt-4 w-full justify-center py-2 border border-white/5 rounded-lg hover:bg-white/5"
+                >
+                  <FiMoreHorizontal className="text-base" />
+                  <span>Lihat {answer.comments.length - MAX_VISIBLE_COMMENTS} komentar lainnya</span>
+                </button>
+              )}
+
+              {/* Show Less Comments Button */}
+              {showAllComments && hasMoreComments && (
+                <button
+                  onClick={() => setShowAllComments(false)}
+                  className="flex items-center gap-2 text-sm text-white/40 hover:text-blue-400 transition-colors mt-4 w-full justify-center py-2 border border-white/5 rounded-lg hover:bg-white/5"
+                >
+                  <FiChevronUp className="text-base" />
+                  <span>Sembunyikan sebagian komentar</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

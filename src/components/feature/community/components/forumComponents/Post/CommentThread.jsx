@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FiMessageSquare, FiThumbsUp, FiThumbsDown, FiCornerUpRight, FiArrowUp, FiArrowDown } from 'react-icons/fi'
+import { FiMessageSquare, FiThumbsUp, FiThumbsDown, FiCornerUpRight, FiArrowUp, FiArrowDown, FiChevronDown, FiChevronUp } from 'react-icons/fi'
 import { useAuth } from '../../../../../../contexts/AuthContext'
 import { useForum } from '../../../../../../contexts/forum/ForumContext'
 
@@ -9,6 +9,7 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [isVoting, setIsVoting] = useState(false)
+  const [showReplies, setShowReplies] = useState(false)
   const { user } = useAuth()
   const { handleVote, voteStatus, addComment } = useForum()
 
@@ -157,6 +158,26 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
                 <FiCornerUpRight className="text-sm" />
                 <span>Balas</span>
               </button>
+
+              {/* Show/Hide Replies Button */}
+              {comment.replies?.length > 0 && (
+                <button
+                  onClick={() => setShowReplies(!showReplies)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-blue-400 transition-colors"
+                >
+                  {showReplies ? (
+                    <>
+                      <FiChevronUp className="text-sm" />
+                      <span>Sembunyikan {comment.replies.length} Balasan</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiChevronDown className="text-sm" />
+                      <span>Lihat {comment.replies.length} Balasan</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -201,7 +222,7 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
       )}
 
       {/* Nested Replies */}
-      {comment.replies?.length > 0 && (
+      {comment.replies?.length > 0 && showReplies && (
         <div className="relative pl-14 mt-3 space-y-3">
           {/* Horizontal Line */}
           <div className="absolute left-5 top-0 w-9 h-px bg-white/10" />

@@ -695,54 +695,6 @@ const TheoryStep = ({ material }) => {
     fetchTotalXP();
   }, [material?.id, user?.id]);
 
-  // Tambahkan useEffect untuk fetch point saat komponen dimuat
-  useEffect(() => {
-    const fetchMaterialPoints = async () => {
-      // Pastikan user sudah ter-authenticate dan ID tersedia
-      if (!user?.id) {
-        console.log('❌ User not authenticated or ID missing');
-        return;
-      }
-
-      // Pastikan material ID tersedia
-      if (!material?.id) {
-        console.log('❌ Material ID missing');
-        return;
-      }
-
-      try {
-        console.log('🔄 Fetching points for:', {
-          materialId: material.id,
-          userId: user.id,
-          categoryId,
-          subcategoryId
-        });
-
-        const response = await fetch(`http://localhost:3000/api/points/material/${material.id}/${user.id}`);
-        const data = await response.json();
-        
-        if (data.success) {
-          const totalPoints = data.total || 0;
-          console.log('📊 Points loaded:', {
-            total: totalPoints,
-            points: data.points,
-            userId: user.id,
-            materialId: material.id
-          });
-          setEarnedPoints(totalPoints);
-        } else {
-          console.log('No points found, setting to 0');
-          setEarnedPoints(0);
-        }
-      } catch (error) {
-        console.error('Failed to fetch points:', error);
-        setEarnedPoints(0);
-      }
-    };
-
-    fetchMaterialPoints();
-  }, [material?.id, user?.id, categoryId, subcategoryId]);
-
   // Tambahkan useEffect untuk logging user data
   useEffect(() => {
     console.log('👤 Auth check:', {
@@ -751,6 +703,86 @@ const TheoryStep = ({ material }) => {
       materialId: material?.id
     });
   }, [user, material]);
+
+  const handleNextStage = async () => {
+    if (activeSection < material?.stages?.length - 1) {
+      try {
+        console.log('Processing next stage:', activeSection);
+
+        // Calculate points for this stage
+        const pointsPerStage = Math.floor(material.points / material.stages.length);
+        
+        // Prepare point data
+        const pointData = {
+          userId: user.id,
+          materialId: material.id,
+          categoryId: parseInt(categoryId),
+          subcategoryId: parseInt(subcategoryId),
+          value: pointsPerStage,
+          stageIndex: activeSection
+        };
+
+        console.log('Attempting to create point:', pointData);
+
+        // Try to create point
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/points`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(pointData),
+          credentials: 'include'
+        });
+
+        const responseData = await response.json();
+        
+        if (response.ok && responseData.success) {
+          // Point was created successfully (stage was not completed before)
+          console.log('Points awarded successfully:', responseData);
+          setEarnedPoints(prev => prev + pointsPerStage);
+          
+          // Add to completedStages
+          const newCompletedStages = new Set(completedStages);
+          newCompletedStages.add(activeSection);
+          setCompletedStages(newCompletedStages);
+        } else if (response.status === 400) {
+          // Stage was already completed
+          console.log('Stage already completed:', responseData.message);
+          
+          // Still add to completedStages if not already there
+          if (!completedStages.has(activeSection)) {
+            const newCompletedStages = new Set(completedStages);
+            newCompletedStages.add(activeSection);
+            setCompletedStages(newCompletedStages);
+          }
+        } else {
+          // Other error occurred
+          console.error('Error creating point:', responseData);
+          throw new Error(responseData.message);
+        }
+
+        // Always update progress
+        const newProgress = {
+          ...stageProgress,
+          [currentStage.id]: {
+            completed: true,
+            timestamp: new Date().toISOString()
+          }
+        };
+        setStageProgress(newProgress);
+
+        // Move to next stage
+        setActiveSection(prev => prev + 1);
+        setActiveContentIndex(0);
+        
+      } catch (error) {
+        console.error('Error in handleNextStage:', error);
+        // Continue with navigation even if point awarding fails
+        setActiveSection(prev => prev + 1);
+        setActiveContentIndex(0);
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black">
