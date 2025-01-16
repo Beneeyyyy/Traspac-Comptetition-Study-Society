@@ -1,10 +1,11 @@
 import { useState, Suspense, useEffect, useRef, lazy, useCallback, useLayoutEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { FiArrowLeft, FiMenu } from 'react-icons/fi';
+import { FiArrowLeft, FiMenu, FiAward, FiStar } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
 import { useAuth } from '../../../../../../../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import iconCourse2 from '../../../../../../../../assets/images/courses/iconCourse2.svg';
+
 
 // Lazy load components
 const TopNavigation = lazy(() => import('./components/TopNavigation'));
@@ -18,6 +19,126 @@ const DiscussionPanel = lazy(() => import('../DiscussionPanel'));
 const STORAGE_KEY = 'material_progress_';
 const WELCOME_MODAL_KEY = 'theory_welcome_shown';
 const POINTS_STORAGE_KEY = 'earned_points_';
+
+// Add CSS animation for stars
+const styles = `
+  .stars-container {
+    perspective: 500px;
+  }
+  
+  .star {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: white;
+    border-radius: 50%;
+    animation: star-animation 2s infinite;
+  }
+  
+  @keyframes star-animation {
+    0% {
+      transform: scale(0) rotate(0deg) translateZ(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1) rotate(360deg) translateZ(100px);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(0) rotate(720deg) translateZ(0);
+      opacity: 0;
+    }
+  }
+`;
+
+// Add new completion modal component
+const CompletionModal = ({ show, onClose, earnedPoints, material }) => {
+  const { categoryId, subcategoryId } = useParams();
+
+  const handleBackClick = () => {
+    window.location.href = `/courses/${categoryId}/subcategory/${subcategoryId}`;
+  };
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            className="bg-gradient-to-br from-[#1A1B1E] to-[#2C2D32] rounded-2xl p-8 max-w-lg w-full mx-4 relative overflow-hidden"
+          >
+            {/* Animated stars background */}
+            <div className="stars-container absolute inset-0 overflow-hidden">
+              {[...Array(20)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className="star"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 2}s`
+                  }}
+                />
+              ))}
+            </div>
+            
+            {/* Content */}
+            <div className="relative text-center space-y-6">
+              <motion.div 
+                className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center"
+                initial={{ rotate: -180, scale: 0 }}
+                animate={{ rotate: 0, scale: 1 }}
+                transition={{ type: "spring", duration: 1.5 }}
+              >
+                <FiAward className="w-10 h-10 text-white" />
+              </motion.div>
+              
+              <div>
+                <h2 className="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                  Congratulations!
+                </h2>
+                <p className="text-white/60">
+                  You've successfully completed {material?.title}
+                </p>
+              </div>
+              
+              <div className="bg-white/5 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Total Points Earned</span>
+                  <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                    {earnedPoints} XP
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Stages Completed</span>
+                  <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                    {material?.stages?.length || 0}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex gap-4">
+                <button
+                  onClick={handleBackClick}
+                  className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium hover:from-blue-600 hover:to-purple-600 transition-colors"
+                >
+                  Back to Materials
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
 
 const TheoryStep = ({ material }) => {
   const [searchParams] = useSearchParams();
@@ -40,6 +161,7 @@ const TheoryStep = ({ material }) => {
     return !hasSeenModal;
   });
   const [totalMaterialXP, setTotalMaterialXP] = useState(0);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
   
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
@@ -377,7 +499,7 @@ const TheoryStep = ({ material }) => {
 
   const handleBackToMaterials = () => {
     // Force refresh when going back to materials
-    window.location.href = `/courses/${categoryId}/subcategory/${subcategoryId}/materials`;
+    window.location.href = `/courses/${categoryId}/subcategory/${subcategoryId}`;
   };
 
   // Fungsi untuk mencatat point
@@ -486,13 +608,6 @@ const TheoryStep = ({ material }) => {
         const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
         const stageXP = baseXP + (isLastStage ? remainderXP : 0);
 
-        console.log('💫 Stage XP calculation:', {
-          baseXP,
-          isLastStage,
-          remainderXP,
-          stageXP
-        });
-
         // Record points to database
         try {
           const response = await fetch('http://localhost:3000/api/points', {
@@ -515,11 +630,7 @@ const TheoryStep = ({ material }) => {
           const totalData = await totalResponse.json();
           
           if (totalData.success) {
-            // Calculate total points for this material
             const materialPoints = totalData.points.reduce((sum, point) => sum + point.value, 0);
-            console.log('📊 Updated material points:', materialPoints);
-            
-            // Update state with new total
             setEarnedPoints(materialPoints);
           }
 
@@ -532,25 +643,25 @@ const TheoryStep = ({ material }) => {
         newCompletedStages.add(activeSection);
         setCompletedStages(newCompletedStages);
 
-        // Navigate to next stage or complete
-        if (activeSection < material.stages.length - 1) {
-          setActiveSection(activeSection + 1);
-          setActiveContentIndex(0);
-        } else {
+        // Check if this is the last stage
+        if (activeSection === material.stages.length - 1) {
+          // Show completion modal when material is finished
+          setShowCompletionModal(true);
+          
           // Update progress to mark material as complete
           try {
             const progressResponse = await fetch(
-          `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`, 
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              stageIndex: activeSection,
-              contentProgress: 100,
-              completedStages: Array.from(newCompletedStages)
-            })
-          }
-        );
+              `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  stageIndex: activeSection,
+                  contentProgress: 100,
+                  completedStages: Array.from(newCompletedStages)
+                })
+              }
+            );
 
             if (!progressResponse.ok) {
               throw new Error('Failed to update completion status');
@@ -564,8 +675,10 @@ const TheoryStep = ({ material }) => {
           } catch (error) {
             console.error('Failed to update completion status:', error);
           }
-
-          setActiveSection(-1); // Mark as complete
+        } else {
+          // Move to next stage if not the last one
+          setActiveSection(activeSection + 1);
+          setActiveContentIndex(0);
         }
 
       } catch (error) {
@@ -786,6 +899,9 @@ const TheoryStep = ({ material }) => {
 
   return (
     <div className="min-h-screen bg-black">
+      {/* Add style tag for animations */}
+      <style>{styles}</style>
+      
       {/* Welcome Modal */}
       <AnimatePresence>
         {showWelcomeModal && (
@@ -829,6 +945,14 @@ const TheoryStep = ({ material }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Completion Modal */}
+      <CompletionModal
+        show={showCompletionModal}
+        onClose={handleBackToMaterials}
+        earnedPoints={earnedPoints}
+        material={material}
+      />
 
       {/* Top Navigation - Fixed */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-lg border-b border-white/5">
