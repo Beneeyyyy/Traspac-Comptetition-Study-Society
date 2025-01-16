@@ -115,9 +115,13 @@ export const forumService = {
 
   async addComment(questionId, answerId, content, parentId = null) {
     try {
-      const endpoint = answerId 
-        ? `/api/forum/posts/${questionId}/answers/${answerId}/comments`
-        : `/api/forum/posts/${questionId}/comments`;
+      // Parse questionId untuk memastikan format yang benar
+      const parsedQuestionId = typeof questionId === 'object' ? questionId.id : parseInt(questionId);
+      
+      // Buat endpoint URL dengan questionId yang sudah diparsing
+      const endpoint = answerId
+        ? `/api/forum/posts/${parsedQuestionId}/answers/${answerId}/comments`
+        : `/api/forum/posts/${parsedQuestionId}/comments`;
 
       const response = await api.post(endpoint, { 
         content,

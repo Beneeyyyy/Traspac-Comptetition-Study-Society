@@ -5,6 +5,7 @@ import { useForum } from '../../../../../../contexts/forum/ForumContext'
 import CommentThread from './CommentThread'
 
 const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
+  const parsedQuestionId = typeof questionId === 'object' ? questionId.id : parseInt(questionId);
   const [isVoting, setIsVoting] = useState(false)
   const [error, setError] = useState(null)
   const [showCommentForm, setShowCommentForm] = useState(false)
@@ -26,7 +27,7 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
     
     try {
       const result = await handleVote(type, id, isUpvote);
-      await refreshQuestion(questionId);
+      await refreshQuestion(parsedQuestionId);
     } catch (error) {
       console.error('Error voting:', error);
       setError('Gagal memberikan vote. Silakan coba lagi.');
@@ -49,10 +50,10 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
     setError(null);
 
     try {
-      await addComment(questionId, answer.id, commentContent);
+      await addComment(parsedQuestionId, answer.id, commentContent);
       setCommentContent('');
       setShowCommentForm(false);
-      await refreshQuestion(questionId);
+      await refreshQuestion(parsedQuestionId);
     } catch (err) {
       console.error('Error submitting comment:', err);
       setError('Gagal mengirim komentar. Silakan coba lagi.');
@@ -207,10 +208,10 @@ const AnswerCard = ({ answer, isQuestioner, isLastAnswer, questionId }) => {
                 <CommentThread
                   key={comment.id}
                   comment={comment}
-                  questionId={questionId}
+                  questionId={parsedQuestionId}
                   answerId={answer.id}
                   onCommentSubmit={async () => {
-                    await refreshQuestion(questionId);
+                    await refreshQuestion(parsedQuestionId);
                   }}
                 />
               ))}

@@ -10,7 +10,9 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
   const [error, setError] = useState(null)
   const [isVoting, setIsVoting] = useState(false)
   const { user } = useAuth()
-  const { handleVote, voteStatus } = useForum()
+  const { handleVote, voteStatus, addComment } = useForum()
+
+  const parsedQuestionId = typeof questionId === 'object' ? questionId.id : parseInt(questionId);
 
   const handleVoteClick = async (isUpvote) => {
     if (!user) {
@@ -53,10 +55,18 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
 
     try {
       const content = replyContent.trim();
-      await addComment(questionId, answerId, content, comment.id);
-      setReplyContent('');
-      setShowReplyForm(false);
-      onCommentSubmit();
+      const newComment = await addComment(
+        parsedQuestionId,
+        answerId,
+        content,
+        comment.id
+      );
+
+      if (newComment) {
+        setReplyContent('');
+        setShowReplyForm(false);
+        onCommentSubmit(); // Refresh data after adding reply
+      }
     } catch (err) {
       console.error('Error submitting reply:', err);
       setError('Gagal mengirim balasan. Silakan coba lagi.');
@@ -117,20 +127,6 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
               }`}>
                 {comment.downvotes || 0}
               </span>
-            </div>
-          </div>
-
-          {/* User Avatar */}
-          <div className="flex-shrink-0">
-            <div className="relative">
-              <img
-                src={comment.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.user?.name)}&background=0D8ABC&color=fff`}
-                alt={comment.user?.name}
-                className="w-10 h-10 rounded-lg ring-2 ring-white/10 group-hover:ring-blue-500/50 transition-all duration-300 object-cover"
-              />
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-br from-blue-500/20 to-blue-400/10 rounded-md flex items-center justify-center ring-2 ring-white/10 group-hover:ring-blue-500/50 transition-all duration-300">
-                <span className="text-[10px] font-medium text-blue-400">{comment.user?.level || 1}</span>
-              </div>
             </div>
           </div>
 
@@ -213,7 +209,7 @@ const CommentThread = ({ comment, questionId, answerId, onCommentSubmit }) => {
             <CommentThread
               key={reply.id}
               comment={reply}
-              questionId={questionId}
+              questionId={parsedQuestionId}
               answerId={answerId}
               onCommentSubmit={onCommentSubmit}
             />

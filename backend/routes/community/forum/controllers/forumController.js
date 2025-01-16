@@ -647,14 +647,30 @@ const forumController = {
         }
       }
 
-      // Create the comment
+      // If parentId is provided, check if parent comment exists
+      if (parentId) {
+        const parentComment = await prisma.forumComment.findUnique({
+          where: { id: parseInt(parentId) }
+        });
+
+        if (!parentComment) {
+          return res.status(404).json({
+            success: false,
+            error: 'Parent comment not found'
+          });
+        }
+      }
+
+      // Create the comment with proper nesting structure
       const comment = await prisma.forumComment.create({
         data: {
           content,
           userId,
           postId: parseInt(postId),
           answerId: answerId ? parseInt(answerId) : undefined,
-          parentId: parentId ? parseInt(parentId) : undefined
+          parentId: parentId ? parseInt(parentId) : undefined,
+          upvotes: 0,
+          downvotes: 0
         },
         include: {
           user: {
@@ -665,7 +681,11 @@ const forumController = {
               rank: true
             }
           },
-          votes: true,
+          votes: {
+            where: {
+              userId
+            }
+          },
           replies: {
             include: {
               user: {
@@ -676,7 +696,11 @@ const forumController = {
                   rank: true
                 }
               },
-              votes: true,
+              votes: {
+                where: {
+                  userId
+                }
+              },
               replies: {
                 include: {
                   user: {
@@ -687,13 +711,34 @@ const forumController = {
                       rank: true
                     }
                   },
-                  votes: true
+                  votes: {
+                    where: {
+                      userId
+                    }
+                  }
                 }
               }
             }
           }
         }
       });
+
+      // Transform comment data to include vote status
+      const transformComment = (comment) => {
+        const upvotes = comment.votes.filter(v => v.isUpvote).length;
+        const downvotes = comment.votes.filter(v => !v.isUpvote).length;
+        const userVote = comment.votes[0];
+
+        const { votes, replies, ...commentWithoutVotes } = comment;
+        return {
+          ...commentWithoutVotes,
+          score: upvotes - downvotes,
+          userVote: userVote ? (userVote.isUpvote ? 'upvote' : 'downvote') : null,
+          replies: replies?.map(transformComment) || []
+        };
+      };
+
+      const transformedComment = transformComment(comment);
 
       // Get the updated post data with nested comments
       const updatedPost = await prisma.forumPost.findUnique({
@@ -730,7 +775,11 @@ const forumController = {
                       rank: true
                     }
                   },
-                  votes: true,
+                  votes: {
+                    where: {
+                      userId
+                    }
+                  },
                   replies: {
                     include: {
                       user: {
@@ -741,7 +790,11 @@ const forumController = {
                           rank: true
                         }
                       },
-                      votes: true,
+                      votes: {
+                        where: {
+                          userId
+                        }
+                      },
                       replies: {
                         include: {
                           user: {
@@ -752,14 +805,22 @@ const forumController = {
                               rank: true
                             }
                           },
-                          votes: true
+                          votes: {
+                            where: {
+                              userId
+                            }
+                          }
                         }
                       }
                     }
                   }
                 }
               },
-              votes: true
+              votes: {
+                where: {
+                  userId
+                }
+              }
             }
           },
           comments: {
@@ -775,7 +836,11 @@ const forumController = {
                   rank: true
                 }
               },
-              votes: true,
+              votes: {
+                where: {
+                  userId
+                }
+              },
               replies: {
                 include: {
                   user: {
@@ -786,7 +851,11 @@ const forumController = {
                       rank: true
                     }
                   },
-                  votes: true,
+                  votes: {
+                    where: {
+                      userId
+                    }
+                  },
                   replies: {
                     include: {
                       user: {
@@ -797,7 +866,11 @@ const forumController = {
                           rank: true
                         }
                       },
-                      votes: true
+                      votes: {
+                        where: {
+                          userId
+                        }
+                      }
                     }
                   }
                 }
@@ -813,16 +886,36 @@ const forumController = {
       });
 
       // Transform post data
-      const upvotes = updatedPost.votes.filter(vote => vote.isUpvote).length;
-      const downvotes = updatedPost.votes.filter(vote => !vote.isUpvote).length;
-      const userVote = updatedPost.votes[0];
+      const transformPost = (post) => {
+        const upvotes = post.votes.filter(v => v.isUpvote).length;
+        const downvotes = post.votes.filter(v => !v.isUpvote).length;
+        const userVote = post.votes[0];
 
-      const { votes, ...postWithoutVotes } = updatedPost;
-      const transformedPost = {
-        ...postWithoutVotes,
-        score: upvotes - downvotes,
-        userVote: userVote ? (userVote.isUpvote ? 'upvote' : 'downvote') : null
+        const transformAnswer = (answer) => {
+          const answerUpvotes = answer.votes.filter(v => v.isUpvote).length;
+          const answerDownvotes = answer.votes.filter(v => !v.isUpvote).length;
+          const answerUserVote = answer.votes[0];
+
+          const { votes: answerVotes, comments, ...answerWithoutVotes } = answer;
+          return {
+            ...answerWithoutVotes,
+            score: answerUpvotes - answerDownvotes,
+            userVote: answerUserVote ? (answerUserVote.isUpvote ? 'upvote' : 'downvote') : null,
+            comments: comments.map(transformComment)
+          };
+        };
+
+        const { votes, answers, comments, ...postWithoutVotes } = post;
+        return {
+          ...postWithoutVotes,
+          score: upvotes - downvotes,
+          userVote: userVote ? (userVote.isUpvote ? 'upvote' : 'downvote') : null,
+          answers: answers.map(transformAnswer),
+          comments: comments.map(transformComment)
+        };
       };
+
+      const transformedPost = transformPost(updatedPost);
 
       res.json({
         success: true,
