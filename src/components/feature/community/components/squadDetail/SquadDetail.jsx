@@ -1,135 +1,192 @@
-import { useState } from 'react'
-import { Tab } from '@headlessui/react'
-import { FiBook, FiMessageSquare, FiInfo, FiUsers, FiAward, FiClock, FiSettings } from 'react-icons/fi'
-import OverviewSection from './sections/OverviewSection'
-import LearningSection from './sections/LearningSection'
-import DiscussionSection from './sections/DiscussionSection'
-import AdminSection from './sections/AdminSection'
-import { SquadProvider } from '../../context/SquadContext'
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  getSquadById,
+  joinSquad,
+  leaveSquad,
+  getSquadMaterials,
+  getDiscussions
+} from '../../../../../api/squad';
+import { toast } from 'react-hot-toast';
 
-const SquadDetail = ({ squad }) => {
-  // Temporary admin check - replace with actual auth logic later
-  const isAdmin = true // For testing purposes
+const SquadDetail = () => {
+  const { id } = useParams();
+  const [squad, setSquad] = useState(null);
+  const [materials, setMaterials] = useState([]);
+  const [discussions, setDiscussions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('materials');
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: FiInfo, component: <OverviewSection squad={squad} isAdmin={isAdmin} /> },
-    { id: 'learning', label: 'Learning', icon: FiBook, component: <LearningSection squad={squad} isAdmin={isAdmin} /> },
-    { id: 'discussion', label: 'Discussion', icon: FiMessageSquare, component: <DiscussionSection squad={squad} isAdmin={isAdmin} /> },
-    { 
-      id: 'admin', 
-      label: 'Admin Panel', 
-      icon: FiSettings, 
-      component: <AdminSection squad={squad} />,
-      isAdminOnly: true 
+  useEffect(() => {
+    const fetchSquadData = async () => {
+      try {
+        const [squadData, materialsData, discussionsData] = await Promise.all([
+          getSquadById(id),
+          getSquadMaterials(id),
+          getDiscussions(id)
+        ]);
+        
+        setSquad(squadData);
+        setMaterials(materialsData);
+        setDiscussions(discussionsData);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSquadData();
+  }, [id]);
+
+  const handleJoinSquad = async () => {
+    try {
+      await joinSquad(id);
+      toast.success('Successfully joined the squad!');
+      // Refresh squad data
+      const updatedSquad = await getSquadById(id);
+      setSquad(updatedSquad);
+    } catch (err) {
+      toast.error(err.message || 'Failed to join squad');
     }
-  ].filter(tab => !tab.isAdminOnly || isAdmin) // Only show admin tab if user is admin
+  };
+
+  const handleLeaveSquad = async () => {
+    try {
+      await leaveSquad(id);
+      toast.success('Successfully left the squad!');
+      // Refresh squad data
+      const updatedSquad = await getSquadById(id);
+      setSquad(updatedSquad);
+    } catch (err) {
+      toast.error(err.message || 'Failed to leave squad');
+    }
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[200px]">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="text-center text-red-500 py-8">Error: {error}</div>
+  );
+  
+  if (!squad) return (
+    <div className="text-center text-gray-500 py-8">Squad not found</div>
+  );
 
   return (
-    <SquadProvider>
-      <div className="min-h-screen bg-black pt-24 pb-12">
-        <div className="max-w-5xl mx-auto px-4 md:px-8">
-          <div className="space-y-6">
-            {/* Squad Banner */}
-            <div className="relative h-64 rounded-xl overflow-hidden bg-black">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/60 to-black" />
-              <img 
-                src={squad?.banner || "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=1470"} 
-                alt="Squad Banner"
-                className="w-full h-full object-cover opacity-100"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-              
-              {/* Squad Info Container */}
-              <div className="absolute bottom-0 left-0 right-0 p-8">
-                <div className="flex items-end gap-8">
-                  {/* Squad Avatar */}
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-black">
-                      <img 
-                        src={squad?.image || "https://ui-avatars.com/api/?name=Web+Development&background=6366F1&color=fff"} 
-                        alt="Squad"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl bg-green-500 border-4 border-black flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-green-200 animate-pulse" />
-                    </div>
-                  </div>
-
-                  {/* Squad Info */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-4 mb-2">
-                      <h1 className="text-3xl font-bold text-white">
-                        {squad?.name || "Web Development Squad"}
-                      </h1>
-                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        Level {squad?.level || 3}
-                      </span>
-                    </div>
-                    
-                    {/* Squad Stats */}
-                    <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <FiUsers className="text-blue-400" />
-                        <span>{squad?.members || 24} Members</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <FiAward className="text-purple-400" />
-                        <span>{squad?.xp || "2,500"} XP</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <FiClock className="text-emerald-400" />
-                        <span>Created {squad?.createdAt || "Oct 2023"}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Squad Content */}
-            <div className="bg-black rounded-xl border border-gray-800">
-              <Tab.Group>
-                <Tab.List className="flex gap-2 px-6 pt-2">
-                  {tabs.map((tab) => (
-                    <Tab
-                      key={tab.id}
-                      className={({ selected }) => 
-                        `flex items-center gap-2 px-5 py-3 text-sm font-medium outline-none transition-colors relative ${
-                          selected 
-                            ? 'text-blue-400' 
-                            : 'text-gray-400 hover:text-gray-300'
-                        }`
-                      }
-                    >
-                      {({ selected }) => (
-                        <>
-                          <tab.icon className="text-base" />
-                          {tab.label}
-                          <div 
-                            className={`absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 transform origin-left transition-transform duration-200 ${
-                              selected ? 'scale-x-100' : 'scale-x-0'
-                            }`} 
-                          />
-                        </>
-                      )}
-                    </Tab>
-                  ))}
-                </Tab.List>
-                <Tab.Panels className="p-6 border-t border-gray-800">
-                  {tabs.map(tab => (
-                    <Tab.Panel key={tab.id}>
-                      {tab.component}
-                    </Tab.Panel>
-                  ))}
-                </Tab.Panels>
-              </Tab.Group>
-            </div>
+    <div className="max-w-6xl mx-auto">
+      {/* Squad Header */}
+      <div className="relative h-[200px]">
+        <img
+          src={squad.banner || '/default-banner.jpg'}
+          alt={squad.name}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent">
+          <div className="absolute bottom-0 left-0 right-0 p-6">
+            <h1 className="text-3xl font-bold text-white mb-2">{squad.name}</h1>
+            <p className="text-gray-200">{squad.description}</p>
           </div>
         </div>
       </div>
-    </SquadProvider>
-  )
-}
 
-export default SquadDetail 
+      {/* Join/Leave Button */}
+      <div className="p-4">
+        <button
+          onClick={squad.isMember ? handleLeaveSquad : handleJoinSquad}
+          className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+            squad.isMember 
+              ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20' 
+              : 'bg-blue-500 text-white hover:bg-blue-600'
+          }`}
+        >
+          {squad.isMember ? "Leave Squad" : "Join Squad"}
+        </button>
+      </div>
+
+      {/* Squad Content */}
+      <div className="mt-6">
+        {/* Tabs */}
+        <div className="border-b border-gray-800">
+          <div className="flex gap-8">
+            {['materials', 'discussions', 'members'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                  activeTab === tab
+                    ? 'text-blue-400 border-b-2 border-blue-400'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab Panels */}
+        <div className="mt-6">
+          {/* Materials Panel */}
+          {activeTab === 'materials' && (
+            <div className="space-y-4">
+              {materials.map(material => (
+                <div key={material.id} className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl">
+                  <h3 className="text-lg font-semibold text-white mb-2">{material.title}</h3>
+                  <p className="text-gray-400">{material.description}</p>
+                </div>
+              ))}
+              {materials.length === 0 && (
+                <p className="text-center text-gray-400 py-8">No materials available</p>
+              )}
+            </div>
+          )}
+
+          {/* Discussions Panel */}
+          {activeTab === 'discussions' && (
+            <div className="space-y-4">
+              {discussions.map(discussion => (
+                <div key={discussion.id} className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl">
+                  <h3 className="text-lg font-semibold text-white mb-2">{discussion.title}</h3>
+                  <p className="text-gray-400">{discussion.content}</p>
+                </div>
+              ))}
+              {discussions.length === 0 && (
+                <p className="text-center text-gray-400 py-8">No discussions yet</p>
+              )}
+            </div>
+          )}
+
+          {/* Members Panel */}
+          {activeTab === 'members' && (
+            <div className="space-y-4">
+              {squad.members?.map(member => (
+                <div key={member.id} className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl flex items-center gap-4">
+                  <img
+                    src={member.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.user.name)}`}
+                    alt={member.user.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div>
+                    <h3 className="font-medium text-white">{member.user.name}</h3>
+                    <p className="text-sm text-gray-400 capitalize">{member.role}</p>
+                  </div>
+                </div>
+              ))}
+              {!squad.members?.length && (
+                <p className="text-center text-gray-400 py-8">No members yet</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SquadDetail; 

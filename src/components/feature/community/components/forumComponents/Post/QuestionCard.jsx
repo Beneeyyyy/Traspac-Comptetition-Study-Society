@@ -335,13 +335,13 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                       className="px-2.5 py-1 rounded-lg text-xs bg-gradient-to-r from-blue-500/20 to-blue-400/10 text-blue-400 border border-blue-500/10"
                     >
                       {badge}
-                    </span>
-                  ))}
+              </span>
+            ))}
                 </div>
-              </div>
-            </div>
+          </div>
+        </div>
 
-            {/* Question Content */}
+        {/* Question Content */}
             <div className="flex-1">
               <h2 className="text-2xl font-semibold text-white/90 mb-6">
                 {question.title}
@@ -384,18 +384,18 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                 <div className="mt-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-fade-in flex items-center gap-2">
                   <FiAlertCircle className="text-lg" />
                   {error}
-                </div>
+          </div>
               )}
 
               {/* Actions Footer */}
               <div className="flex items-center justify-between pt-8 border-t border-white/5">
-                <button
+            <button
                   onClick={() => setShowAnswerForm(!showAnswerForm)}
                   className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500/20 via-blue-400/10 to-blue-500/5 text-blue-400 hover:from-blue-500/30 hover:via-blue-400/20 hover:to-blue-500/10 transition-all border border-blue-500/10 hover:border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10"
-                >
+            >
                   <FiCornerUpRight className="text-lg" />
                   <span className="font-medium">Jawab Pertanyaan</span>
-                </button>
+            </button>
 
                 <button
                   onClick={handleToggleAnswers}
@@ -437,7 +437,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                           {user?.rank || 'Member'}
                         </span>
                       </div>
-                    </div>
+        </div>
 
                     {/* Answer Form Content */}
                     <div className="flex-1 space-y-4">
@@ -465,14 +465,14 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                                   title={block.isFullWidth ? "Set to half width" : "Set to full width"}
                                 >
                                   {block.isFullWidth ? <FiMinimize2 /> : <FiMaximize2 />}
-                                </button>
+            </button>
                                 <button
                                   onClick={() => removeBlock(block.id)}
                                   className="p-1.5 rounded-lg bg-black/50 text-white/80 hover:bg-black/70 hover:text-white transition-all"
                                 >
                                   <FiX />
-                                </button>
-                              </div>
+            </button>
+          </div>
                             </div>
                           )}
                         </div>
@@ -513,7 +513,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                               <span>Kirim Jawaban</span>
                             </>
                           )}
-                        </button>
+            </button>
                       </div>
                     </div>
                   </div>
@@ -541,7 +541,7 @@ const QuestionCard = ({ question, expandedQuestion, setExpandedQuestion }) => {
                           className="w-full py-3 mt-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] text-white/60 hover:text-white/90 transition-all border border-white/5 hover:border-white/10"
                         >
                           Tampilkan {remainingAnswersCount} jawaban lainnya
-                        </button>
+            </button>
                       )}
                     </>
                   ) : (

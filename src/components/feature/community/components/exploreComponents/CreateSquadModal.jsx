@@ -1,166 +1,223 @@
-import React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import React, { useState } from 'react'
 import { FiX, FiUpload } from 'react-icons/fi'
+import { useAuth } from '../../../../../contexts/AuthContext'
+import axios from 'axios'
+import { toast } from 'react-hot-toast'
 
-const CreateSquadModal = ({ isOpen, onClose, onSubmit }) => {
-  const [formData, setFormData] = React.useState({
+const CreateSquadModal = ({ isOpen, onClose, onSquadCreated }) => {
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
     name: '',
     description: '',
     banner: null,
     image: null,
+    isPublic: true
   })
+  const [imagePreview, setImagePreview] = useState(null)
+  const [bannerPreview, setBannerPreview] = useState(null)
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSubmit(formData)
-    onClose()
+  const handleFileChange = async (e, type) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    // Convert to base64
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      if (type === 'image') {
+        setImagePreview(reader.result)
+        setFormData(prev => ({ ...prev, image: reader.result }))
+      } else {
+        setBannerPreview(reader.result)
+        setFormData(prev => ({ ...prev, banner: reader.result }))
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
-  const handleImageChange = (e, type) => {
-    const file = e.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setFormData(prev => ({
-          ...prev,
-          [type]: reader.result
-        }))
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      console.log('Submitting squad data:', {
+        name: formData.name,
+        description: formData.description,
+        isPublic: formData.isPublic,
+        hasImage: !!formData.image,
+        hasBanner: !!formData.banner
+      })
+
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/squads`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
+        }
+      )
+
+      console.log('Squad created:', response.data)
+      
+      if (onSquadCreated) {
+        onSquadCreated(response.data)
       }
-      reader.readAsDataURL(file)
+      
+      toast.success('Squad created successfully!')
+      onClose()
+    } catch (error) {
+      console.error('Error creating squad:', error)
+      toast.error(error.response?.data?.message || 'Failed to create squad')
+    } finally {
+      setLoading(false)
     }
   }
 
-  // Debug log
-  console.log('Modal props:', { isOpen })
+  if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        className="absolute inset-0 bg-black/80"
-      />
-
-      {/* Modal */}
-      <div
-        className="relative w-full max-w-lg bg-[#1a1a1a] rounded-xl shadow-xl overflow-hidden"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
-          <h3 className="text-lg font-semibold text-white">Create New Study Squad</h3>
-          <button
-            onClick={onClose}
-            className="p-1 text-gray-400 hover:text-white transition-colors"
-          >
-            <FiX size={20} />
-          </button>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-[#0A0A0A] rounded-xl w-full max-w-lg mx-4">
+        <div className="p-6 border-b border-gray-800">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white">Create New Squad</h2>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <FiX className="text-gray-400" />
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4">
-          <div className="space-y-4">
-            {/* Banner Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Banner Image
-              </label>
-              <div 
-                className="relative h-32 bg-black/50 rounded-lg overflow-hidden border-2 border-dashed border-gray-700 hover:border-blue-500 transition-colors"
-              >
-                {formData.banner ? (
-                  <img 
-                    src={formData.banner} 
-                    alt="Banner preview" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
-                    <FiUpload size={24} />
-                    <span className="text-sm mt-2">Upload banner image</span>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleImageChange(e, 'banner')}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-              </div>
-            </div>
-
-            {/* Squad Avatar */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Squad Avatar
-              </label>
-              <div className="flex items-center gap-4">
-                <div className="relative w-16 h-16 bg-black/50 rounded-full overflow-hidden border-2 border-dashed border-gray-700 hover:border-blue-500 transition-colors">
-                  {formData.image ? (
-                    <img 
-                      src={formData.image} 
-                      alt="Avatar preview" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                      <FiUpload size={20} />
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageChange(e, 'image')}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Banner Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Squad Banner
+            </label>
+            <div 
+              className="aspect-[3/1] rounded-lg bg-black/30 border-2 border-dashed border-gray-700 flex items-center justify-center cursor-pointer overflow-hidden"
+              onClick={() => document.getElementById('banner-upload').click()}
+            >
+              {bannerPreview ? (
+                <img src={bannerPreview} alt="Banner preview" className="w-full h-full object-cover" />
+              ) : (
+                <div className="text-center">
+                  <FiUpload className="mx-auto text-2xl text-gray-600 mb-2" />
+                  <p className="text-sm text-gray-500">Click to upload banner</p>
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-gray-400">
-                    Upload a squad avatar. Recommended size: 200x200px
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Squad Name */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
-                Squad Name
-              </label>
+              )}
               <input
-                type="text"
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-3 py-2 bg-black rounded-lg border border-gray-800 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-                placeholder="Enter squad name"
-                required
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-2">
-                Description
-              </label>
-              <textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                rows={3}
-                className="w-full px-3 py-2 bg-black rounded-lg border border-gray-800 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-                placeholder="Describe your study squad"
-                required
+                type="file"
+                id="banner-upload"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileChange(e, 'banner')}
               />
             </div>
           </div>
 
+          {/* Image Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Squad Image
+            </label>
+            <div 
+              className="w-24 h-24 rounded-lg bg-black/30 border-2 border-dashed border-gray-700 flex items-center justify-center cursor-pointer overflow-hidden"
+              onClick={() => document.getElementById('image-upload').click()}
+            >
+              {imagePreview ? (
+                <img src={imagePreview} alt="Image preview" className="w-full h-full object-cover" />
+              ) : (
+                <div className="text-center">
+                  <FiUpload className="mx-auto text-xl text-gray-600 mb-1" />
+                  <p className="text-xs text-gray-500">Upload image</p>
+                </div>
+              )}
+              <input
+                type="file"
+                id="image-upload"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileChange(e, 'image')}
+              />
+            </div>
+          </div>
+
+          {/* Squad Name */}
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-400 mb-2">
+              Squad Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full bg-black/30 border border-gray-800 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              placeholder="Enter squad name"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-400 mb-2">
+              Description
+            </label>
+            <textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full bg-black/30 border border-gray-800 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              placeholder="Describe your squad"
+              rows={4}
+              required
+            />
+          </div>
+
+          {/* Privacy Setting */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Privacy Setting
+            </label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={formData.isPublic}
+                  onChange={() => setFormData(prev => ({ ...prev, isPublic: true }))}
+                  className="form-radio text-blue-500"
+                />
+                <span className="text-sm text-gray-300">Public</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={!formData.isPublic}
+                  onChange={() => setFormData(prev => ({ ...prev, isPublic: false }))}
+                  className="form-radio text-blue-500"
+                />
+                <span className="text-sm text-gray-300">Private</span>
+              </label>
+            </div>
+          </div>
+
           {/* Submit Button */}
-          <div className="mt-6">
+          <div className="flex justify-end">
             <button
               type="submit"
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+              disabled={loading}
+              className={`px-6 py-2.5 rounded-lg text-white font-medium transition-colors flex items-center gap-2 ${
+                loading
+                  ? 'bg-blue-500/50 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600'
+              }`}
             >
-              Create Squad
+              {loading ? 'Creating...' : 'Create Squad'}
             </button>
           </div>
         </form>

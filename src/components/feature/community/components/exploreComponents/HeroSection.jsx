@@ -1,9 +1,17 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { FiUsers, FiSearch } from 'react-icons/fi'
 import iconCommunityBack from '../../../../../assets/images/community/iconCommunityBack.svg'
 
-export default function HeroSection({ searchQuery, setSearchQuery }) {
+export default function HeroSection({ onSearch }) {
+  const [localSearchQuery, setLocalSearchQuery] = useState('')
+
+  const handleSearch = (e) => {
+    const value = e.target.value
+    setLocalSearchQuery(value)
+    onSearch?.(value)
+  }
+
   return (
     <div className="relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -43,8 +51,8 @@ export default function HeroSection({ searchQuery, setSearchQuery }) {
                   <input
                     type="text"
                     placeholder="Search for learning squads..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={localSearchQuery}
+                    onChange={handleSearch}
                     className="w-full pl-12 pr-4 py-4 rounded-xl bg-gray-900/80 text-white placeholder-gray-400 border-2 border-gray-800 focus:border-blue-500 focus:outline-none focus:ring-0 transition-all"
                   />
                 </div>

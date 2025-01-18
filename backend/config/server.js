@@ -1,33 +1,29 @@
-const path = require('path')
-require('dotenv').config({ path: path.join(__dirname, '../../.env') })
-const express = require('express')
-const cors = require('cors')
-const { PrismaClient } = require('@prisma/client')
-const cookieParser = require('cookie-parser')
+const path = require('path');
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const cookieParser = require('cookie-parser');
+const { PrismaClient } = require('@prisma/client');
+const { requireAuth } = require('../routes/usersManagement/controllers/authController');
 
-// Import routes
-const authRoutes = require('../routes/usersManagement/routes/authRoutes');
+// Load environment variables with correct path
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const categoryRoutes = require('../routes/coursesManagement/routes/categoryRoutes');
-const subcategoryRoutes = require('../routes/coursesManagement/routes/subcategoryRoutes');
-const materialRoutes = require('../routes/coursesManagement/routes/materialRoutes');
-const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoolRoutes');
-const progressRoutes = require('../routes/progress/progressRoutes');
-const stageProgressRoutes = require('../routes/progress/stageProgressRoutes');
-const notificationRoutes = require('../routes/progress/routes/notificationRoutes');
-const discussionRoutes = require('../routes/coursesManagement/routes/discussionRoutes');
-const forumRoutes = require('../routes/community/forum/routes/forumRoutes');
-const creationRoutes = require('../routes/upCreation/routes/creationRoutes');
-const serviceRoutes = require('../routes/upService/routes/serviceRoutes');
-const pointController = require('../routes/points/controllers/pointController');
-// Temporarily disable payment routes until we have valid credentials
-// const paymentRoutes = require('../routes/payment/paymentRoutes');
+// Initialize Prisma
+const prisma = new PrismaClient();
 
+// Test database connection
+prisma.$connect()
+  .then(() => {
+    console.log('Database connected successfully');
+  })
+  .catch((error) => {
+    console.error('Database connection failed:', error);
+    process.exit(1);
+  });
 
-
-
-// Test Cloudinary conneaction
-const cloudinary = require('./cloudinary')
+// Test Cloudinary connection
+const cloudinary = require('./cloudinary');
 cloudinary.api.ping((error, result) => {
   if (error) {
     console.error('Cloudinary connection failed:', error);
@@ -36,19 +32,7 @@ cloudinary.api.ping((error, result) => {
   }
 });
 
-// Inisialisasi Prisma dan Express
-const prisma = new PrismaClient()
-const app = express()
-
-// Test database connection
-prisma.$connect()
-  .then(() => {
-    console.log('Database connected successfully')
-  })
-  .catch((error) => {
-    console.error('Database connection failed:', error)
-    process.exit(1)
-  })
+const app = express();
 
 // Middleware
 app.use(cors({
@@ -69,21 +53,33 @@ app.use(cors({
   exposedHeaders: ['Set-Cookie'],
   preflightContinue: false,
   optionsSuccessStatus: 204
-}))
+}));
 
 // Enable pre-flight requests for all routes
-app.options('*', cors())
+app.options('*', cors());
 
-// Parse cookies before routes
-app.use(cookieParser())
+app.use(cookieParser());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Parse JSON bodies
-app.use(express.json({ limit: '50mb' }))
-app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+// Import all routes
+const authRoutes = require('../routes/usersManagement/routes/authRoutes');
+const categoryRoutes = require('../routes/coursesManagement/routes/categoryRoutes');
+const subcategoryRoutes = require('../routes/coursesManagement/routes/subcategoryRoutes');
+const materialRoutes = require('../routes/coursesManagement/routes/materialRoutes');
+const schoolRoutes = require('../routes/usersManagement/leaderboard/school/schoolRoutes');
+const progressRoutes = require('../routes/progress/progressRoutes');
+const stageProgressRoutes = require('../routes/progress/stageProgressRoutes');
+const notificationRoutes = require('../routes/progress/routes/notificationRoutes');
+const discussionRoutes = require('../routes/coursesManagement/routes/discussionRoutes');
+const forumRoutes = require('../routes/community/forum/routes/forumRoutes');
+const creationRoutes = require('../routes/upCreation/routes/creationRoutes');
+const serviceRoutes = require('../routes/upService/routes/serviceRoutes');
+const squadRoutes = require('../routes/community/squad/squadRoutes');
+const pointController = require('../routes/points/controllers/pointController');
 
-// Routes
+// Register routes
 app.use('/api/auth', authRoutes);
-
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subcategoryRoutes);
 app.use('/api/materials', materialRoutes);
@@ -95,8 +91,7 @@ app.use('/api/discussions', discussionRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/creations', creationRoutes);
 app.use('/api/services', serviceRoutes);
-// Temporarily disable payment routes
-// app.use('/api/payment', paymentRoutes);
+app.use('/api/squads', squadRoutes);
 
 // Points routes
 app.post('/api/points', pointController.createPoint);
@@ -152,21 +147,18 @@ app.use((err, req, res, next) => {
   });
 });
 
-
-
-
 // Start server
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3000;
 prisma.$connect()
   .then(() => {
-    console.log('Database connected successfully')
+    console.log('Database connected successfully');
     app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`)
-    })
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
   })
   .catch((error) => {
-    console.error('Database connection failed:', error)
-    process.exit(1)
-  })
+    console.error('Database connection failed:', error);
+    process.exit(1);
+  });
 
-module.exports = app
+module.exports = app;

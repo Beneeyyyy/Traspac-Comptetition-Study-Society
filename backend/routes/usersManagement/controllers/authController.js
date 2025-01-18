@@ -241,64 +241,36 @@ const checkAuth = async (req, res, next) => {
 // Auth middleware for protected routes
 const requireAuth = async (req, res, next) => {
   try {
-    console.log('=== requireAuth START ===');
+    console.log('Auth Check:', {
+      headers: req.headers,
+      cookies: req.cookies
+    });
+
     const token = req.cookies.token;
-    console.log('Token exists:', !!token);
     
     if (!token) {
       console.log('No token found');
-      return res.status(401).json({ message: 'Not authenticated' });
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('Decoded token:', decoded);
-    } catch (jwtError) {
-      console.log('JWT verification failed:', jwtError.message);
-      return res.status(401).json({ 
-        message: 'Authentication failed',
-        error: jwtError.message 
-      });
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Decoded token:', decoded);
 
     const user = await prisma.user.findUnique({
-      where: { 
-        id: parseInt(decoded.userId)
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        image: true
-      }
+      where: { id: decoded.userId }
     });
-
-    console.log('Found user:', user ? {
-      id: user.id,
-      email: user.email,
-      name: user.name
-    } : 'No user found');
 
     if (!user) {
-      console.log('User not found in database');
-      return res.status(401).json({ message: 'User not found' });
+      console.log('User not found:', decoded.userId);
+      return res.status(401).json({ error: 'User not found' });
     }
 
-    // Attach user to request object
+    console.log('User authenticated:', user.id);
     req.user = user;
-    console.log('Attached user to request:', {
-      id: req.user.id,
-      email: req.user.email,
-      name: req.user.name
-    });
-    console.log('=== requireAuth END ===');
     next();
   } catch (error) {
-    console.error('=== requireAuth ERROR ===');
-    console.error('Error:', error);
-    next(error);
+    console.error('Auth Error:', error);
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
 

@@ -1,6 +1,9 @@
 import { FiUsers, FiBook, FiAward, FiStar } from 'react-icons/fi'
+import { useNavigate } from 'react-router-dom'
 
-const TopSquads = ({ topCommunities }) => {
+const TopSquads = ({ squads = [] }) => {
+  const navigate = useNavigate()
+
   const rankStyles = {
     0: {
       gradient: "bg-gradient-to-br from-black via-black to-yellow-500/10",
@@ -20,6 +23,10 @@ const TopSquads = ({ topCommunities }) => {
       border: "border-amber-600/10",
       ring: "ring-amber-600"
     }
+  }
+
+  const handleSquadClick = (squadId) => {
+    navigate(`/community/squad/${squadId}`)
   }
 
   return (
@@ -58,31 +65,32 @@ const TopSquads = ({ topCommunities }) => {
 
       {/* Top 3 Grid */}
       <div className="relative grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto pt-8">
-        {topCommunities.map((community, index) => (
+        {squads.map((squad, index) => (
           <div 
-            key={community.id} 
+            key={squad.id} 
             className={`relative ${index === 0 ? 'md:-mt-16' : ''} ${index === 2 ? 'md:mt-16' : ''}`}
+            onClick={() => handleSquadClick(squad.id)}
           >
-            <div className="group relative">
+            <div className="group relative cursor-pointer">
               <div className={`relative ${rankStyles[index].gradient} rounded-xl overflow-hidden border ${rankStyles[index].border}`}>
-                {/* Header with Community Name */}
+                {/* Header with Squad Name */}
                 <div className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className={`text-sm font-medium ${rankStyles[index].text} mb-1`}>
                         Rank #{index + 1}
                       </div>
-                      <h3 className="text-lg font-bold text-white">{community.name}</h3>
+                      <h3 className="text-lg font-bold text-white">{squad.name || 'Unnamed Squad'}</h3>
                     </div>
                   </div>
                 </div>
 
-                {/* Community Image Section */}
+                {/* Squad Image Section */}
                 <div className="px-4">
                   <div className="relative rounded-lg overflow-hidden">
                     <div className="aspect-[16/9] relative">
                       <img 
-                        src={community.banner}
+                        src={squad.banner || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=500"}
                         alt=""
                         className="w-full h-full object-cover brightness-[0.5]"
                       />
@@ -92,8 +100,8 @@ const TopSquads = ({ topCommunities }) => {
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                       <div className="w-16 h-16 rounded-full overflow-hidden">
                         <img 
-                          src={community.image}
-                          alt={community.name}
+                          src={squad.image || "https://via.placeholder.com/160"}
+                          alt={squad.name || 'Squad Image'}
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -107,19 +115,16 @@ const TopSquads = ({ topCommunities }) => {
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2 text-gray-400">
                         <FiUsers className="text-gray-400" />
-                        <span>{community.members}</span>
+                        <span>{squad.memberCount || 0}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400">
                         <FiBook className="text-gray-400" />
-                        <span>{community.topics?.length || 3} materials</span>
+                        <span>{squad._count?.materials || 0} materials</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400">
                         <FiStar className="text-gray-400" />
-                        <span>{community.xp} XP</span>
+                        <span>{squad._count?.discussions || 0} discussions</span>
                       </div>
-                    </div>
-                    <div className={`text-sm ${rankStyles[index].text}`}>
-                      {community.level}
                     </div>
                   </div>
                 </div>

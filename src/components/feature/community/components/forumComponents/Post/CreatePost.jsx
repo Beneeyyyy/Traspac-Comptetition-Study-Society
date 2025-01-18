@@ -254,8 +254,8 @@ const CreatePost = () => {
             {isExpanded && (
               <div className="flex flex-wrap items-center gap-2">
                 {tags.map(tag => (
-                  <span 
-                    key={tag} 
+                  <span
+                    key={tag}
                     className="px-3 py-1.5 rounded-lg text-sm bg-white/5 text-white/70 flex items-center gap-2 group"
                   >
                     <FiHash className="text-white/40" />

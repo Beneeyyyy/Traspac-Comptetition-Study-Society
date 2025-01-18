@@ -65,44 +65,50 @@ const OverviewSection = ({ squad }) => {
   const { squadData } = useSquad()
 
   const stats = [
-    { icon: FiUsers, label: "Total Members", value: "24 Members", color: "text-blue-400" },
-    { icon: FiBook, label: "Active Courses", value: "8 Courses", color: "text-purple-400" },
-    { icon: FiStar, label: "Completion Rate", value: "85%", color: "text-amber-400" },
-    { icon: FiCalendar, label: "Founded", value: "Jan 2024", color: "text-emerald-400" }
+    { 
+      icon: FiUsers, 
+      label: "Total Members", 
+      value: `${squadData.memberCount || 0} Members`, 
+      color: "text-blue-400" 
+    },
+    { 
+      icon: FiBook, 
+      label: "Materials", 
+      value: `${squadData._count?.materials || 0} Materials`, 
+      color: "text-purple-400" 
+    },
+    { 
+      icon: FiStar, 
+      label: "Discussions", 
+      value: `${squadData._count?.discussions || 0}`, 
+      color: "text-amber-400" 
+    },
+    { 
+      icon: FiCalendar, 
+      label: "Created", 
+      value: squadData.createdAt ? new Date(squadData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '-', 
+      color: "text-emerald-400" 
+    }
   ]
 
   return (
     <div className="space-y-6">
-      {/* Progress Circles */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Progress Circles - Hide for now since we don't have real data */}
+      {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-[#0A0A0A] rounded-xl p-6 flex flex-col items-center">
           <CircularProgress 
-            percentage={85} 
+            percentage={squadData.progress || 0} 
             label="Course Progress"
-            sublabel="15/20 Completed"
+            sublabel={`${squadData.completedMaterials || 0}/${squadData.totalMaterials || 0} Completed`}
           />
         </div>
-        <div className="bg-[#0A0A0A] rounded-xl p-6 flex flex-col items-center">
-          <CircularProgress 
-            percentage={75} 
-            label="Weekly Target"
-            sublabel="6/8 Hours"
-          />
-        </div>
-        <div className="bg-[#0A0A0A] rounded-xl p-6 flex flex-col items-center">
-          <CircularProgress 
-            percentage={90} 
-            label="Attendance"
-            sublabel="27/30 Days"
-          />
-        </div>
-      </div>
+      </div> */}
 
       {/* About Squad */}
       <div className="bg-[#0A0A0A] rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-4">About Squad</h2>
         <p className="text-gray-400">
-          {squadData.about || "No description available."}
+          {squadData.description || "No description available."}
         </p>
       </div>
 
@@ -113,8 +119,8 @@ const OverviewSection = ({ squad }) => {
         ))}
       </div>
 
-      {/* Squad Rules */}
-      <div className="bg-[#0A0A0A] rounded-xl p-6">
+      {/* Squad Rules - Hide for now since we don't have real data */}
+      {/* <div className="bg-[#0A0A0A] rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-4">Squad Rules</h2>
         {squadData.rules && squadData.rules.length > 0 ? (
           <ul className="space-y-3 text-gray-400">
@@ -125,27 +131,25 @@ const OverviewSection = ({ squad }) => {
         ) : (
           <p className="text-gray-400">No rules have been set.</p>
         )}
-      </div>
+      </div> */}
 
       {/* Squad Leaders */}
       <div className="bg-[#0A0A0A] rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-4">Squad Leaders</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {squadData.leaders && squadData.leaders.length > 0 ? (
-            squadData.leaders.map((leader, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <img
-                  src={leader.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(leader.name)}&background=6366F1&color=fff`}
-                  alt={leader.name}
-                  className="w-12 h-12 rounded-lg object-cover"
-                />
-                <div>
-                  <h3 className="font-medium text-white">{leader.name}</h3>
-                  <p className="text-sm text-gray-400">{leader.role}</p>
-                </div>
+          {squadData.members?.filter(member => member.role === 'admin').map((leader, index) => (
+            <div key={index} className="flex items-center gap-4">
+              <img
+                src={leader.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(leader.user.name)}&background=6366F1&color=fff`}
+                alt={leader.user.name}
+                className="w-12 h-12 rounded-lg object-cover"
+              />
+              <div>
+                <h3 className="font-medium text-white">{leader.user.name}</h3>
+                <p className="text-sm text-gray-400">{leader.role}</p>
               </div>
-            ))
-          ) : (
+            </div>
+          )) || (
             <p className="text-gray-400">No leaders assigned.</p>
           )}
         </div>

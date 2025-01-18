@@ -10,6 +10,9 @@ const Login = lazy(() => import('../components/feature/auth/Login').then(module 
 const Signup = lazy(() => import('../components/feature/auth/Signup'));
 const LandingPage = lazy(() => import('../components/feature/LandingPage/LandingPage'));
 const CommunityPage = lazy(() => import('../components/feature/community/CommunityPage'));
+const ExploreSection = lazy(() => import('../components/feature/community/components/exploreComponents/ExploreSection'));
+const MySquads = lazy(() => import('../components/feature/community/components/mySquads/MySquads'));
+const SquadDetail = lazy(() => import('../components/feature/community/components/squadDetail/SquadDetail'));
 const Courses = lazy(() => import('../components/feature/courses/Courses'));
 const SubCategoryPage = lazy(() => import('../components/feature/courses/subcategory/SubCategory'));
 const MaterialsPage = lazy(() => import('../components/feature/courses/materials/MaterialsPage'));
@@ -53,7 +56,11 @@ const AppRoutes = () => {
           </Route>
           
           {/* Community Routes */}
-          <Route path="community/*" element={<CommunityPage />} />
+          <Route path="community" element={<CommunityPage />}>
+            <Route index element={<ExploreSection />} />
+            <Route path="my-squads" element={<MySquads />} />
+            <Route path="squad/:id" element={<SquadDetail />} />
+          </Route>
         </Route>
       </Routes>
     </Suspense>

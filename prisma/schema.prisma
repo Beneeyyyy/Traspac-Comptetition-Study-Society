@@ -60,17 +60,20 @@ model Material {
   xp_reward     Int         @default(0)
   estimated_time Int        @default(30)
   glossary      Json?       // Array of {term: string, definition: string}
-  subcategoryId Int
+  subcategoryId Int?       // Optional untuk squad materials
+  squadId      Int?       // Optional untuk regular materials
+  type          String     @default("regular")
   is_published  Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   
   // Relations
-  subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id])
   stages        Stage[]
   points        Point[]
   progress      MaterialProgress[]
   discussions   Discussion[]
+  squad         Squad?     @relation(fields: [squadId], references: [id])
 }
 
 model Stage {
@@ -150,6 +153,11 @@ model User {
   providedServices Service[]
   serviceBookings  ServiceBooking[]
   serviceReviews   ServiceReview[]
+
+  // Squad relations
+  squadMembers    SquadMember[]
+  squadDiscussions SquadDiscussion[]
+  discussionReplies SquadDiscussionReply[]
 }
 
 model Point {
@@ -502,5 +510,65 @@ model ServiceReview {
   comment     String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model Squad {
+  id            Int       @id @default(autoincrement())
+  name          String
+  description   String
+  image         String?
+  banner        String?
+  isPublic      Boolean   @default(true)
+  memberCount   Int       @default(1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  members       SquadMember[]
+  materials     Material[]
+  discussions   SquadDiscussion[]
+}
+
+model SquadMember {
+  id        Int      @id @default(autoincrement())
+  squadId   Int
+  userId    Int
+  role      String   @default("member") // admin, moderator, member
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  squad     Squad    @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([squadId, userId])
+}
+
+model SquadDiscussion {
+  id        Int      @id @default(autoincrement())
+  squadId   Int
+  userId    Int
+  title     String
+  content   String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  squad     Squad    @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+  replies   SquadDiscussionReply[]
+}
+
+model SquadDiscussionReply {
+  id            Int      @id @default(autoincrement())
+  discussionId  Int
+  userId        Int
+  content       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  discussion    SquadDiscussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id])
 }
 

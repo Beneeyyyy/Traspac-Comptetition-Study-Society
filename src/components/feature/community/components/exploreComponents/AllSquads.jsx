@@ -1,76 +1,112 @@
-import React from 'react'
-import { motion } from 'framer-motion'
-import { FiPlus } from 'react-icons/fi'
+import React, { useState } from 'react'
+import { FiGrid, FiList, FiChevronDown } from 'react-icons/fi'
+import { useNavigate } from 'react-router-dom'
 import SquadCard from './SquadCard'
 import CreateSquadModal from './CreateSquadModal'
 
-const AllSquads = ({ studyGroups, selectedSort, setSelectedSort, sortOptions, onCreateSquad }) => {
-  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false)
-
-  const handleCreateSquad = (squadData) => {
-    onCreateSquad(squadData)
-    setIsCreateModalOpen(false)
-  }
-
-  const handleOpenModal = () => {
-    setIsCreateModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setIsCreateModalOpen(false)
-  }
+const AllSquads = ({ studyGroups = [], onCreateSquad }) => {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [viewMode, setViewMode] = useState('grid')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const navigate = useNavigate()
 
   return (
-    <div className="w-full px-4 md:px-8 lg:px-16 mt-16">
-      <div className="flex flex-col gap-8">
-        <div className="flex items-center justify-between">
-          <div className="border-b border-gray-800 flex-1">
-            <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
-              {sortOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => setSelectedSort(option.id)}
-                  className={`py-4 px-2 text-sm font-medium whitespace-nowrap transition-all relative
-                    ${selectedSort === option.id 
-                      ? 'text-blue-500' 
-                      : 'text-gray-400 hover:text-gray-300'
-                    }`}
-                >
-                  {option.label}
-                  {selectedSort === option.id && (
-                    <motion.div 
-                      layoutId="activeTab"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
+    <div className="space-y-6">
+      {/* View Toggle, Dropdown & Create Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* View Mode Toggles */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <FiGrid />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'list' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <FiList />
+            </button>
           </div>
-          
-          <button
-            onClick={handleOpenModal}
-            className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            <FiPlus size={16} />
-            <span>Create Squad</span>
-          </button>
+
+          {/* Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Explore
+              <FiChevronDown className={`transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-gray-900 border border-gray-800 rounded-xl shadow-xl z-50">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      navigate('/community')
+                      setIsDropdownOpen(false)
+                    }}
+                    className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-800 transition-colors"
+                  >
+                    All Squads
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/community/my-squads')
+                      setIsDropdownOpen(false)
+                    }}
+                    className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-800 transition-colors"
+                  >
+                    My Squads
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {studyGroups.map((group) => (
-            <SquadCard key={group.id} group={group} />
-          ))}
-        </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          Create Squad
+        </button>
       </div>
 
-      {isCreateModalOpen && (
-        <CreateSquadModal 
-          isOpen={isCreateModalOpen}
-          onClose={handleCloseModal}
-          onSubmit={handleCreateSquad}
-        />
+      {/* Squads Grid/List */}
+      {studyGroups && studyGroups.length > 0 ? (
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+          {studyGroups.map((squad) => (
+            <SquadCard 
+              key={squad.id} 
+              squad={squad} 
+              layout={viewMode}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-gray-400">No squads found</p>
+        </div>
       )}
+
+      {/* Create Squad Modal */}
+      <CreateSquadModal 
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSquadCreated={(newSquad) => {
+          onCreateSquad(newSquad)
+          setIsCreateModalOpen(false)
+        }}
+      />
     </div>
   )
 }
