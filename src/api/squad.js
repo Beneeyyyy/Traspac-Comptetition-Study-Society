@@ -53,6 +53,16 @@ export const getSquadMaterials = async (squadId) => {
   return response.data;
 };
 
+export const updateSquadMaterial = async (squadId, materialId, data) => {
+  const response = await axios.put(`/squads/${squadId}/materials/${materialId}`, data);
+  return response.data;
+};
+
+export const deleteSquadMaterial = async (squadId, materialId) => {
+  const response = await axios.delete(`/squads/${squadId}/materials/${materialId}`);
+  return response.data;
+};
+
 // Squad Discussions
 export const createDiscussion = async (squadId, data) => {
   const response = await axios.post(`/squads/${squadId}/discussions`, data);
@@ -61,6 +71,16 @@ export const createDiscussion = async (squadId, data) => {
 
 export const getDiscussions = async (squadId) => {
   const response = await axios.get(`/squads/${squadId}/discussions`);
+  return response.data;
+};
+
+export const updateDiscussion = async (squadId, discussionId, data) => {
+  const response = await axios.put(`/squads/${squadId}/discussions/${discussionId}`, data);
+  return response.data;
+};
+
+export const deleteDiscussion = async (squadId, discussionId) => {
+  const response = await axios.delete(`/squads/${squadId}/discussions/${discussionId}`);
   return response.data;
 };
 

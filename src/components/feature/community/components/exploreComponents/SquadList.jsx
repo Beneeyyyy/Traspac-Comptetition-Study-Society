@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { FiSearch, FiFilter, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import AllSquads from './AllSquads';
+import { getSquads } from '../../../../../api/squad';
 
 const SquadList = () => {
   const navigate = useNavigate();
@@ -27,18 +25,14 @@ const SquadList = () => {
   const fetchSquads = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
-      if (filter !== 'all') params.append('isPublic', filter === 'public');
-      params.append('sort', selectedSort);
+      const params = {};
+      if (searchQuery) params.search = searchQuery;
+      if (filter === 'my-squads') params.isMember = true;
+      else if (filter !== 'all') params.isPublic = filter === 'public';
+      params.sort = selectedSort;
 
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/squads?${params.toString()}`,
-        { withCredentials: true }
-      );
-      
-      console.log('Fetched squads:', response.data);
-      setSquads(response.data);
+      const response = await getSquads(params);
+      setSquads(response);
       setError(null);
     } catch (err) {
       console.error('Error fetching squads:', err);
@@ -49,93 +43,101 @@ const SquadList = () => {
     }
   };
 
-  const handleCreateSquad = async (formData) => {
-    try {
-      setLoading(true);
-      
-      console.log('Creating squad with data:', {
-        name: formData.name,
-        description: formData.description,
-        isPublic: formData.isPublic,
-        hasImage: !!formData.image,
-        hasBanner: !!formData.banner
-      });
-
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/squads`,
-        formData,
-        {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      console.log('Squad created:', response.data);
-      
-      // Add new squad to list
-      setSquads(prev => [response.data, ...prev]);
-      
-      toast.success('Squad created successfully!');
-    } catch (error) {
-      console.error('Error creating squad:', error);
-      toast.error(error.response?.data?.error || 'Failed to create squad');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search squads..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-black/20 border border-gray-800 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-          />
+      {/* Filters */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="px-4 py-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-lg text-white/90 transition-colors"
+          >
+            <option value="all">All Squads</option>
+            <option value="my-squads">My Squads</option>
+            <option value="public">Public Squads</option>
+            <option value="private">Private Squads</option>
+          </select>
+
+          <select
+            value={selectedSort}
+            onChange={(e) => setSelectedSort(e.target.value)}
+            className="px-4 py-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-lg text-white/90 transition-colors"
+          >
+            {sortOptions.map(option => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2 bg-black/20 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-blue-500"
-        >
-          <option value="all">All Squads</option>
-          <option value="public">Public Squads</option>
-          <option value="private">Private Squads</option>
-        </select>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search squads..."
+          className="px-4 py-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-lg text-white/90 placeholder:text-white/40 transition-colors w-64"
+        />
       </div>
 
       {/* Loading State */}
       {loading && (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading squads...</p>
+        <div className="flex items-center justify-center min-h-[200px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         </div>
       )}
 
       {/* Error State */}
-      {error && (
-        <div className="text-center py-8 text-red-500">
-          <p>{error}</p>
+      {error && !loading && (
+        <div className="text-center py-12">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={fetchSquads}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       )}
 
-      {/* Squad List */}
-      {!loading && !error && (
-        <AllSquads
-          studyGroups={squads}
-          selectedSort={selectedSort}
-          setSelectedSort={setSelectedSort}
-          sortOptions={sortOptions}
-          onCreateSquad={handleCreateSquad}
-        />
+      {/* Empty State */}
+      {!loading && !error && squads.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-400">No squads found</p>
+        </div>
+      )}
+
+      {/* Squads List */}
+      {!loading && !error && squads.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {squads.map((squad) => (
+            <div
+              key={squad.id}
+              onClick={() => navigate(`/community/squad/${squad.id}`)}
+              className="bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 rounded-xl overflow-hidden cursor-pointer transition-all"
+            >
+              <div className="relative h-40">
+                <img
+                  src={squad.banner || '/default-banner.jpg'}
+                  alt={squad.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              </div>
+
+              <div className="p-6">
+                <h3 className="text-xl font-semibold text-white mb-2">{squad.name}</h3>
+                <p className="text-white/60 text-sm mb-4 line-clamp-2">{squad.description}</p>
+
+                <div className="flex items-center justify-between text-sm text-white/40">
+                  <div>{squad.memberCount} members</div>
+                  <div>{squad.materialsCount} materials</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

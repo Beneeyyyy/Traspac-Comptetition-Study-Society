@@ -1,111 +1,28 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Create discussion
-const createDiscussion = async (req, res) => {
-  try {
-    const { squadId } = req.params;
-    const { title, content } = req.body;
-    const userId = req.user.id;
-
-    const discussion = await prisma.squadDiscussion.create({
-      data: {
-        title,
-        content,
-        squadId: parseInt(squadId),
-        userId
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true
-          }
-        },
-        replies: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    res.json(discussion);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Get all discussions
+// Get squad discussions
 const getDiscussions = async (req, res) => {
   try {
-    const { squadId } = req.params;
-    const { search, sort = 'newest' } = req.query;
-
-    const where = {
-      squadId: parseInt(squadId)
-    };
-
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { content: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-
-    let orderBy = {};
-    switch (sort) {
-      case 'oldest':
-        orderBy = { createdAt: 'asc' };
-        break;
-      case 'mostReplies':
-        orderBy = { replies: { _count: 'desc' } };
-        break;
-      default: // newest
-        orderBy = { createdAt: 'desc' };
-    }
-
-    const discussions = await prisma.squadDiscussion.findMany({
-      where,
-      orderBy,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true
-          }
-        },
-        _count: {
-          select: {
-            replies: true
-          }
-        }
-      }
+    console.log('\n=== GET DISCUSSIONS START ===');
+    const squadId = parseInt(req.params.id);
+    console.log('Squad ID:', squadId);
+    
+    // First check if squad exists
+    const squad = await prisma.squad.findUnique({
+      where: { id: squadId }
     });
 
-    res.json(discussions);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+    if (!squad) {
+      console.log('Squad not found');
+      return res.status(404).json({ error: 'Squad not found' });
+    }
 
-// Get specific discussion
-const getDiscussion = async (req, res) => {
-  try {
-    const { squadId, discussionId } = req.params;
+    console.log('Found squad:', squad.name);
 
-    const discussion = await prisma.squadDiscussion.findFirst({
-      where: {
-        id: parseInt(discussionId),
-        squadId: parseInt(squadId)
+    const discussions = await prisma.squadDiscussion.findMany({
+      where: { 
+        squadId
       },
       include: {
         user: {
@@ -129,33 +46,61 @@ const getDiscussion = async (req, res) => {
             createdAt: 'asc'
           }
         }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
 
-    if (!discussion) {
-      return res.status(404).json({ error: 'Discussion not found' });
-    }
+    console.log(`Found ${discussions.length} discussions`);
 
-    res.json(discussion);
+    // Transform data
+    const transformedDiscussions = discussions.map(discussion => ({
+      id: discussion.id,
+      title: discussion.title,
+      content: discussion.content,
+      createdAt: discussion.createdAt,
+      updatedAt: discussion.updatedAt,
+      user: discussion.user,
+      replies: discussion.replies,
+      replyCount: discussion.replies.length,
+      isPinned: discussion.isPinned
+    }));
+
+    console.log('=== GET DISCUSSIONS END ===\n');
+    res.json(transformedDiscussions);
   } catch (error) {
+    console.error('\n=== GET DISCUSSIONS ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    if (error.code) console.error('Error code:', error.code);
+    if (error.meta) console.error('Error meta:', error.meta);
+    console.error('Stack:', error.stack);
+    console.error('=== END ERROR ===\n');
     res.status(500).json({ error: error.message });
   }
 };
 
-// Update discussion
-const updateDiscussion = async (req, res) => {
+// Create discussion
+const createDiscussion = async (req, res) => {
   try {
-    const { squadId, discussionId } = req.params;
+    console.log('\n=== CREATE DISCUSSION START ===');
+    const squadId = parseInt(req.params.id);
     const { title, content } = req.body;
+    const userId = req.user.id;
 
-    const discussion = await prisma.squadDiscussion.update({
-      where: {
-        id: parseInt(discussionId),
-        squadId: parseInt(squadId)
-      },
+    console.log('Creating discussion:', { squadId, userId, title });
+
+    const discussion = await prisma.squadDiscussion.create({
       data: {
         title,
-        content
+        content,
+        squad: {
+          connect: { id: squadId }
+        },
+        user: {
+          connect: { id: userId }
+        }
       },
       include: {
         user: {
@@ -164,57 +109,62 @@ const updateDiscussion = async (req, res) => {
             name: true,
             image: true
           }
-        },
-        replies: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true
-              }
-            }
-          }
         }
       }
     });
 
-    res.json(discussion);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+    console.log('Discussion created:', discussion.id);
+    console.log('=== CREATE DISCUSSION END ===\n');
 
-// Delete discussion
-const deleteDiscussion = async (req, res) => {
-  try {
-    const { squadId, discussionId } = req.params;
-
-    await prisma.squadDiscussion.delete({
-      where: {
-        id: parseInt(discussionId),
-        squadId: parseInt(squadId)
-      }
+    res.json({
+      ...discussion,
+      replies: [],
+      replyCount: 0
     });
-
-    res.json({ message: 'Discussion deleted successfully' });
   } catch (error) {
+    console.error('\n=== CREATE DISCUSSION ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    if (error.code) console.error('Error code:', error.code);
+    if (error.meta) console.error('Error meta:', error.meta);
+    console.error('Stack:', error.stack);
+    console.error('=== END ERROR ===\n');
     res.status(500).json({ error: error.message });
   }
 };
 
 // Add reply to discussion
-const addReply = async (req, res) => {
+const addDiscussionReply = async (req, res) => {
   try {
-    const { squadId, discussionId } = req.params;
+    console.log('\n=== ADD DISCUSSION REPLY START ===');
+    const { id: squadId, discussionId } = req.params;
     const { content } = req.body;
     const userId = req.user.id;
+
+    console.log('Adding reply:', { squadId, discussionId, userId });
+
+    // First verify the discussion belongs to the squad
+    const discussion = await prisma.squadDiscussion.findFirst({
+      where: {
+        id: parseInt(discussionId),
+        squadId: parseInt(squadId)
+      }
+    });
+
+    if (!discussion) {
+      console.log('Discussion not found');
+      return res.status(404).json({ error: 'Discussion not found' });
+    }
 
     const reply = await prisma.squadDiscussionReply.create({
       data: {
         content,
-        discussionId: parseInt(discussionId),
-        userId
+        discussion: {
+          connect: { id: parseInt(discussionId) }
+        },
+        user: {
+          connect: { id: userId }
+        }
       },
       include: {
         user: {
@@ -227,36 +177,24 @@ const addReply = async (req, res) => {
       }
     });
 
+    console.log('Reply created:', reply.id);
+    console.log('=== ADD DISCUSSION REPLY END ===\n');
+
     res.json(reply);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Delete reply
-const deleteReply = async (req, res) => {
-  try {
-    const { squadId, discussionId, replyId } = req.params;
-
-    await prisma.squadDiscussionReply.delete({
-      where: {
-        id: parseInt(replyId),
-        discussionId: parseInt(discussionId)
-      }
-    });
-
-    res.json({ message: 'Reply deleted successfully' });
-  } catch (error) {
+    console.error('\n=== ADD DISCUSSION REPLY ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    if (error.code) console.error('Error code:', error.code);
+    if (error.meta) console.error('Error meta:', error.meta);
+    console.error('Stack:', error.stack);
+    console.error('=== END ERROR ===\n');
     res.status(500).json({ error: error.message });
   }
 };
 
 module.exports = {
-  createDiscussion,
   getDiscussions,
-  getDiscussion,
-  updateDiscussion,
-  deleteDiscussion,
-  addReply,
-  deleteReply
+  createDiscussion,
+  addDiscussionReply
 }; 

@@ -1,24 +1,54 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../../../routes/usersManagement/controllers/authController');
-const { createSquad, getSquads, getSquadById, joinSquad } = require('./squadController');
+const { authenticateToken } = require('../../../middleware/auth');
+const { canViewSquad, isSquadMember, isSquadAdmin } = require('./squadMiddleware');
 
-// Middleware to log requests
-router.use('/', (req, res, next) => {
-  console.log(`Squad Route: ${req.method} ${req.path}`);
-  console.log('Body:', req.body);
-  console.log('Files:', req.files);
-  console.log('User:', req.user);
-  next();
-});
+// Detailed debugging for controller import
+try {
+  const squadController = require('./squadController');
+  console.log('Loading squadRoutes.js...');
+  console.log('squadController type:', typeof squadController);
+  console.log('squadController keys:', Object.keys(squadController));
+  console.log('getSquads type:', typeof squadController.getSquads);
+  
+  // Squad routes
+  router.get('/', authenticateToken, (req, res, next) => {
+    console.log('Executing getSquads...');
+    return squadController.getSquads(req, res, next);
+  });
+  
+  router.get('/:id', authenticateToken, canViewSquad, (req, res, next) => {
+    return squadController.getSquadById(req, res, next);
+  });
+  
+  router.post('/', authenticateToken, (req, res, next) => {
+    return squadController.createSquad(req, res, next);
+  });
+  
+  router.put('/:id', authenticateToken, isSquadAdmin, (req, res, next) => {
+    return squadController.updateSquad(req, res, next);
+  });
+  
+  router.delete('/:id', authenticateToken, isSquadAdmin, (req, res, next) => {
+    return squadController.deleteSquad(req, res, next);
+  });
+  
+  // Member routes
+  router.post('/:id/join', authenticateToken, (req, res, next) => {
+    return squadController.joinSquad(req, res, next);
+  });
+  
+  router.post('/:id/leave', authenticateToken, isSquadMember, (req, res, next) => {
+    return squadController.leaveSquad(req, res, next);
+  });
+  
+  router.put('/:id/member/:memberId/role', authenticateToken, isSquadAdmin, (req, res, next) => {
+    return squadController.updateMemberRole(req, res, next);
+  });
 
-// Apply auth middleware to all routes
-router.use('/', requireAuth);
+} catch (error) {
+  console.error('Error loading squadController:', error);
+}
 
-// Public routes (still need auth but no squad membership required)
-router.get('/', getSquads);
-router.post('/', createSquad);
-router.get('/:id', getSquadById);
-router.post('/:id/join', joinSquad);
-
+console.log('Squad routes initialized');
 module.exports = router; 

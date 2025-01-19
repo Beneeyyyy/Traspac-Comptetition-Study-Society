@@ -1,0 +1,73 @@
+model Discussion {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String   @db.Text
+  type        String   @default("squad")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  squad       Squad?   @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  squadId     Int?
+  replies     Reply[]
+
+  @@index([userId])
+  @@index([squadId])
+}
+
+model Reply {
+  id           Int        @id @default(autoincrement())
+  content      String     @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       Int
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  discussionId Int
+
+  @@index([userId])
+  @@index([discussionId])
+}
+
+model Squad {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String   @db.Text
+  image       String?
+  banner      String?
+  isPublic    Boolean  @default(true)
+  memberCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members     SquadMember[]
+  materials   Material[]
+  discussions Discussion[]
+
+  @@index([isPublic])
+}
+
+model Material {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String    @db.Text
+  type        String    @default("squad")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById Int
+  squad       Squad?    @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  squadId     Int?
+  stages      Stage[]
+  progress    Progress[]
+
+  @@index([createdById])
+  @@index([squadId])
+} 
