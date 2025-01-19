@@ -53,6 +53,7 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
 
           // Determine stage status
           const isCompleted = completedStages?.has(index) || stageProgressData.progress === 100;
+          const progressValue = isCompleted ? 100 : Math.min(stageProgressData.progress, 100);
           const isActive = index === activeSection;
           const allPreviousCompleted = areAllPreviousStagesCompleted(index);
           const isLocked = !isCompleted && !isActive && !allPreviousCompleted;
@@ -74,7 +75,7 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
               onClick={() => !isLocked && onSectionChange(index)}
               disabled={isLocked}
               className={`
-                w-full p-3 rounded-xl border transition-all duration-200
+                w-full p-3 rounded-xl border transition-[background,border-color] duration-200
                 ${isActive 
                   ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-white/10' 
                   : isLocked
@@ -126,11 +127,20 @@ export function SectionsList({ material, activeSection, onSectionChange, materia
                   </h3>
                   {/* Progress Bar */}
                   {!isLocked && (
-                    <div className="mt-2 w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
-                        style={{ width: `${stageProgressData.progress}%` }}
-                      />
+                    <div className="mt-2 w-full">
+                      <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full"
+                          style={{ 
+                            width: `${progressValue}%`,
+                            background: isCompleted 
+                              ? 'linear-gradient(to right, rgb(34 197 94), rgb(59 130 246))' 
+                              : 'linear-gradient(to right, rgb(59 130 246), rgb(168 85 247))',
+                            transition: 'width 300ms ease-out',
+                            maxWidth: '100%'
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                   {/* Contents List */}

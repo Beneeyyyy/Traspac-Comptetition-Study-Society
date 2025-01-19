@@ -3,7 +3,7 @@ const ProgressCard = ({ activeSection, totalSections }) => {
 
   return (
     <div 
-      className="bg-gradient-to-br pt-10 from-blue-500/10 to-purple-500/10 border border-white/[0.05] rounded-xl p-4 mb-4"
+      className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-white/[0.05] rounded-xl p-4 mb-4"
     >
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-white/80">Progress</span>

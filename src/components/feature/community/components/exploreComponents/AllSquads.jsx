@@ -13,6 +13,7 @@ const AllSquads = ({ studyGroups = [], onCreateSquad }) => {
   const [squads, setSquads] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // 'all' or 'my-squads'
+  const [error, setError] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -32,6 +33,24 @@ const AllSquads = ({ studyGroups = [], onCreateSquad }) => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSquadCreated = (newSquad) => {
+    // Add new squad to list
+    setSquads(prevSquads => [newSquad, ...prevSquads])
+    // Close modal
+    setIsCreateModalOpen(false)
+    // Refresh squad list to get latest data
+    fetchSquads()
+  }
+
+  // Handle squad update (after join/leave)
+  const handleSquadUpdate = (updatedSquad) => {
+    setSquads(prevSquads => 
+      prevSquads.map(squad => 
+        squad.id === updatedSquad.id ? updatedSquad : squad
+      )
+    )
   }
 
   return (
@@ -138,13 +157,14 @@ const AllSquads = ({ studyGroups = [], onCreateSquad }) => {
       )}
 
       {/* Squads Grid/List */}
-      {!loading && squads.length > 0 && (
+      {!loading && !error && squads.length > 0 && (
         <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
           {squads.map((squad) => (
             <SquadCard 
               key={squad.id} 
               squad={squad} 
               layout={viewMode}
+              onUpdate={handleSquadUpdate}
             />
           ))}
         </div>
@@ -154,10 +174,7 @@ const AllSquads = ({ studyGroups = [], onCreateSquad }) => {
       <CreateSquadModal 
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSquadCreated={(newSquad) => {
-          onCreateSquad(newSquad)
-          setIsCreateModalOpen(false)
-        }}
+        onSquadCreated={handleSquadCreated}
       />
     </div>
   )

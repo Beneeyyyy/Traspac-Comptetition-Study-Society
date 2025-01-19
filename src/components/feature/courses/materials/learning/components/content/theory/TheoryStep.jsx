@@ -1,10 +1,11 @@
 import { useState, Suspense, useEffect, useRef, lazy, useCallback, useLayoutEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { FiArrowLeft, FiMenu, FiAward, FiStar } from 'react-icons/fi';
 import { RiBookLine, RiLightbulbLine } from 'react-icons/ri';
 import { useAuth } from '../../../../../../../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import iconCourse2 from '../../../../../../../../assets/images/courses/iconCourse2.svg';
+import { toast } from 'react-hot-toast';
 
 
 // Lazy load components
@@ -143,9 +144,13 @@ const CompletionModal = ({ show, onClose, earnedPoints, material }) => {
 const TheoryStep = ({ material }) => {
   const [searchParams] = useSearchParams();
   const initialStage = parseInt(searchParams.get('stage')) || 0;
-  
   const [activeSection, setActiveSection] = useState(initialStage);
   const [activeContentIndex, setActiveContentIndex] = useState(0);
+
+  console.log('TheoryStep Material:', material);
+  console.log('TheoryStep Stages:', material?.stages);
+  console.log('Current Stage:', material?.stages?.[activeSection]);
+
   const [showLeftSidebar, setShowLeftSidebar] = useState(false);
   const [showNav, setShowNav] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -166,11 +171,23 @@ const TheoryStep = ({ material }) => {
   const navigate = useNavigate();
   const { categoryId, subcategoryId } = useParams();
   const { user } = useAuth();
+  const location = useLocation();
+  const isSquadMaterial = location.pathname.includes('/squads/');
+  const { squadId } = useParams();
 
-  const currentStage = material?.stages?.[activeSection];
-  const sortedContents = Array.isArray(currentStage?.contents) 
-    ? currentStage.contents.sort((a, b) => a.order - b.order) 
+  const currentStage = material?.stages?.[activeSection] || null;
+  const sortedContents = currentStage?.contents ? 
+    (Array.isArray(currentStage.contents) ? currentStage.contents.sort((a, b) => a.order - b.order) : [])
     : [];
+
+  // Early return if no material or stages
+  if (!material || !material.stages || material.stages.length === 0) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-white/60">No content available for this material.</p>
+      </div>
+    );
+  }
 
   // Initialize material data
   useEffect(() => {
@@ -222,14 +239,32 @@ const TheoryStep = ({ material }) => {
 
       try {
         console.log('🔄 Loading progress for material:', material.id);
-        const response = await fetch(`http://localhost:3000/api/progress/material/${user.id}/${material.id}`);
+        
+        // Determine if this is a squad material
+        const isSquadMaterial = window.location.pathname.includes('/squads/');
+        const squadId = isSquadMaterial ? window.location.pathname.split('/')[2] : null;
+        
+        // Use appropriate endpoint
+        const progressEndpoint = isSquadMaterial
+          ? `http://localhost:3000/api/squads/${squadId}/stage-progress/material/${user.id}/${material.id}/complete`
+          : `http://localhost:3000/api/progress/material/${user.id}/${material.id}`;
+
+        const response = await fetch(progressEndpoint, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
         if (!response.ok) {
           throw new Error('Failed to load progress');
         }
+        
         const data = await response.json();
         
         if (data.success && data.data) {
-          console.log('✅ Progress data:', data.data);
+          console.log('✅ Progress data loaded:', data.data);
           
           // Update material progress
           setMaterialProgress(data.data);
@@ -242,28 +277,22 @@ const TheoryStep = ({ material }) => {
               
             setStageProgress(parsedProgress);
             
-            // Update completed stages
-            const completed = new Set(
-              Array.isArray(data.data.completedStages)
-                ? data.data.completedStages
-                : Object.entries(parsedProgress)
-                    .filter(([_, progress]) => progress.progress === 100)
-                    .map(([index]) => parseInt(index))
-            );
-            setCompletedStages(completed);
-            
-            console.log('📊 Restored progress:', {
-              stageProgress: parsedProgress,
-              completedStages: Array.from(completed)
-            });
+            // Update completed stages from server data
+            if (data.data.completedStages && Array.isArray(data.data.completedStages)) {
+              const completed = new Set(data.data.completedStages);
+              setCompletedStages(completed);
+              
+              console.log('📊 Restored completed stages:', Array.from(completed));
+            }
           }
           
-          // Restore position
-          if (data.data.activeSection !== undefined) {
-            setActiveSection(data.data.activeSection);
-          }
-          if (data.data.activeContentIndex !== undefined) {
-            setActiveContentIndex(data.data.activeContentIndex);
+          // Restore position if specified in URL, otherwise use saved position
+          const urlParams = new URLSearchParams(window.location.search);
+          const stageParam = urlParams.get('stage');
+          if (stageParam !== null) {
+            setActiveSection(parseInt(stageParam));
+          } else if (data.data.activeStage !== undefined) {
+            setActiveSection(data.data.activeStage);
           }
         }
       } catch (error) {
@@ -323,45 +352,63 @@ const TheoryStep = ({ material }) => {
     if (!user?.id || !material?.id) return;
 
     try {
-    // Ensure we have valid objects for new users
-    const currentStageProgress = stageProgress[activeSection] || { progress: 0, contents: {} };
-    const currentContents = currentStageProgress.contents || {};
+      // Ensure we have valid objects for new users
+      const currentStageProgress = stageProgress[activeSection] || { progress: 0, contents: {} };
+      const currentContents = currentStageProgress.contents || {};
 
-    // Update stage progress
-    const newStageProgress = {
-      ...stageProgress,
-      [activeSection]: {
+      // Update stage progress
+      const newStageProgress = {
+        ...stageProgress,
+        [activeSection]: {
+          progress,
+          contents: {
+            ...currentContents,
+            [activeContentIndex]: progress
+          }
+        }
+      };
+
+      console.log('📈 Progress update:', {
+        stage: activeSection,
+        content: activeContentIndex,
         progress,
-        contents: {
-          ...currentContents,
-          [activeContentIndex]: progress
-        }
-      }
-    };
+        stageProgress: newStageProgress
+      });
 
-    console.log('📈 Progress update:', {
-      stage: activeSection,
-      content: activeContentIndex,
-      progress,
-      stageProgress: newStageProgress
-    });
+      // Determine if this is a squad material based on URL and material type
+      const isSquadMaterial = material.type === 'squad' || window.location.pathname.includes('/squads/');
+      const squadId = isSquadMaterial ? window.location.pathname.split('/')[2] : null;
 
-    // Save progress to backend
-      const response = await fetch(
-        `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`,
-        {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        stageIndex: activeSection,
-        contentIndex: activeContentIndex,
-        contentProgress: progress,
-        completedStages: Array.from(completedStages)
-      })
-        }
-      );
+      // Use the appropriate endpoint based on material type
+      const progressEndpoint = isSquadMaterial
+        ? `http://localhost:3000/api/squads/${squadId}/stage-progress/material/${user.id}/${material.id}/complete`
+        : `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`;
+
+      console.log('🔄 Using endpoint:', progressEndpoint);
+
+      const response = await fetch(progressEndpoint, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          stageIndex: activeSection,
+          contentIndex: activeContentIndex,
+          contentProgress: progress,
+          completedStages: Array.from(completedStages),
+          isStageCompleted: progress === 100
+        })
+      });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // Redirect to login if unauthorized
+          const currentPath = window.location.pathname;
+          window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+          return;
+        }
         throw new Error('Failed to save progress');
       }
 
@@ -381,97 +428,21 @@ const TheoryStep = ({ material }) => {
         // Update stage progress state
         setStageProgress(parsedStageProgress);
 
-        // Check if stage is completed
+        // Update completed stages
         if (parsedStageProgress[activeSection]?.progress === 100 && 
             !completedStages.has(activeSection)) {
-          
-          try {
-            // Tambahkan pengecekan apakah point sudah pernah diberikan
-            const pointCheckResponse = await fetch(`http://localhost:3000/api/points/check/${user.id}/${material.id}/${activeSection}`);
-            const pointCheckData = await pointCheckResponse.json();
-
-            // Hanya berikan point jika belum pernah diberikan untuk stage ini
-            if (!pointCheckData.exists) {
-              // Calculate XP reward per stage
-          const stageXP = Math.floor(material.xp_reward / material.stages.length);
-          const isLastStage = activeSection === material.stages.length - 1;
-          const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
-          const totalStageXP = stageXP + remainderXP;
-
-              console.log(`Recording ${stageXP} points for stage ${activeSection + 1}...`);
-
-              // Create point record with stage XP
-              const pointResponse = await fetch('http://localhost:3000/api/points', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.id,
-              materialId: material.id,
-              categoryId: parseInt(categoryId),
-              subcategoryId: parseInt(subcategoryId),
-                  value: stageXP,
-                  stageIndex: activeSection,
-                  isLastStage,
-                  remainderXP
-                })
-              });
-
-              if (!pointResponse.ok) {
-                const errorData = await pointResponse.json().catch(() => ({
-                  error: `Server error: ${pointResponse.status} ${pointResponse.statusText}`
-                }));
-                const errorMessage = errorData.error || `Failed to create point record (${pointResponse.status})`;
-                console.error('Failed to record points:', errorMessage);
-                throw new Error(errorMessage);
-              }
-
-              const pointData = await pointResponse.json();
-
-              if (!pointData.success) {
-                const errorMessage = pointData.error || pointData.message || 'Unknown error occurred';
-                console.error('Point creation failed:', {
-                  response: pointData,
-                  request: {
-                    userId: user.id,
-                    materialId: material.id,
-                    value: stageXP,
-              stageIndex: activeSection
-                  }
-                });
-                throw new Error(errorMessage);
-              }
-
-              console.log(`Points recorded successfully! Stage ${activeSection + 1}, Points: ${stageXP}, Total: ${pointData.data.user.totalPoints}`);
-
-              // Only update completedStages after point is successfully created
-              const newCompletedStages = new Set(completedStages);
-              newCompletedStages.add(activeSection);
-              setCompletedStages(newCompletedStages);
-              
-              // Update earned points with stage XP
-              const newPoints = prev => prev + stageXP + (isLastStage ? remainderXP : 0);
-              setEarnedPoints(newPoints);
-            } else {
-              console.log(`Points already recorded for stage ${activeSection + 1}`);
-              // Still mark stage as completed even if points were already given
-              const newCompletedStages = new Set(completedStages);
-              newCompletedStages.add(activeSection);
-              setCompletedStages(newCompletedStages);
-            }
-          } catch (pointError) {
-            console.error('Error recording points:', pointError.message);
-            return;
-          }
+          const newCompletedStages = new Set(completedStages);
+          newCompletedStages.add(activeSection);
+          setCompletedStages(newCompletedStages);
         }
-      } else {
-        throw new Error(data.error || 'Failed to save progress');
       }
     } catch (error) {
       console.error('❌ Error in progress update:', error);
-      // Show error to user
-      alert('Failed to save progress. Please try again.');
+      if (error.message !== 'Failed to save progress') {
+        toast.error('Failed to save progress. Please try again.');
+      }
     }
-  }, [activeSection, activeContentIndex, completedStages, material, stageProgress, user?.id, categoryId, subcategoryId]);
+  }, [activeSection, activeContentIndex, completedStages, material, stageProgress, user?.id]);
 
   // Handle scroll behavior
   useEffect(() => {
@@ -583,7 +554,18 @@ const TheoryStep = ({ material }) => {
   };
 
   const handleNext = async () => {
-    if (!currentStage?.contents?.length) return;
+    console.log('Next button clicked:', {
+      currentStage,
+      activeContentIndex,
+      sortedContents,
+      totalStages: material?.stages?.length,
+      currentSection: activeSection
+    });
+
+    if (!currentStage?.contents?.length) {
+      console.log('No contents in current stage');
+      return;
+    }
 
     // Scroll to top
     window.scrollTo({
@@ -593,6 +575,7 @@ const TheoryStep = ({ material }) => {
 
     // If not at the last content of current stage
     if (activeContentIndex < sortedContents.length - 1) {
+      console.log('Moving to next content:', activeContentIndex + 1);
       setActiveContentIndex(activeContentIndex + 1);
       return;
     }
@@ -602,87 +585,137 @@ const TheoryStep = ({ material }) => {
       try {
         setIsStageLoading(true);
 
-        // Calculate XP for this stage
-        const baseXP = Math.floor(material.xp_reward / material.stages.length);
-        const isLastStage = activeSection === material.stages.length - 1;
-        const remainderXP = isLastStage ? (material.xp_reward % material.stages.length) : 0;
-        const stageXP = baseXP + (isLastStage ? remainderXP : 0);
+        // Determine if this is a squad material
+        const isSquadMaterial = window.location.pathname.includes('/squads/');
+        const squadId = isSquadMaterial ? window.location.pathname.split('/')[2] : null;
 
-        // Record points to database
-        try {
-          const response = await fetch('http://localhost:3000/api/points', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.id,
-              materialId: material.id,
-              categoryId: parseInt(categoryId),
-              subcategoryId: parseInt(subcategoryId),
-              value: stageXP,
-              stageIndex: activeSection
-            })
-          });
-
-          if (!response.ok) throw new Error('Failed to record points');
-          
-          // Fetch updated total after recording new points
-          const totalResponse = await fetch(`http://localhost:3000/api/points/material/${material.id}/${user.id}`);
-          const totalData = await totalResponse.json();
-          
-          if (totalData.success) {
-            const materialPoints = totalData.points.reduce((sum, point) => sum + point.value, 0);
-            setEarnedPoints(materialPoints);
-          }
-
-        } catch (error) {
-          console.error('Failed to record/fetch points:', error);
-        }
-
-        // Update completed stages
+        // Calculate new completed stages
         const newCompletedStages = new Set(completedStages);
         newCompletedStages.add(activeSection);
-        setCompletedStages(newCompletedStages);
 
-        // Check if this is the last stage
-        if (activeSection === material.stages.length - 1) {
-          // Show completion modal when material is finished
-          setShowCompletionModal(true);
-          
-          // Update progress to mark material as complete
-          try {
-            const progressResponse = await fetch(
-              `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  stageIndex: activeSection,
-                  contentProgress: 100,
-                  completedStages: Array.from(newCompletedStages)
-                })
-              }
-            );
+        // Update stage progress
+        const progressEndpoint = isSquadMaterial
+          ? `http://localhost:3000/api/squads/${squadId}/stage-progress/material/${user.id}/${material.id}/complete`
+          : `http://localhost:3000/api/stage-progress/material/${user.id}/${material.id}/complete`;
 
-            if (!progressResponse.ok) {
-              throw new Error('Failed to update completion status');
-            }
+        const progressResponse = await fetch(progressEndpoint, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            stageIndex: activeSection,
+            contentIndex: activeContentIndex,
+            contentProgress: 100,
+            completedStages: Array.from(newCompletedStages),
+            isStageCompleted: true
+          })
+        });
 
-            const progressData = await progressResponse.json();
-            if (progressData.success) {
-              console.log('Material completed successfully:', progressData.data);
-              setMaterialProgress(progressData.data);
-            }
-          } catch (error) {
-            console.error('Failed to update completion status:', error);
-          }
-        } else {
-          // Move to next stage if not the last one
-          setActiveSection(activeSection + 1);
-          setActiveContentIndex(0);
+        if (!progressResponse.ok) {
+          throw new Error('Failed to update stage progress');
         }
 
+        const progressData = await progressResponse.json();
+        console.log('Stage progress updated:', progressData);
+
+        if (progressData.success) {
+          // Update local state with new progress data
+          setMaterialProgress(progressData.data);
+          
+          // Update completed stages from server response
+          if (progressData.data.completedStages && Array.isArray(progressData.data.completedStages)) {
+            setCompletedStages(new Set(progressData.data.completedStages));
+          } else {
+            setCompletedStages(newCompletedStages);
+          }
+          
+          // Update stage progress state
+          if (progressData.data.stageProgress) {
+            const parsedProgress = typeof progressData.data.stageProgress === 'string'
+              ? JSON.parse(progressData.data.stageProgress)
+              : progressData.data.stageProgress;
+            setStageProgress(parsedProgress);
+          }
+
+          // Award points for completing the stage
+          try {
+            // Calculate XP reward per stage
+            const totalXP = material.xp_reward || 0;
+            const totalStages = material.stages.length;
+            const baseXP = Math.floor(totalXP / totalStages);
+            const isLastStage = activeSection === totalStages - 1;
+            const remainderXP = isLastStage ? (totalXP % totalStages) : 0;
+            const stageXP = baseXP + remainderXP;
+
+            console.log('Point calculation:', {
+              totalXP,
+              totalStages,
+              baseXP,
+              isLastStage,
+              remainderXP,
+              stageXP,
+              activeSection
+            });
+
+            // Create point record
+            const pointsEndpoint = isSquadMaterial
+              ? `http://localhost:3000/api/squads/${squadId}/points`
+              : 'http://localhost:3000/api/points';
+
+            const pointResponse = await fetch(pointsEndpoint, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                userId: user.id,
+                materialId: material.id,
+                categoryId: parseInt(categoryId),
+                subcategoryId: parseInt(subcategoryId),
+                value: stageXP,
+                stageIndex: activeSection,
+                isLastStage,
+                remainderXP,
+                squadId: isSquadMaterial ? parseInt(squadId) : undefined
+              })
+            });
+
+            const pointData = await pointResponse.json();
+            console.log('Point response:', pointData);
+
+            if (pointData.success) {
+              // Update earned points
+              const newPoints = earnedPoints + stageXP;
+              setEarnedPoints(newPoints);
+              
+              // Show point earned notification
+              toast.success(`🎉 Earned ${stageXP} XP!`, {
+                duration: 3000,
+                position: 'top-center'
+              });
+            }
+          } catch (error) {
+            console.error('Error awarding points:', error);
+          }
+
+          // Check if this is the last stage
+          if (activeSection === material.stages.length - 1) {
+            // Show completion modal when material is finished
+            setShowCompletionModal(true);
+          } else {
+            // Move to next stage
+            setActiveSection(activeSection + 1);
+            setActiveContentIndex(0);
+          }
+        }
       } catch (error) {
         console.error('❌ Error in handleNext:', error);
+        toast.error('Failed to update progress. Please try again.');
       } finally {
         setIsStageLoading(false);
       }

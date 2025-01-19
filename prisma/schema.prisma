@@ -35,6 +35,7 @@ model Category {
   image       String?
   points      Point[]
   subcategories Subcategory[]
+  materials   Material[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -61,7 +62,8 @@ model Material {
   estimated_time Int        @default(30)
   glossary      Json?       // Array of {term: string, definition: string}
   subcategoryId Int?       // Optional untuk squad materials
-  squadId      Int?       // Optional untuk regular materials
+  categoryId    Int?       // Optional untuk squad materials
+  squadId       Int?       // Optional untuk regular materials
   type          String     @default("regular")
   is_published  Boolean     @default(false)
   createdAt     DateTime    @default(now())
@@ -69,11 +71,13 @@ model Material {
   
   // Relations
   subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id])
+  category      Category?    @relation(fields: [categoryId], references: [id])
   stages        Stage[]
   points        Point[]
   progress      MaterialProgress[]
   discussions   Discussion[]
   squad         Squad?     @relation(fields: [squadId], references: [id])
+  learningPaths LearningPath[]
 }
 
 model Stage {
@@ -158,6 +162,9 @@ model User {
   squadMembers    SquadMember[]
   squadDiscussions SquadDiscussion[]
   discussionReplies SquadDiscussionReply[]
+
+  // Learning Path relations
+  createdLearningPaths LearningPath[] @relation("CreatedLearningPaths")
 }
 
 model Point {
@@ -165,7 +172,7 @@ model Point {
   userId        Int
   materialId    Int
   categoryId    Int
-  subcategoryId Int
+  subcategoryId Int?     // Make optional
   value         Int
   stageIndex    Int
   createdAt     DateTime @default(now())
@@ -174,7 +181,7 @@ model Point {
   user          User     @relation(fields: [userId], references: [id])
   material      Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
   category      Category @relation(fields: [categoryId], references: [id])
-  subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id])  // Make optional
 }
 
 model UserAchievement {
@@ -515,11 +522,14 @@ model ServiceReview {
 model Squad {
   id          Int       @id @default(autoincrement())
   name        String
-  description String
+  description String?
+  isPublic    Boolean   @default(true)
   image       String?
   banner      String?
-  isPublic    Boolean   @default(true)
-  memberCount Int       @default(0)
+  memberCount Int       @default(1)
+  about       String?   // Squad description
+  rules       String[]  // Squad rules
+  settings    Json?     // Squad settings (discussion, privacy, etc)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -527,55 +537,78 @@ model Squad {
   members     SquadMember[]
   materials   Material[]
   discussions SquadDiscussion[]
+
+  // Learning Path relations
+  learningPaths LearningPath[]
 }
 
 model SquadMember {
   id        Int      @id @default(autoincrement())
   squadId   Int
   userId    Int
-  role      String   @default("member")  // admin, moderator, member
+  role      Role     @default(MEMBER)
   joinedAt  DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   // Relations
   squad     Squad    @relation(fields: [squadId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([squadId, userId])
-  @@index([userId])
 }
 
 model SquadDiscussion {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String
-  userId    Int
+  id        Int       @id @default(autoincrement())
   squadId   Int
-  isPinned  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId    Int
+  title     String
+  content   String    @db.Text
+  isPinned  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id])
-  squad     Squad    @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  squad     Squad     @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
   replies   SquadDiscussionReply[]
-
-  @@index([userId])
-  @@index([squadId])
 }
 
 model SquadDiscussionReply {
-  id          Int      @id @default(autoincrement())
-  content     String
-  userId      Int
+  id           Int       @id @default(autoincrement())
   discussionId Int
+  userId       Int
+  content      String    @db.Text
+  parentId     Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  discussion   SquadDiscussion       @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  user         User                  @relation(fields: [userId], references: [id])
+  parent       SquadDiscussionReply? @relation("ReplyToReply", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children     SquadDiscussionReply[] @relation("ReplyToReply")
+}
+
+model LearningPath {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  squadId     Int
+  squad       Squad     @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  materials   Material[]
+  order       Json?     // Array of material IDs to maintain order
+  createdById Int
+  createdBy   User     @relation("CreatedLearningPaths", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  user        User     @relation(fields: [userId], references: [id])
-  discussion  SquadDiscussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  @@index([squadId])
+  @@index([createdById])
+}
 
-  @@index([userId])
-  @@index([discussionId])
+enum Role {
+  ADMIN
+  MODERATOR
+  MEMBER
 }
 

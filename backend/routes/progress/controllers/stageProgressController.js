@@ -102,11 +102,11 @@ const stageProgressController = {
   completeStage: async (req, res) => {
     try {
       const { userId, materialId } = req.params;
-      const { stageIndex, contentIndex, contentProgress, completedStages: newCompletedStages } = req.body;
+      const { stageIndex, contentIndex, contentProgress, completedStages: newCompletedStages, isStageCompleted } = req.body;
 
       console.log('🔍 Debug - Request data:', {
         params: { userId, materialId },
-        body: { stageIndex, contentIndex, contentProgress, newCompletedStages },
+        body: { stageIndex, contentIndex, contentProgress, newCompletedStages, isStageCompleted },
         rawBody: req.body
       });
 
@@ -189,7 +189,8 @@ const stageProgressController = {
       }
 
       // Update completed stages
-      if (stageProgress[parsedStageIndex].progress === 100 && !completedStages.includes(parsedStageIndex)) {
+      if ((stageProgress[parsedStageIndex].progress === 100 || isStageCompleted) && 
+          !completedStages.includes(parsedStageIndex)) {
         completedStages.push(parsedStageIndex);
       }
 
@@ -208,8 +209,7 @@ const stageProgressController = {
         hasNextStage,
         totalProgress,
         completedStages,
-        stageProgress,
-        totalStages: material.stages.length
+        stageProgress
       });
 
       // Update progress in database
@@ -243,7 +243,7 @@ const stageProgressController = {
       // Prepare response
       const response = {
         ...updatedProgress,
-        stageProgress: JSON.parse(updatedProgress.stageProgress || '{}'),
+        stageProgress: JSON.parse(updatedProgress.stageProgress),
         completedStages: updatedProgress.completedStages
       };
 
@@ -262,5 +262,4 @@ const stageProgressController = {
   }
 };
 
-module.exports = stageProgressController; 
 module.exports = stageProgressController; 

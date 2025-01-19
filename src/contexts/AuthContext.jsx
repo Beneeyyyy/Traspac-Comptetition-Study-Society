@@ -1,5 +1,6 @@
 import { createContext, useState, useContext, useEffect, useMemo } from 'react';
 import { initializeApi } from '../utils/api';
+import { toast } from 'react-hot-toast';
 
 const API_URL = 'http://localhost:3000';
 
@@ -10,6 +11,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Function to get token
   const getToken = () => localStorage.getItem('token');
@@ -38,6 +40,7 @@ export function AuthProvider({ children }) {
       if (response.ok && data.user) {
         console.log('Setting user data:', data.user);
         setUser(data.user);
+        setError(null);
         // Update token if provided
         if (data.token) {
           localStorage.setItem('token', data.token);
@@ -45,12 +48,15 @@ export function AuthProvider({ children }) {
       } else {
         console.log('No user data found');
         setUser(null);
+        setError('Authentication required');
         localStorage.removeItem('token');
       }
     } catch (error) {
       console.error('Auth check error:', error);
+      setError(error.message);
       // Clear token on error
       localStorage.removeItem('token');
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -58,6 +64,7 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
+      setIsLoading(true);
       console.log('Attempting login...');
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
@@ -79,6 +86,7 @@ export function AuthProvider({ children }) {
       if (data.user) {
         console.log('Setting user after login:', data.user);
         setUser(data.user);
+        setError(null);
         // Store token in localStorage
         if (data.token) {
           localStorage.setItem('token', data.token);
@@ -88,12 +96,16 @@ export function AuthProvider({ children }) {
       return data;
     } catch (error) {
       console.error('Login error:', error);
+      setError(error.message);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const logout = async () => {
     try {
+      setIsLoading(true);
       const response = await fetch(`${API_URL}/api/auth/signout`, {
         method: 'POST',
         credentials: 'include',
@@ -105,13 +117,20 @@ export function AuthProvider({ children }) {
 
       if (response.ok) {
         setUser(null);
+        setError(null);
         // Remove token from localStorage
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        toast.success('Logged out successfully');
       }
     } catch (error) {
       console.error('Logout error:', error);
+      setError(error.message);
       setUser(null);
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -124,6 +143,7 @@ export function AuthProvider({ children }) {
         setUser(JSON.parse(savedUser));
       } catch (e) {
         console.error('Error parsing saved user:', e);
+        localStorage.removeItem('user');
       }
     }
     // Then verify with server
@@ -145,8 +165,9 @@ export function AuthProvider({ children }) {
     logout,
     checkAuth,
     isLoading,
+    error,
     getToken // Export getToken function
-  }), [user, isLoading]);
+  }), [user, isLoading, error]);
 
   return (
     <AuthContext.Provider value={value}>

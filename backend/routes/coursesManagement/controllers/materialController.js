@@ -57,6 +57,7 @@ const getMaterialById = async (req, res) => {
             category: true
           }
         },
+        category: true,
         stages: true
       }
     });
@@ -71,7 +72,7 @@ const getMaterialById = async (req, res) => {
       id: material.id,
       title: material.title,
       level: "Level 1 - Fundamental",
-      category: material.subcategory.category.name,
+      category: material.category?.name || material.subcategory?.category?.name || "Uncategorized",
       description: material.description || "",
       total_xp: material.xp_reward || 0,
       xp_reward: material.xp_reward || 0,
@@ -82,7 +83,7 @@ const getMaterialById = async (req, res) => {
         title: stage.title,
         description: "", // Stage doesn't have description in schema
         status: index === 0 ? "current" : "locked",
-        xp_reward: 25 + (index * 10), // Default XP reward
+        xp_reward: Math.floor((material.xp_reward || 0) / material.stages.length), // Distribute XP evenly
         color: ["blue", "purple", "emerald", "yellow"][index % 4],
         time: `${15 + (index * 5)}-${20 + (index * 5)} menit`,
         opacity: index > 0 ? `opacity-${40 - (index * 10)}` : "",

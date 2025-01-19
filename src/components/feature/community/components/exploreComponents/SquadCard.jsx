@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { joinSquad } from '../../../../../api/squad'
+import { joinSquad, getSquadById } from '../../../../../api/squad'
 
-const SquadCard = ({ squad, layout = 'grid' }) => {
+const SquadCard = ({ squad, layout = 'grid', onUpdate }) => {
   const navigate = useNavigate()
   const [isJoining, setIsJoining] = useState(false)
 
@@ -12,7 +12,19 @@ const SquadCard = ({ squad, layout = 'grid' }) => {
     try {
       setIsJoining(true)
       await joinSquad(squad.id)
+      
+      // Get updated squad data
+      const updatedSquad = await getSquadById(squad.id)
+      
+      // Call onUpdate if provided
+      if (onUpdate) {
+        onUpdate(updatedSquad)
+      }
+      
       toast.success('Successfully joined squad!')
+      
+      // Navigate to squad detail
+      navigate(`/community/squad/${squad.id}`)
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to join squad')
     } finally {

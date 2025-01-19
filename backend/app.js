@@ -1,4 +1,4 @@
-const squadRoutes = require('./routes/community/squad/squadRoutes');
+const learningPathRoutes = require('./routes/community/squad/learningPathRoutes');
 
-// Add squad routes
-app.use('/api/squads', squadRoutes); 
+// Squad routes
+app.use('/squads/:squadId/learning-paths', learningPathRoutes); 

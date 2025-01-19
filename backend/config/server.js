@@ -62,7 +62,16 @@ app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  console.log('Headers:', req.headers);
+  next();
+});
+
 // Import all routes
+console.log('Loading routes...');
+
 const authRoutes = require('../routes/usersManagement/routes/authRoutes');
 const categoryRoutes = require('../routes/coursesManagement/routes/categoryRoutes');
 const subcategoryRoutes = require('../routes/coursesManagement/routes/subcategoryRoutes');
@@ -77,8 +86,11 @@ const creationRoutes = require('../routes/upCreation/routes/creationRoutes');
 const serviceRoutes = require('../routes/upService/routes/serviceRoutes');
 const squadRoutes = require('../routes/community/squad/squadRoutes');
 const pointController = require('../routes/points/controllers/pointController');
+const learningPathRoutes = require('../routes/community/squad/learningPathRoutes');
 
-// Register routes
+console.log('Routes loaded, mounting them...');
+
+// Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subcategoryRoutes);
@@ -92,6 +104,7 @@ app.use('/api/forum', forumRoutes);
 app.use('/api/creations', creationRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/squads', squadRoutes);
+app.use('/api/squads/:squadId/learning-paths', learningPathRoutes);
 
 // Points routes
 app.post('/api/points', pointController.createPoint);
@@ -102,6 +115,23 @@ app.get('/api/points/leaderboard/:timeframe', pointController.getLeaderboard);
 app.get('/api/points/leaderboard/:timeframe/:scope', pointController.getLeaderboard);
 app.get('/api/points/schools/rankings', pointController.getSchoolRankings);
 app.get('/api/points/recalculate', pointController.recalculateUserPoints);
+
+console.log('Routes mounted successfully');
+
+// List all registered routes
+console.log('Registered routes:');
+function printRoutes(stack, basePath = '') {
+  stack.forEach(r => {
+    if (r.route) {
+      Object.keys(r.route.methods).forEach(method => {
+        console.log(`${method.toUpperCase()} ${basePath}${r.route.path}`);
+      });
+    } else if (r.name === 'router') {
+      printRoutes(r.handle.stack, basePath + r.regexp.source.replace('\\/?(?=\\/|$)', '').replace(/\\\//g, '/'));
+    }
+  });
+}
+printRoutes(app._router.stack);
 
 // Global error handling
 app.use((err, req, res, next) => {

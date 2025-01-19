@@ -108,9 +108,41 @@ const canViewSquad = async (req, res, next) => {
   }
 };
 
+// Middleware to check if user has required role in squad
+const checkSquadRole = (allowedRoles) => {
+  return async (req, res, next) => {
+    try {
+      const { squadId } = req.params;
+      const userId = req.user.id;
+
+      const member = await prisma.squadMember.findFirst({
+        where: {
+          squadId: parseInt(squadId),
+          userId: userId,
+          role: {
+            in: allowedRoles
+          }
+        }
+      });
+
+      if (!member) {
+        return res.status(403).json({ 
+          error: 'You do not have permission to perform this action' 
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Error checking squad role:', error);
+      res.status(500).json({ error: 'Failed to verify permissions' });
+    }
+  };
+};
+
 module.exports = {
   isSquadMember,
   isSquadAdmin,
   isSquadModOrAdmin,
-  canViewSquad
+  canViewSquad,
+  checkSquadRole
 }; 

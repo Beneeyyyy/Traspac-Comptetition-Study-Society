@@ -1,5 +1,10 @@
-import { FiUsers, FiTarget, FiCalendar, FiAward, FiTrendingUp, FiInfo, FiBook, FiFlag, FiStar } from 'react-icons/fi'
-import { useSquad } from '../../../context/SquadContext'
+import React, { useState, useEffect } from 'react';
+import { FiUsers, FiTarget, FiCalendar, FiAward, FiTrendingUp, FiInfo, FiBook, FiFlag, FiStar, FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
+import { useAuth } from '../../../../../../contexts/AuthContext';
+import { useSquads } from '../../../../../../contexts/community/CommunityContext';
+import { updateSquad } from '../../../../../../api/squad';
+import Modal from '../../../../../../components/common/Modal';
 
 function CircularProgress({ percentage, size = 120, label, sublabel }) {
   const strokeWidth = 8
@@ -62,31 +67,108 @@ const StatCard = ({ icon: Icon, label, value, color }) => (
 )
 
 const OverviewSection = ({ squad }) => {
-  const { squadData } = useSquad()
+  const { user } = useAuth();
+  const { setSquads } = useSquads();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    about: squad?.about || '',
+    newRule: ''
+  });
+
+  // Update formData when squad changes
+  useEffect(() => {
+    if (squad) {
+      setFormData(prev => ({
+        ...prev,
+        about: squad.about || ''
+      }));
+    }
+  }, [squad]);
+
+  const isAdminOrModerator = squad?.members?.some(
+    member => member.userId === user?.id && ['ADMIN', 'MODERATOR'].includes(member.role)
+  );
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleUpdateAbout = async (e) => {
+    e.preventDefault();
+    try {
+      const updatedSquad = await updateSquad(squad.id, {
+        about: formData.about
+      });
+      
+      setSquads(prev => prev.map(s => s.id === squad.id ? updatedSquad : s));
+      setIsEditModalOpen(false);
+      toast.success('Squad info updated successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to update squad info');
+    }
+  };
+
+  const handleAddRule = async (e) => {
+    e.preventDefault();
+    if (!formData.newRule.trim()) return;
+
+    try {
+      const newRules = [...(squad.rules || []), formData.newRule];
+      const updatedSquad = await updateSquad(squad.id, {
+        rules: newRules
+      });
+      
+      setSquads(prev => prev.map(s => s.id === squad.id ? updatedSquad : s));
+      setFormData(prev => ({ ...prev, newRule: '' }));
+      setIsRulesModalOpen(false);
+      toast.success('Rule added successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to add rule');
+    }
+  };
+
+  const handleRemoveRule = async (index) => {
+    try {
+      const newRules = (squad.rules || []).filter((_, i) => i !== index);
+      const updatedSquad = await updateSquad(squad.id, {
+        rules: newRules
+      });
+      
+      setSquads(prev => prev.map(s => s.id === squad.id ? updatedSquad : s));
+      toast.success('Rule removed successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to remove rule');
+    }
+  };
 
   const stats = [
     { 
       icon: FiUsers, 
       label: "Total Members", 
-      value: `${squadData.memberCount || 0} Members`, 
+      value: `${squad?.memberCount || 0} Members`, 
       color: "text-blue-400" 
     },
     { 
       icon: FiBook, 
       label: "Materials", 
-      value: `${squadData._count?.materials || 0} Materials`, 
+      value: `${squad?._count?.materials || 0} Materials`, 
       color: "text-purple-400" 
     },
     { 
       icon: FiStar, 
       label: "Discussions", 
-      value: `${squadData._count?.discussions || 0}`, 
+      value: `${squad?._count?.discussions || 0}`, 
       color: "text-amber-400" 
     },
     { 
       icon: FiCalendar, 
       label: "Created", 
-      value: squadData.createdAt ? new Date(squadData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '-', 
+      value: squad?.createdAt ? new Date(squad.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '-', 
       color: "text-emerald-400" 
     }
   ]
@@ -104,12 +186,20 @@ const OverviewSection = ({ squad }) => {
         </div>
       </div> */}
 
-      {/* About Squad */}
+      {/* About Section */}
       <div className="bg-[#0A0A0A] rounded-xl p-6">
-        <h2 className="text-xl font-bold text-white mb-4">About Squad</h2>
-        <p className="text-gray-400">
-          {squadData.description || "No description available."}
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">About</h2>
+          {isAdminOrModerator && (
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="flex items-center gap-2 text-blue-500 hover:text-blue-600"
+            >
+              <FiEdit2 /> Edit
+            </button>
+          )}
+        </div>
+        <p className="text-gray-400">{squad?.about || 'No description available.'}</p>
       </div>
 
       {/* Squad Stats */}
@@ -119,25 +209,45 @@ const OverviewSection = ({ squad }) => {
         ))}
       </div>
 
-      {/* Squad Rules - Hide for now since we don't have real data */}
-      {/* <div className="bg-[#0A0A0A] rounded-xl p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Squad Rules</h2>
-        {squadData.rules && squadData.rules.length > 0 ? (
-          <ul className="space-y-3 text-gray-400">
-            {squadData.rules.map((rule, index) => (
-              <li key={index}>{rule}</li>
+      {/* Rules Section */}
+      <div className="bg-[#0A0A0A] rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Squad Rules</h2>
+          {isAdminOrModerator && (
+            <button
+              onClick={() => setIsRulesModalOpen(true)}
+              className="flex items-center gap-2 text-blue-500 hover:text-blue-600"
+            >
+              <FiPlus /> Add Rule
+            </button>
+          )}
+        </div>
+        {squad?.rules?.length > 0 ? (
+          <ul className="space-y-3">
+            {squad.rules.map((rule, index) => (
+              <li key={index} className="flex items-start justify-between group">
+                <span className="text-gray-400">{rule}</span>
+                {isAdminOrModerator && (
+                  <button
+                    onClick={() => handleRemoveRule(index)}
+                    className="text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <FiTrash2 />
+                  </button>
+                )}
+              </li>
             ))}
           </ul>
         ) : (
-          <p className="text-gray-400">No rules have been set.</p>
+          <p className="text-gray-500">No rules have been set for this squad.</p>
         )}
-      </div> */}
+      </div>
 
       {/* Squad Leaders */}
       <div className="bg-[#0A0A0A] rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-4">Squad Leaders</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {squadData.members?.filter(member => member.role === 'admin').map((leader, index) => (
+          {squad?.members?.filter(member => member.role === 'ADMIN').map((leader, index) => (
             <div key={index} className="flex items-center gap-4">
               <img
                 src={leader.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(leader.user.name)}&background=6366F1&color=fff`}
@@ -149,11 +259,85 @@ const OverviewSection = ({ squad }) => {
                 <p className="text-sm text-gray-400">{leader.role}</p>
               </div>
             </div>
-          )) || (
-            <p className="text-gray-400">No leaders assigned.</p>
-          )}
+          ))}
         </div>
       </div>
+
+      {/* Edit About Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Squad Info"
+      >
+        <form onSubmit={handleUpdateAbout} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-200 mb-1">
+              About Squad
+            </label>
+            <textarea
+              name="about"
+              value={formData.about}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+              rows="4"
+              placeholder="Write about your squad..."
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="px-4 py-2 text-gray-400 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Rule Modal */}
+      <Modal
+        isOpen={isRulesModalOpen}
+        onClose={() => setIsRulesModalOpen(false)}
+        title="Add Squad Rule"
+      >
+        <form onSubmit={handleAddRule} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-200 mb-1">
+              New Rule
+            </label>
+            <input
+              type="text"
+              name="newRule"
+              value={formData.newRule}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+              placeholder="Enter new rule..."
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setIsRulesModalOpen(false)}
+              className="px-4 py-2 text-gray-400 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Add Rule
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

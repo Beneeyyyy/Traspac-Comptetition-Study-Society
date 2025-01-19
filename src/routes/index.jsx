@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import PrivateRoute from './PrivateRoute';
 import PublicRoute from './PublicRoute';
 import LoadingScreen from '../components/common/LoadingScreen';
+import SquadMaterialView from '../components/feature/community/squad/material/SquadMaterialView';
 
 // Lazy loaded components
 const Login = lazy(() => import('../components/feature/auth/Login').then(module => ({ default: module.Login })));
@@ -61,6 +62,8 @@ const AppRoutes = () => {
             <Route path="my-squads" element={<MySquads />} />
             <Route path="squad/:id" element={<SquadDetail />} />
           </Route>
+
+          <Route path="squads/:squadId/materials/:materialId" element={<SquadMaterialView />} />
         </Route>
       </Routes>
     </Suspense>

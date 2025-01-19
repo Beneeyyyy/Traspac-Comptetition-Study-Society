@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 const pointController = {
   createPoint: async (req, res) => {
     try {
-      const { userId, materialId, categoryId, subcategoryId, value, stageIndex } = req.body;
+      const { userId, materialId, value, stageIndex } = req.body;
       
       console.log('Creating point:', { userId, materialId, stageIndex });
 
@@ -26,15 +26,67 @@ const pointController = {
         });
       }
 
-      // 3. If no existing point, create new one
+      // 3. Get material with category info
+      const material = await prisma.material.findUnique({
+        where: { id: parseInt(materialId) },
+        include: {
+          category: true,
+          subcategory: {
+            include: {
+              category: true
+            }
+          }
+        }
+      });
+
+      if (!material) {
+        return res.status(404).json({
+          success: false,
+          message: 'Material not found'
+        });
+      }
+
+      // Get the correct categoryId and subcategoryId
+      const materialCategoryId = material.categoryId || material.subcategory?.categoryId;
+      const materialSubcategoryId = material.subcategoryId;
+
+      if (!materialCategoryId) {
+        return res.status(400).json({
+          success: false,
+          message: 'No category found for this material'
+        });
+      }
+
+      // Prepare point data
+      const pointData = {
+        value: parseInt(value),
+        stageIndex: parseInt(stageIndex),
+        user: {
+          connect: { id: parseInt(userId) }
+        },
+        material: {
+          connect: { id: parseInt(materialId) }
+        },
+        category: {
+          connect: { id: materialCategoryId }
+        }
+      };
+
+      // Only add subcategory connection if materialSubcategoryId exists
+      if (materialSubcategoryId) {
+        pointData.subcategory = {
+          connect: { id: materialSubcategoryId }
+        };
+      }
+
+      // Create point
       const point = await prisma.point.create({
-        data: {
-          userId: parseInt(userId),
-          materialId: parseInt(materialId),
-          categoryId: parseInt(categoryId),
-          subcategoryId: parseInt(subcategoryId),
-          value: parseInt(value),
-          stageIndex: parseInt(stageIndex)
+        data: pointData,
+        include: {
+          user: true,
+          material: true,
+          category: true,
+          subcategory: true
         }
       });
 

@@ -8,183 +8,345 @@ import {
   getDiscussions
 } from '../../../../../api/squad';
 import { toast } from 'react-hot-toast';
+import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import AdminSection from './sections/AdminSection';
+import { useAuth } from '../../../../../contexts/AuthContext';
+import { useSquads } from '../../../../../contexts/community/CommunityContext';
+import OverviewSection from './sections/OverviewSection';
+import LearningSection from './sections/LearningSection';
+import DiscussionSection from './sections/DiscussionSection';
+import CommunitySection from './sections/CommunitySection';
+
+// Modal Component
+const Modal = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+      <div className="bg-black rounded-xl w-full max-w-2xl border border-gray-800">
+        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
+            <FiX className="text-gray-400" />
+          </button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SquadDetail = () => {
   const { id } = useParams();
+  const { user } = useAuth();
+  const { squads, setSquads } = useSquads();
   const [squad, setSquad] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [discussions, setDiscussions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('materials');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [activeModal, setActiveModal] = useState(null);
+  const [formData, setFormData] = useState({
+    materialTitle: '',
+    materialDescription: '',
+    discussionTitle: '',
+    discussionContent: ''
+  });
+  const [joining, setJoining] = useState(false);
+
+  const fetchSquadData = async () => {
+    try {
+      setLoading(true);
+      const [squadData, materialsData, discussionsData] = await Promise.all([
+        getSquadById(id),
+        getSquadMaterials(id),
+        getDiscussions(id)
+      ]);
+      
+      setSquad(squadData);
+      setMaterials(materialsData);
+      setDiscussions(discussionsData);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message || 'Failed to fetch squad data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchSquadData = async () => {
-      try {
-        const [squadData, materialsData, discussionsData] = await Promise.all([
-          getSquadById(id),
-          getSquadMaterials(id),
-          getDiscussions(id)
-        ]);
-        
-        setSquad(squadData);
-        setMaterials(materialsData);
-        setDiscussions(discussionsData);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchSquadData();
   }, [id]);
 
   const handleJoinSquad = async () => {
+    if (!user) {
+      toast.error('Please login to join the squad');
+      return;
+    }
+    setJoining(true);
     try {
-      await joinSquad(id);
-      toast.success('Successfully joined the squad!');
-      // Refresh squad data
-      const updatedSquad = await getSquadById(id);
+      const updatedSquad = await joinSquad(id);
       setSquad(updatedSquad);
-    } catch (err) {
-      toast.error(err.message || 'Failed to join squad');
+      setSquads(prev => prev.map(s => s.id === updatedSquad.id ? updatedSquad : s));
+      toast.success('Successfully joined the squad');
+    } catch (error) {
+      toast.error(error.message || 'Failed to join squad');
+    } finally {
+      setJoining(false);
     }
   };
 
   const handleLeaveSquad = async () => {
+    if (!window.confirm('Are you sure you want to leave this squad?')) return;
     try {
       await leaveSquad(id);
-      toast.success('Successfully left the squad!');
-      // Refresh squad data
-      const updatedSquad = await getSquadById(id);
+      const updatedSquad = { ...squad, isMember: false };
       setSquad(updatedSquad);
-    } catch (err) {
-      toast.error(err.message || 'Failed to leave squad');
+      setSquads(prev => prev.map(s => s.id === updatedSquad.id ? updatedSquad : s));
+      toast.success('Successfully left the squad');
+    } catch (error) {
+      toast.error(error.message || 'Failed to leave squad');
     }
   };
 
+  const handleCreateMaterial = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await createMaterial(id, {
+        title: formData.materialTitle,
+        description: formData.materialDescription
+      });
+      setMaterials([...materials, response]);
+      setActiveModal(null);
+      setFormData({ ...formData, materialTitle: '', materialDescription: '' });
+      toast.success('Material created successfully!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to create material');
+    }
+  };
+
+  const handleCreateDiscussion = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await createDiscussion(id, {
+        title: formData.discussionTitle,
+        content: formData.discussionContent
+      });
+      setDiscussions([...discussions, response]);
+      setActiveModal(null);
+      setFormData({ ...formData, discussionTitle: '', discussionContent: '' });
+      toast.success('Discussion created successfully!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to create discussion');
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
   if (loading) return (
-    <div className="flex items-center justify-center min-h-[200px]">
+    <div className="flex items-center justify-center min-h-[200px] mt-20">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
     </div>
   );
   
   if (error) return (
-    <div className="text-center text-red-500 py-8">Error: {error}</div>
+    <div className="text-center text-red-500 py-8 mt-20">Error: {error}</div>
   );
   
   if (!squad) return (
-    <div className="text-center text-gray-500 py-8">Squad not found</div>
+    <div className="text-center text-gray-500 py-8 mt-20">Squad not found</div>
   );
 
+  const isAdmin = squad.role === 'ADMIN';
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'materials', label: 'Materials' },
+    { id: 'discussions', label: 'Discussions' },
+    { id: 'members', label: 'Members' }
+  ];
+
+  // Add admin tab if user is admin
+  if (isAdmin) {
+    tabs.push({ id: 'admin', label: 'Admin' });
+  }
+
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-black pt-20">
       {/* Squad Header */}
-      <div className="relative h-[200px]">
-        <img
-          src={squad.banner || '/default-banner.jpg'}
-          alt={squad.name}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent">
-          <div className="absolute bottom-0 left-0 right-0 p-6">
-            <h1 className="text-3xl font-bold text-white mb-2">{squad.name}</h1>
-            <p className="text-gray-200">{squad.description}</p>
+      <div 
+        className="h-48 bg-cover bg-center relative"
+        style={{ backgroundImage: `url(${squad.banner || '/default-banner.jpg'})` }}
+      >
+        <div className="absolute inset-0 bg-black/50">
+          <div className="container mx-auto px-4 h-full flex items-end pb-6">
+            <div className="flex items-center gap-6">
+              <img
+                src={squad.image || '/default-squad.jpg'}
+                alt={squad.name}
+                className="w-24 h-24 rounded-lg border-4 border-gray-800"
+              />
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">{squad.name}</h1>
+                <div className="flex items-center gap-4 text-gray-300">
+                  <span>{squad.members?.length || 0} members</span>
+                  <span>{squad.materials?.length || 0} materials</span>
+                  <span>{squad.discussions?.length || 0} discussions</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Join/Leave Button */}
-      <div className="p-4">
-        <button
-          onClick={squad.isMember ? handleLeaveSquad : handleJoinSquad}
-          className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-            squad.isMember 
-              ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20' 
-              : 'bg-blue-500 text-white hover:bg-blue-600'
-          }`}
-        >
-          {squad.isMember ? "Leave Squad" : "Join Squad"}
-        </button>
+      {/* Squad Actions */}
+      <div className="bg-black border-b border-gray-800">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-4">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            {!squad.isMember ? (
+              <button
+                onClick={handleJoinSquad}
+                disabled={joining}
+                className={`px-6 py-2 rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {joining ? 'Joining...' : 'Join Squad'}
+              </button>
+            ) : (
+              <button
+                onClick={handleLeaveSquad}
+                className="px-6 py-2 rounded-lg bg-red-500 text-white transition-colors hover:bg-red-600"
+              >
+                Leave Squad
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Squad Content */}
-      <div className="mt-6">
-        {/* Tabs */}
-        <div className="border-b border-gray-800">
-          <div className="flex gap-8">
-            {['materials', 'discussions', 'members'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                  activeTab === tab
-                    ? 'text-blue-400 border-b-2 border-blue-400'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tab Panels */}
-        <div className="mt-6">
-          {/* Materials Panel */}
-          {activeTab === 'materials' && (
-            <div className="space-y-4">
-              {materials.map(material => (
-                <div key={material.id} className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl">
-                  <h3 className="text-lg font-semibold text-white mb-2">{material.title}</h3>
-                  <p className="text-gray-400">{material.description}</p>
-                </div>
-              ))}
-              {materials.length === 0 && (
-                <p className="text-center text-gray-400 py-8">No materials available</p>
-              )}
-            </div>
-          )}
-
-          {/* Discussions Panel */}
-          {activeTab === 'discussions' && (
-            <div className="space-y-4">
-              {discussions.map(discussion => (
-                <div key={discussion.id} className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl">
-                  <h3 className="text-lg font-semibold text-white mb-2">{discussion.title}</h3>
-                  <p className="text-gray-400">{discussion.content}</p>
-                </div>
-              ))}
-              {discussions.length === 0 && (
-                <p className="text-center text-gray-400 py-8">No discussions yet</p>
-              )}
-            </div>
-          )}
-
-          {/* Members Panel */}
-          {activeTab === 'members' && (
-            <div className="space-y-4">
-              {squad.members?.map(member => (
-                <div key={member.id} className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl flex items-center gap-4">
-                  <img
-                    src={member.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.user.name)}`}
-                    alt={member.user.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div>
-                    <h3 className="font-medium text-white">{member.user.name}</h3>
-                    <p className="text-sm text-gray-400 capitalize">{member.role}</p>
-                  </div>
-                </div>
-              ))}
-              {!squad.members?.length && (
-                <p className="text-center text-gray-400 py-8">No members yet</p>
-              )}
-            </div>
-          )}
-        </div>
+      <div className="container mx-auto px-4 py-6">
+        {activeTab === 'overview' && <OverviewSection squad={squad} />}
+        {activeTab === 'materials' && squad.isMember && <LearningSection squad={squad} />}
+        {activeTab === 'discussions' && squad.isMember && <DiscussionSection squad={squad} />}
+        {activeTab === 'members' && squad.isMember && <CommunitySection squad={squad} />}
+        {activeTab === 'admin' && isAdmin && <AdminSection squad={squad} setSquad={setSquad} />}
       </div>
+
+      {/* Create Material Modal */}
+      <Modal
+        isOpen={activeModal === 'create-material'}
+        onClose={() => setActiveModal(null)}
+        title="Create New Material"
+      >
+        <form onSubmit={handleCreateMaterial} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Title</label>
+            <input
+              type="text"
+              name="materialTitle"
+              value={formData.materialTitle}
+              onChange={handleInputChange}
+              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Description</label>
+            <textarea
+              name="materialDescription"
+              value={formData.materialDescription}
+              onChange={handleInputChange}
+              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white h-32"
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Create Material
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Create Discussion Modal */}
+      <Modal
+        isOpen={activeModal === 'create-discussion'}
+        onClose={() => setActiveModal(null)}
+        title="Start New Discussion"
+      >
+        <form onSubmit={handleCreateDiscussion} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Title</label>
+            <input
+              type="text"
+              name="discussionTitle"
+              value={formData.discussionTitle}
+              onChange={handleInputChange}
+              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Content</label>
+            <textarea
+              name="discussionContent"
+              value={formData.discussionContent}
+              onChange={handleInputChange}
+              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white h-32"
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Start Discussion
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
