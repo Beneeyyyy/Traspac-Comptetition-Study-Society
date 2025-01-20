@@ -1,20 +1,43 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const uploadImage = require('../utils/uploadImage');
 const { requireAuth } = require('../routes/usersManagement/controllers/authController');
 
-router.post('/', requireAuth, async function(req, res) {
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
+
+// Debug middleware
+router.use((req, res, next) => {
+  console.log('[Upload Route] Request received');
+  next();
+});
+
+router.post('/', requireAuth, upload.single('image'), async function(req, res) {
   try {
     console.log('Received upload request');
-    const { image } = req.body;
-
-    if (!image) {
-      console.error('No image data provided in request');
-      return res.status(400).json({ message: 'No image data provided' });
+    
+    if (!req.file) {
+      console.error('No file uploaded');
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
+    console.log('File received:', {
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+
+    // Convert buffer to base64
+    const base64Image = req.file.buffer.toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${base64Image}`;
+
     console.log('Attempting to upload image to Cloudinary...');
-    const imageUrl = await uploadImage(image);
+    const imageUrl = await uploadImage(dataURI);
     
     if (!imageUrl) {
       console.error('Failed to get URL from Cloudinary');

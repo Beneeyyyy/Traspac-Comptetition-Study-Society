@@ -44,7 +44,10 @@ const ContentRenderer = ({
 
   const createMarkup = (content) => {
     return {
-      __html: DOMPurify.sanitize(content)
+      __html: DOMPurify.sanitize(content, {
+        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li'],
+        ALLOWED_ATTR: []
+      })
     };
   };
 
@@ -60,19 +63,34 @@ const ContentRenderer = ({
         className="relative min-h-[calc(100vh-400px)] pb-32"
       >
         <div className="space-y-8">
-          {/* Text Content */}
+          {/* Main Text Content */}
           {content.text && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
-              className="prose prose-invert max-w-none text-lg text-white/80 leading-relaxed"
-              dangerouslySetInnerHTML={createMarkup(content.text)}
-            />
+              className="prose prose-invert max-w-none text-lg text-white/80 leading-relaxed whitespace-pre-wrap"
+            >
+              {content.text}
+            </motion.div>
           )}
 
           {/* Media Content */}
           {content.media && content.media.map((media, index) => {
+            if (media.type === 'text') {
+              return (
+                <motion.div 
+                  key={index}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="prose prose-invert max-w-none text-lg text-white/80 leading-relaxed whitespace-pre-wrap"
+                >
+                  {media.content}
+                </motion.div>
+              );
+            }
+
             if (media.type === 'image') {
               return (
                 <motion.div 

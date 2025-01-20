@@ -152,6 +152,10 @@ const MaterialsSection = ({ squad }) => {
     }));
   };
 
+  const handleEditorChange = (stageIndex, contentIndex, content) => {
+    handleContentChange(stageIndex, contentIndex, 'text', content);
+  };
+
   const handleAddContent = (stageIndex) => {
     setMaterialForm(prev => ({
       ...prev,
@@ -187,87 +191,136 @@ const MaterialsSection = ({ squad }) => {
     }));
   };
 
-  const handleAddMedia = (stageIndex, contentIndex, type) => {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = type === 'image' ? 'image/*' : 'video/*';
-    
-    fileInput.onchange = async (e) => {
-      if (e.target.files?.[0]) {
-        const loadingToast = toast.loading(`Uploading ${type}...`);
-        try {
+  const handleAddMedia = async (stageIndex, contentIndex, type) => {
+    const newMedia = {
+      type,
+      content: type === 'text' ? '' : null,
+      url: null
+    };
+
+    if (type === 'image') {
+      try {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        
+        input.onchange = async (e) => {
           const file = e.target.files[0];
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
+          if (!file) return;
+
+          // Show loading toast
+          const loadingToast = toast.loading('Uploading image...');
           
-          reader.onload = async () => {
-            try {
-              const response = await axios.post('/api/upload', { 
-                image: reader.result 
-              }, {
-                headers: {
-                  'Content-Type': 'application/json'
+          try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            console.log('Uploading file:', {
+              name: file.name,
+              type: file.type,
+              size: file.size
+            });
+
+            const response = await axios.post(
+              'http://localhost:3000/api/upload',
+              formData,
+              {
+                headers: { 
+                  'Content-Type': 'multipart/form-data'
                 },
                 withCredentials: true
-              });
-              
-              if (response.data.url) {
-                setMaterialForm(prev => ({
-                  ...prev,
-                  stages: prev.stages.map((stage, idx) => 
-                    idx === stageIndex 
-                      ? {
-                          ...stage,
-                          contents: stage.contents.map((content, cIdx) =>
-                            cIdx === contentIndex 
-                              ? {
-                                  ...content,
-                                  media: [...content.media, { type, url: response.data.url }]
-                                }
-                              : content
-                          )
-                        }
-                      : stage
-                  )
-                }));
-                toast.dismiss(loadingToast);
-                toast.success(`${type} uploaded successfully`);
               }
-            } catch (error) {
-              console.error('Upload error:', error);
+            );
+
+            console.log('Upload response:', response.data);
+
+            if (response.data.url) {
+              newMedia.url = response.data.url;
+              
+              // Update form data
+              const updatedStages = [...materialForm.stages];
+              updatedStages[stageIndex].contents[contentIndex].media.push(newMedia);
+              setMaterialForm(prev => ({
+                ...prev,
+                stages: updatedStages
+              }));
+
               toast.dismiss(loadingToast);
-              toast.error(error.response?.data?.message || `Failed to upload ${type}`);
+              toast.success('Image uploaded successfully');
+            } else {
+              throw new Error('No URL returned from upload');
             }
-          };
+          } catch (error) {
+            console.error('Error uploading image:', error);
+            toast.dismiss(loadingToast);
+            if (error.response?.status === 404) {
+              toast.error('Upload endpoint not found. Please check server configuration.');
+            } else if (error.response?.data?.message) {
+              toast.error(error.response.data.message);
+            } else {
+              toast.error('Failed to upload image. Please try again.');
+            }
+          }
+        };
+
+        input.click();
+      } catch (error) {
+        console.error('Error handling image upload:', error);
+        toast.error('Failed to handle image upload');
+      }
+    } else if (type === 'video') {
+      const url = prompt('Enter video URL (YouTube, Vimeo, etc.):');
+      if (url) {
+        try {
+          // For YouTube videos, ensure we're using the embed URL
+          let embedUrl = url;
+          if (url.includes('youtube.com/watch?v=')) {
+            const videoId = url.split('v=')[1].split('&')[0];
+            embedUrl = `https://www.youtube.com/embed/${videoId}`;
+          } else if (url.includes('youtu.be/')) {
+            const videoId = url.split('youtu.be/')[1];
+            embedUrl = `https://www.youtube.com/embed/${videoId}`;
+          }
+
+          newMedia.url = embedUrl;
+          const updatedStages = [...materialForm.stages];
+          updatedStages[stageIndex].contents[contentIndex].media.push(newMedia);
+          setMaterialForm(prev => ({
+            ...prev,
+            stages: updatedStages
+          }));
+          
+          toast.success('Video added successfully');
         } catch (error) {
-          console.error('File read error:', error);
-          toast.dismiss(loadingToast);
-          toast.error('Failed to read file');
+          console.error('Error adding video:', error);
+          toast.error('Failed to add video. Please check the URL and try again.');
         }
       }
-    };
-    
-    fileInput.click();
+    } else if (type === 'text') {
+      const updatedStages = [...materialForm.stages];
+      updatedStages[stageIndex].contents[contentIndex].media.push(newMedia);
+      setMaterialForm(prev => ({
+        ...prev,
+        stages: updatedStages
+      }));
+    }
+  };
+
+  const handleMediaChange = (stageIndex, contentIndex, mediaIndex, field, value) => {
+    const updatedStages = [...materialForm.stages];
+    updatedStages[stageIndex].contents[contentIndex].media[mediaIndex][field] = value;
+    setMaterialForm(prev => ({
+      ...prev,
+      stages: updatedStages
+    }));
   };
 
   const handleRemoveMedia = (stageIndex, contentIndex, mediaIndex) => {
+    const updatedStages = [...materialForm.stages];
+    updatedStages[stageIndex].contents[contentIndex].media.splice(mediaIndex, 1);
     setMaterialForm(prev => ({
       ...prev,
-      stages: prev.stages.map((stage, idx) => 
-        idx === stageIndex 
-          ? {
-              ...stage,
-              contents: stage.contents.map((content, cIdx) =>
-                cIdx === contentIndex 
-                  ? {
-                      ...content,
-                      media: content.media.filter((_, mIdx) => mIdx !== mediaIndex)
-                    }
-                  : content
-              )
-            }
-          : stage
-      )
+      stages: updatedStages
     }));
   };
 
@@ -787,58 +840,81 @@ const MaterialsSection = ({ squad }) => {
                         />
 
                         {/* Media Controls */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleAddMedia(stageIndex, contentIndex, 'text')}
+                            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg"
+                          >
+                            <FiType className="w-4 h-4" />
+                            Add Text
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleAddMedia(stageIndex, contentIndex, 'image')}
-                            className="flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-200"
+                            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg"
                           >
-                            <FiImage className="w-3 h-3" />
+                            <FiImage className="w-4 h-4" />
                             Add Image
                           </button>
                           <button
                             type="button"
                             onClick={() => handleAddMedia(stageIndex, contentIndex, 'video')}
-                            className="flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-200"
+                            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg"
                           >
-                            <FiVideo className="w-3 h-3" />
+                            <FiVideo className="w-4 h-4" />
                             Add Video
                           </button>
                         </div>
 
-                        {/* Media Preview */}
-                        {content.media.length > 0 && (
-                          <div className="grid grid-cols-2 gap-4">
-                            {content.media.map((media, mediaIndex) => (
-                              <div key={mediaIndex} className="relative group">
-                                {media.type === 'image' ? (
-                                  <img 
+                        {/* Media List */}
+                        <div className="space-y-4 mt-4">
+                          {content.media.map((media, mediaIndex) => (
+                            <div key={mediaIndex} className="relative group">
+                              {/* Remove Media Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMedia(stageIndex, contentIndex, mediaIndex)}
+                                className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <FiX className="w-4 h-4" />
+                              </button>
+
+                              {/* Text Content */}
+                              {media.type === 'text' && (
+                                <textarea
+                                  value={media.content || ''}
+                                  onChange={(e) => handleMediaChange(stageIndex, contentIndex, mediaIndex, 'content', e.target.value)}
+                                  placeholder="Enter text content..."
+                                  className="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg resize-y min-h-[100px]"
+                                />
+                              )}
+
+                              {/* Image Content */}
+                              {media.type === 'image' && media.url && (
+                                <div className="relative aspect-video">
+                                  <img
                                     src={media.url}
-                                    alt={`Content ${contentIndex + 1} Media ${mediaIndex + 1}`}
-                                    className="w-full h-40 object-cover rounded-lg"
+                                    alt="Content"
+                                    className="w-full h-full object-contain rounded-lg"
                                   />
-                                ) : (
-                                  <div className="relative aspect-video">
-                                    <iframe
-                                      src={media.url}
-                                      className="absolute inset-0 w-full h-full rounded-lg"
-                                      frameBorder="0"
-                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                      allowFullScreen
-                                    />
-                                  </div>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveMedia(stageIndex, contentIndex, mediaIndex)}
-                                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <FiX className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                                </div>
+                              )}
+
+                              {/* Video Content */}
+                              {media.type === 'video' && media.url && (
+                                <div className="relative aspect-video">
+                                  <iframe
+                                    src={media.url}
+                                    title="Video content"
+                                    className="w-full h-full rounded-lg"
+                                    allowFullScreen
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
