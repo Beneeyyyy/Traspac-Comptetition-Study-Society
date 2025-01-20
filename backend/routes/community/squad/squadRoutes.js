@@ -529,7 +529,7 @@ router.post('/:id/join', requireAuth, async (req, res) => {
       data: {
         squadId: squadId,
         userId: userId,
-        role: 'member'
+        role: 'MEMBER'
       }
     });
 
@@ -780,17 +780,39 @@ router.put('/:id/members/:memberId', requireAuth, async (req, res) => {
     const adminId = req.user.id;
     const { role, action } = req.body;
 
-    // Check if user is admin
-    const isAdmin = await prisma.squadMember.findFirst({
+    console.log('Managing member:', {
+      squadId,
+      memberId,
+      adminId,
+      role,
+      action
+    });
+
+    // Check if user is admin or moderator
+    const isAdminOrModerator = await prisma.squadMember.findFirst({
       where: {
         squadId,
         userId: adminId,
-        role: 'ADMIN'
+        role: { in: ['ADMIN', 'MODERATOR'] }
       }
     });
 
-    if (!isAdmin) {
-      return res.status(403).json({ error: 'Only admin can manage members' });
+    if (!isAdminOrModerator) {
+      return res.status(403).json({ error: 'Only admin or moderator can manage members' });
+    }
+
+    // If moderator, they can't manage other moderators
+    if (isAdminOrModerator.role === 'MODERATOR') {
+      const targetMember = await prisma.squadMember.findFirst({
+        where: {
+          squadId,
+          userId: memberId
+        }
+      });
+
+      if (targetMember.role === 'MODERATOR' || targetMember.role === 'ADMIN') {
+        return res.status(403).json({ error: 'Moderators cannot manage other moderators or admins' });
+      }
     }
 
     if (action === 'remove') {
@@ -807,9 +829,10 @@ router.put('/:id/members/:memberId', requireAuth, async (req, res) => {
       }
 
       // Remove member
-      await prisma.squadMember.delete({
+      await prisma.squadMember.deleteMany({
         where: {
-          id: memberToRemove.id
+          squadId,
+          userId: memberId
         }
       });
 
@@ -825,20 +848,59 @@ router.put('/:id/members/:memberId', requireAuth, async (req, res) => {
 
       res.json({ message: 'Member removed successfully' });
     } else if (action === 'update') {
-      // Update member role
-      await prisma.squadMember.update({
+      // Convert role to uppercase to match Prisma enum
+      const prismaRole = role.toUpperCase();
+
+      // Validate role
+      if (!['MEMBER', 'MODERATOR'].includes(prismaRole)) {
+        return res.status(400).json({ error: 'Invalid role' });
+      }
+
+      // Get target member
+      const targetMember = await prisma.squadMember.findFirst({
         where: {
-          squadId_userId: {
-            squadId,
-            userId: memberId
-          }
-        },
-        data: {
-          role
+          squadId,
+          userId: memberId
         }
       });
 
-      res.json({ message: 'Member role updated successfully' });
+      if (!targetMember) {
+        return res.status(404).json({ error: 'Member not found' });
+      }
+
+      if (targetMember.role === 'ADMIN') {
+        return res.status(400).json({ error: 'Cannot change admin role' });
+      }
+
+      // Update member role
+      const updatedMember = await prisma.squadMember.updateMany({
+        where: {
+          squadId,
+          userId: memberId
+        },
+        data: {
+          role: prismaRole
+        }
+      });
+
+      // Get updated member data
+      const member = await prisma.squadMember.findFirst({
+        where: {
+          squadId,
+          userId: memberId
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true
+            }
+          }
+        }
+      });
+
+      res.json(member);
     }
   } catch (error) {
     console.error('Error managing squad member:', error);

@@ -37,12 +37,15 @@ export const leaveSquad = async (squadId) => {
   return response.data;
 };
 
-export const updateMemberRole = async (squadId, memberId, role) => {
+export const updateMemberRole = async (squadId, memberId, role, action) => {
   try {
-    const response = await axios.put(`/api/squads/${squadId}/members/${memberId}`, { role });
+    const response = await axios.put(`/api/squads/${squadId}/members/${memberId}`, {
+      role,
+      action
+    });
     return response.data;
   } catch (error) {
-    throw error.response?.data?.error || 'Failed to update member role';
+    throw new Error(error.response?.data?.error || 'Failed to update member role');
   }
 };
 
