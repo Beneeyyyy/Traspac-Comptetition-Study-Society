@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEdit2, FiTrash2, FiBook, FiX, FiCircle, FiImage, FiVideo, FiType, FiUpload } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiBook, FiX, FiCircle, FiImage, FiVideo, FiType, FiUpload, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { toast } from 'react-hot-toast';
 import Modal from '../../../../../../components/common/Modal';
 import { useAuth } from '../../../../../../contexts/AuthContext';
-import { createLearningPath, updateLearningPath, deleteLearningPath, createMaterial, getLearningPaths } from '../../../../../../api/squad';
+import { createLearningPath, updateLearningPath, deleteLearningPath, createMaterial, getLearningPaths, getSquadMaterials, updateMaterial, deleteMaterial } from '../../../../../../api/squad';
 import axios from 'axios';
 
 const MaterialsSection = ({ squad }) => {
@@ -35,8 +36,19 @@ const MaterialsSection = ({ squad }) => {
     pathTitle: '',
     pathDescription: ''
   });
+  const [materials, setMaterials] = useState([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    xp_reward: 0,
+    estimated_time: 30,
+    categoryId: '',
+    stages: []
+  });
+  const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -45,10 +57,13 @@ const MaterialsSection = ({ squad }) => {
           axios.get('/api/categories')
         ]);
         
-        console.log('Fetched learning paths:', paths);
-        console.log('Fetched categories:', categoriesRes.data);
-        
-        setLearningPaths(paths);
+      // Sort materials by order if exists
+      const pathsWithSortedMaterials = paths.map(path => ({
+        ...path,
+        materials: path.materials?.sort((a, b) => (a.order || 0) - (b.order || 0))
+      }));
+      
+      setLearningPaths(pathsWithSortedMaterials);
         setCategories(categoriesRes.data);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -58,10 +73,15 @@ const MaterialsSection = ({ squad }) => {
       }
     };
 
+  useEffect(() => {
     if (squad?.id) {
       fetchData();
     }
   }, [squad?.id]);
+
+  useEffect(() => {
+    fetchMaterials();
+  }, [squad.id]);
 
   const isAdminOrModerator = squad?.members?.some(
     member => member.userId === user?.id && ['ADMIN', 'MODERATOR'].includes(member.role)
@@ -422,6 +442,222 @@ const MaterialsSection = ({ squad }) => {
     navigate(`/squads/${squad.id}/materials/${material.id}`);
   };
 
+  const fetchMaterials = async () => {
+    try {
+      const data = await getSquadMaterials(squad.id);
+      setMaterials(data);
+    } catch (error) {
+      toast.error('Failed to fetch materials');
+    }
+  };
+
+  const handleEditClick = async (material) => {
+    try {
+      const loadingToast = toast.loading('Loading material data...');
+
+      // Fetch complete material data including stages and contents
+      const response = await axios.get(`/api/squads/${squad.id}/materials/${material.id}`);
+      const materialData = response.data.material || response.data;
+
+      console.log('Raw material data:', materialData);
+
+      if (!materialData) {
+        throw new Error('No material data received');
+      }
+
+      // Format stages and contents exactly as they appear in SquadMaterialView
+      const formattedStages = materialData.stages?.map(stage => {
+        // Ensure contents is properly formatted
+        const contents = stage.contents?.map(content => {
+          if (typeof content === 'string') {
+        try {
+              return JSON.parse(content);
+        } catch (e) {
+              console.error('Error parsing content:', e);
+              return null;
+        }
+          }
+          return content;
+        }).filter(Boolean) || [];
+
+          return {
+          ...stage,
+          title: stage.title || '',
+          contents: contents.map(content => ({
+            type: content.type || 'text',
+            content: content.content || content.text || '',
+            text: content.text || content.content || '',
+            url: content.url || '',
+            media: Array.isArray(content.media) ? content.media : [],
+            order: content.order || 0
+          }))
+        };
+      }) || [];
+
+      console.log('Formatted stages:', formattedStages);
+
+      // Set form data with complete material information
+      setSelectedMaterial(materialData);
+      setEditForm({
+        title: materialData.title || '',
+        description: materialData.description || '',
+        xp_reward: materialData.xp_reward || 0,
+        estimated_time: materialData.estimated_time || 30,
+        categoryId: materialData.categoryId || '',
+        stages: formattedStages
+      });
+
+      setIsEditModalOpen(true);
+      toast.dismiss(loadingToast);
+      toast.success('Material data loaded successfully');
+    } catch (error) {
+      console.error('Error fetching material data:', error);
+      toast.error('Failed to load material data. Please try again.');
+      toast.dismiss();
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedMaterial) return;
+
+    try {
+      // Prepare the update data
+      const updateData = {
+        title: editForm.title,
+        description: editForm.description,
+        xp_reward: parseInt(editForm.xp_reward),
+        estimated_time: parseInt(editForm.estimated_time),
+        categoryId: parseInt(editForm.categoryId),
+        stages: editForm.stages.map((stage, index) => ({
+          title: stage.title,
+          order: index + 1,
+          contents: JSON.stringify(stage.contents.map(content => ({
+            type: content.type || 'text',
+            content: content.content || content.text || '',
+            order: content.order || index + 1,
+            url: content.url || content.content || ''
+          })))
+        }))
+      };
+
+      // Call the update endpoint
+      const updatedMaterial = await updateMaterial(squad.id, selectedMaterial.id, updateData);
+      
+      // Update materials in state
+      setMaterials(prevMaterials => 
+        prevMaterials.map(m => m.id === selectedMaterial.id ? updatedMaterial : m)
+      );
+
+      // Update learning paths
+      setLearningPaths(prevPaths => 
+        prevPaths.map(path => {
+          if (path.materials?.some(m => m.id === selectedMaterial.id)) {
+            return {
+              ...path,
+              materials: path.materials.map(m => 
+                m.id === selectedMaterial.id ? updatedMaterial : m
+              )
+            };
+          }
+          return path;
+        })
+      );
+
+      setIsEditModalOpen(false);
+      setSelectedMaterial(null);
+      toast.success('Material updated successfully');
+    } catch (error) {
+      console.error('Error updating material:', error);
+      toast.error(error.response?.data?.error || 'Failed to update material');
+    }
+  };
+
+  const handleDeleteMaterial = async (materialId) => {
+    try {
+      await deleteMaterial(squad.id, materialId);
+      setMaterials(prev => prev.filter(material => material.id !== materialId));
+      toast.success('Material deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete material');
+    }
+  };
+
+  const handleMoveMaterial = async (materialId, direction) => {
+    const currentIndex = materials.findIndex(m => m.id === materialId);
+    if (
+      (direction === 'up' && currentIndex === 0) || 
+      (direction === 'down' && currentIndex === materials.length - 1)
+    ) return;
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const newMaterials = [...materials];
+    const [movedMaterial] = newMaterials.splice(currentIndex, 1);
+    newMaterials.splice(newIndex, 0, movedMaterial);
+
+    // Update local state immediately for smooth UI
+    setMaterials(newMaterials);
+
+    try {
+      // Update order in backend
+      await updateMaterial(squad.id, materialId, {
+        order: newIndex
+      });
+    } catch (error) {
+      // Revert on error
+      toast.error('Failed to update material order');
+      setMaterials(materials);
+    }
+  };
+
+  const onDragEnd = async (result) => {
+    setIsDragging(false);
+    if (!result.destination) return;
+
+    const { source, destination } = result;
+    if (source.index === destination.index) return;
+
+    try {
+      const pathId = parseInt(result.draggableId.split('-')[0]);
+      const materialId = parseInt(result.draggableId.split('-')[1]);
+      
+      const path = learningPaths.find(p => p.id === pathId);
+      if (!path) return;
+
+      // Create new array of materials with updated order
+      const newMaterials = Array.from(path.materials);
+      const [removed] = newMaterials.splice(source.index, 1);
+      newMaterials.splice(destination.index, 0, removed);
+
+      // Update orders for all affected materials
+      const updatedMaterials = newMaterials.map((material, index) => ({
+        ...material,
+        order: index
+      }));
+
+      // Optimistic update
+      const newPaths = learningPaths.map(p => {
+        if (p.id === pathId) {
+          return { ...p, materials: updatedMaterials };
+        }
+        return p;
+      });
+      setLearningPaths(newPaths);
+
+      // Update in backend
+      await updateMaterial(squad.id, materialId, {
+        order: destination.index,
+        pathId: pathId
+      });
+
+    } catch (error) {
+      console.error('Reorder error:', error);
+      toast.error('Failed to reorder materials');
+      // Reload data if error
+      fetchData();
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with Add Button */}
@@ -446,13 +682,10 @@ const MaterialsSection = ({ squad }) => {
 
       {/* Learning Paths List */}
       {!loading && (
+        <DragDropContext onDragEnd={onDragEnd} onDragStart={() => setIsDragging(true)}>
         <div className="space-y-6">
-          {learningPaths.length > 0 ? (
-            learningPaths.map((path) => (
-              <div
-                key={path.id}
-                className="bg-[#0A0A0A] border border-gray-800 rounded-xl overflow-hidden"
-              >
+            {learningPaths.map((path) => (
+              <div key={path.id} className="bg-[#0A0A0A] border border-gray-800 rounded-xl overflow-hidden">
                 {/* Learning Path Header */}
                 <div className="p-6 border-b border-gray-800">
                   <div className="flex items-start justify-between">
@@ -466,7 +699,6 @@ const MaterialsSection = ({ squad }) => {
                           onClick={() => {
                             setSelectedPath(path);
                             setFormData({
-                              ...formData,
                               pathTitle: path.title,
                               pathDescription: path.description
                             });
@@ -487,14 +719,29 @@ const MaterialsSection = ({ squad }) => {
                   </div>
                 </div>
 
-                {/* Materials List */}
-                <div className="divide-y divide-gray-800">
-                  {path.materials?.length > 0 ? (
-                    path.materials.map((material) => (
-                      <div 
+                {/* Materials List with Drag and Drop */}
+                <Droppable droppableId={`path-${path.id}`}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="divide-y divide-gray-800"
+                    >
+                      {path.materials?.map((material, index) => (
+                        <Draggable
                         key={material.id} 
-                        className="p-4 hover:bg-gray-900/50 transition-colors cursor-pointer"
-                        onClick={() => handleMaterialClick(material)}
+                          draggableId={`${path.id}-${material.id}`}
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              onClick={() => !isDragging && handleMaterialClick(material)}
+                              className={`group p-4 hover:bg-gray-900/50 transition-colors cursor-pointer ${
+                                snapshot.isDragging ? 'bg-gray-800 shadow-lg' : ''
+                              }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -510,23 +757,35 @@ const MaterialsSection = ({ squad }) => {
                           </div>
                           {isAdminOrModerator && (
                             <div className="flex gap-2 opacity-0 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
-                              <button className="p-2 text-blue-500 hover:text-blue-600">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                        handleEditClick(material);
+                                }}
+                                className="p-2 text-blue-500 hover:text-blue-600"
+                              >
                                 <FiEdit2 />
                               </button>
-                              <button className="p-2 text-red-500 hover:text-red-600">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteMaterial(material.id);
+                                }}
+                                className="p-2 text-red-500 hover:text-red-600"
+                              >
                                 <FiTrash2 />
                               </button>
                             </div>
                           )}
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-gray-500">
-                      No materials yet in this learning path
                     </div>
                   )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
                 </div>
+                  )}
+                </Droppable>
 
                 {/* Add Material Button */}
                 {isAdminOrModerator && (
@@ -559,14 +818,9 @@ const MaterialsSection = ({ squad }) => {
                   </div>
                 )}
               </div>
-            ))
-          ) : (
-            <div className="text-center py-12 bg-[#0A0A0A] border border-gray-800 rounded-xl">
-              <p className="text-gray-500">No learning paths found</p>
-              <p className="text-sm text-gray-600 mt-1">Create your first learning path to get started</p>
+            ))}
             </div>
-          )}
-        </div>
+        </DragDropContext>
       )}
 
       {/* Create Learning Path Modal */}
@@ -937,6 +1191,289 @@ const MaterialsSection = ({ squad }) => {
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Create Material
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Material Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedMaterial(null);
+        }}
+        title="Edit Material"
+        size="7xl"
+      >
+        <form onSubmit={handleEditSubmit} className="flex flex-col h-[95vh]">
+          <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+            {/* Basic Info Section */}
+            <div className="grid grid-cols-2 gap-6">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-200 mb-1">
+                  Title
+                </label>
+            <input
+              type="text"
+              value={editForm.title}
+              onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+                  required
+            />
+          </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-200 mb-1">
+                  Description
+                </label>
+            <textarea
+              value={editForm.description}
+              onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+              rows="4"
+                  required
+            />
+          </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1">
+                  XP Reward
+                </label>
+                <input
+                  type="number"
+                  value={editForm.xp_reward}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, xp_reward: parseInt(e.target.value) }))}
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+                  min="0"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1">
+                  Estimated Time (minutes)
+                </label>
+                <input
+                  type="number"
+                  value={editForm.estimated_time}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, estimated_time: parseInt(e.target.value) }))}
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+                  min="0"
+                  required
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-200 mb-1">
+                  Category
+                </label>
+                <select
+                  value={editForm.categoryId}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, categoryId: e.target.value }))}
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+                  required
+                >
+                  <option value="">Select a category</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Stages Section */}
+            <div className="space-y-8">
+              <div className="flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-sm py-4 z-10">
+                <h3 className="text-xl font-medium text-white">Stages</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newStages = [...editForm.stages];
+                    newStages.push({
+                      title: `Stage ${newStages.length + 1}`,
+                      contents: []
+                    });
+                    setEditForm(prev => ({ ...prev, stages: newStages }));
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <FiPlus /> Add Stage
+                </button>
+              </div>
+
+              {editForm.stages?.map((stage, stageIndex) => (
+                <div key={stageIndex} className="p-6 bg-gray-800/50 border border-gray-700 rounded-xl space-y-6">
+                  {/* Stage Title */}
+                  <div className="flex items-center justify-between gap-4">
+                    <input
+                      type="text"
+                      value={stage.title}
+                      onChange={(e) => {
+                        const newStages = [...editForm.stages];
+                        newStages[stageIndex].title = e.target.value;
+                        setEditForm(prev => ({ ...prev, stages: newStages }));
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-lg font-medium"
+                      placeholder="Stage title"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newStages = editForm.stages.filter((_, idx) => idx !== stageIndex);
+                        setEditForm(prev => ({ ...prev, stages: newStages }));
+                      }}
+                      className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
+                    >
+                      <FiTrash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Contents */}
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-lg font-medium text-gray-200">Contents</h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newStages = [...editForm.stages];
+                          if (!newStages[stageIndex].contents) {
+                            newStages[stageIndex].contents = [];
+                          }
+                          newStages[stageIndex].contents.push({
+                            type: 'text',
+                            content: '',
+                            order: newStages[stageIndex].contents.length + 1
+                          });
+                          setEditForm(prev => ({ ...prev, stages: newStages }));
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                      >
+                        <FiPlus /> Add Content
+                      </button>
+                    </div>
+
+                    {stage.contents?.map((content, contentIndex) => (
+                      <div key={contentIndex} className="p-6 bg-gray-900/50 border border-gray-800 rounded-xl space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-lg font-medium text-white">Content {contentIndex + 1}</h5>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newStages = [...editForm.stages];
+                              newStages[stageIndex].contents = stage.contents.filter((_, idx) => idx !== contentIndex);
+                              setEditForm(prev => ({ ...prev, stages: newStages }));
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <FiTrash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {/* Text Content */}
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-300">Text Content</label>
+                          <textarea
+                            value={content.content || content.text || ''}
+                            onChange={(e) => {
+                              const newStages = [...editForm.stages];
+                              newStages[stageIndex].contents[contentIndex].content = e.target.value;
+                              newStages[stageIndex].contents[contentIndex].text = e.target.value;
+                              setEditForm(prev => ({ ...prev, stages: newStages }));
+                            }}
+                            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                            rows="4"
+                            placeholder="Enter text content..."
+                          />
+                        </div>
+
+                        {/* Image Content - Show directly if exists */}
+                        {content.media?.map((media, mediaIndex) => (
+                          media.type === 'image' && media.url && (
+                            <div key={mediaIndex} className="space-y-2">
+                              <label className="block text-sm font-medium text-gray-300">Image</label>
+                              <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
+                                <img 
+                                  src={media.url} 
+                                  alt={`Content ${contentIndex + 1} Image ${mediaIndex + 1}`}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                            </div>
+                          )
+                        ))}
+
+                        {/* Show image if it exists in content directly */}
+                        {content.type === 'image' && content.url && (
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-300">Image</label>
+                            <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
+                              <img 
+                                src={content.url} 
+                                alt={`Content ${contentIndex + 1}`}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Video Content */}
+                        {content.type === 'video' && content.url && (
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-300">Video</label>
+                            <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
+                              <iframe
+                                src={content.url}
+                                className="w-full h-full"
+                                allowFullScreen
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Media Controls */}
+                        <div className="flex gap-3 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleAddMedia(stageIndex, contentIndex, 'image')}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                          >
+                            <FiImage /> Add Image
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAddMedia(stageIndex, contentIndex, 'video')}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                          >
+                            <FiVideo /> Add Video
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-800 bg-black sticky bottom-0">
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setSelectedMaterial(null);
+              }}
+              className="px-6 py-2 text-gray-400 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Save Changes
             </button>
           </div>
         </form>

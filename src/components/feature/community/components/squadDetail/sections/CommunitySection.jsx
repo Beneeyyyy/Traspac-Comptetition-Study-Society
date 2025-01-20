@@ -3,10 +3,10 @@ import { FiEdit2, FiTrash2, FiUsers, FiMessageCircle, FiShield } from 'react-ico
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../../../../../contexts/AuthContext';
 import { useSquads } from '../../../../../../contexts/community/CommunityContext';
-import { updateMemberRole, removeMember } from '../../../../../../api/squad';
+import { updateMemberRole, removeMember, getSquadById } from '../../../../../../api/squad';
 import Modal from '../../../../../../components/common/Modal';
 
-const CommunitySection = ({ squad }) => {
+const CommunitySection = ({ squad, setSquad }) => {
   const { user } = useAuth();
   const { setSquads } = useSquads();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,9 +15,10 @@ const CommunitySection = ({ squad }) => {
     role: 'MEMBER'
   });
 
-  const isAdminOrModerator = squad?.members?.some(
-    member => member.userId === user?.id && ['ADMIN', 'MODERATOR'].includes(member.role)
-  );
+  // Get current user's role
+  const currentUserRole = squad?.members?.find(member => member.userId === user?.id)?.role;
+  const isAdmin = currentUserRole === 'ADMIN';
+  const isModerator = currentUserRole === 'MODERATOR';
 
   // Sort members by role (admin first, then moderator, then member)
   const sortedMembers = [...(squad?.members || [])].sort((a, b) => {
@@ -35,27 +36,18 @@ const CommunitySection = ({ squad }) => {
 
   const handleUpdateRole = async (e) => {
     e.preventDefault();
-    if (!selectedMember) return;
-
-    // Add confirmation
-    if (!window.confirm(`Are you sure you want to change ${selectedMember.user.name}'s role to ${formData.role}?`)) {
-      return;
-    }
+    if (!selectedMember || !isAdmin) return; // Only admin can update roles
 
     try {
       await updateMemberRole(squad.id, selectedMember.userId, formData.role, 'update');
       
-      // Update local state
-      const updatedSquad = {
-        ...squad,
-        members: squad.members.map(member => 
-          member.userId === selectedMember.userId 
-            ? { ...member, role: formData.role }
-            : member
-        )
-      };
+      // Fetch fresh squad data
+      const updatedSquadData = await getSquadById(squad.id);
       
-      setSquads(prev => prev.map(s => s.id === squad.id ? updatedSquad : s));
+      // Update both local states
+      setSquad(updatedSquadData);
+      setSquads(prev => prev.map(s => s.id === squad.id ? updatedSquadData : s));
+      
       setIsModalOpen(false);
       setSelectedMember(null);
       toast.success(`${selectedMember.user.name}'s role updated to ${formData.role.toLowerCase()}`);
@@ -65,8 +57,6 @@ const CommunitySection = ({ squad }) => {
   };
 
   const handleRemoveMember = async (memberId) => {
-    if (!window.confirm('Are you sure you want to remove this member?')) return;
-
     try {
       await removeMember(squad.id, memberId);
       
@@ -111,26 +101,33 @@ const CommunitySection = ({ squad }) => {
                   <span className="text-sm text-gray-400">Member since {new Date(member.joinedAt).toLocaleDateString()}</span>
                 </div>
               </div>
-              {isAdminOrModerator && member.userId !== user?.id && member.role !== 'ADMIN' && (
+              {/* Show actions if user is admin or moderator */}
+              {(isAdmin || isModerator) && member.userId !== user?.id && member.role !== 'ADMIN' && (
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedMember(member);
-                      setFormData({ role: member.role });
-                      setIsModalOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
-                  >
-                    <FiShield className="w-4 h-4" />
-                    <span className="text-sm">Change Role</span>
-                  </button>
-                  <button
-                    onClick={() => handleRemoveMember(member.id)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                  >
-                    <FiTrash2 className="w-4 h-4" />
-                    <span className="text-sm">Remove</span>
-                  </button>
+                  {/* Only show Change Role button for admin */}
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setSelectedMember(member);
+                        setFormData({ role: member.role });
+                        setIsModalOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
+                    >
+                      <FiShield className="w-4 h-4" />
+                      <span className="text-sm">Change Role</span>
+                    </button>
+                  )}
+                  {/* Show Remove button for both admin and moderator */}
+                  {((isAdmin && member.role !== 'MODERATOR') || (isModerator && member.role === 'MEMBER')) && (
+                    <button
+                      onClick={() => handleRemoveMember(member.id)}
+                      className="flex items-center gap-2 px-3 py-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                      <span className="text-sm">Remove</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   getSquadById,
   joinSquad,
@@ -41,6 +41,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
 const SquadDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { squads, setSquads } = useSquads();
   const [squad, setSquad] = useState(null);
@@ -124,13 +125,13 @@ const SquadDetail = () => {
   };
 
   const handleLeaveSquad = async () => {
-    if (!window.confirm('Are you sure you want to leave this squad?')) return;
     try {
       await leaveSquad(id);
       const updatedSquad = { ...squad, isMember: false };
       setSquad(updatedSquad);
       setSquads(prev => prev.map(s => s.id === updatedSquad.id ? updatedSquad : s));
       toast.success('Successfully left the squad');
+      navigate('/community');
     } catch (error) {
       toast.error(error.message || 'Failed to leave squad');
     }
@@ -283,7 +284,10 @@ const SquadDetail = () => {
           <DiscussionSection squad={squad} />
         )}
         {activeTab === 'members' && (
-          <CommunitySection squad={squad} />
+          <CommunitySection 
+            squad={squad} 
+            setSquad={setSquad}
+          />
         )}
         {activeTab === 'admin' && isAdmin && (
           <AdminSection squad={squad} />
