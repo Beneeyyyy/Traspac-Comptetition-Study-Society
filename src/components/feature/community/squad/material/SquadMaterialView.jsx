@@ -51,7 +51,8 @@ const SquadMaterialView = () => {
           stages: materialData.stages.map(s => ({
             id: s.id,
             title: s.title,
-            contentsCount: s.contents?.length || 0
+            contentsCount: s.contents?.length || 0,
+            contents: s.contents
           }))
         });
 

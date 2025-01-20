@@ -97,6 +97,7 @@ const CommunitySection = ({ squad }) => {
                   <h4 className="text-white font-medium">{member.user.name}</h4>
                   <span className="text-sm text-gray-400 capitalize">{member.role}</span>
                 </div>
+
               </div>
               {isAdminOrModerator && member.userId !== user?.id && member.role !== 'admin' && (
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

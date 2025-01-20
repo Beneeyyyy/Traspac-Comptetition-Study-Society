@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getSquads } from '@/api/squad';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../AuthContext';
 
 const CommunityContext = createContext();
 
@@ -13,6 +14,7 @@ export const useSquads = () => {
 };
 
 export const CommunityProvider = ({ children }) => {
+  const { user } = useAuth();
   const [squads, setSquads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,8 +35,14 @@ export const CommunityProvider = ({ children }) => {
       }
     };
 
-    fetchSquads();
-  }, []);
+    // Only fetch squads if user is authenticated
+    if (user) {
+      fetchSquads();
+    } else {
+      setSquads([]);
+      setLoading(false);
+    }
+  }, [user]); // Add user as dependency
 
   const value = {
     squads,

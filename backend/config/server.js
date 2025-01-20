@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const cookieParser = require('cookie-parser');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth } = require('../routes/usersManagement/controllers/authController');
+const uploadRoutes = require('../routes/uploadRoutes');
 
 // Load environment variables with correct path
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -105,6 +106,7 @@ app.use('/api/creations', creationRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/squads', squadRoutes);
 app.use('/api/squads/:squadId/learning-paths', learningPathRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Points routes
 app.post('/api/points', pointController.createPoint);

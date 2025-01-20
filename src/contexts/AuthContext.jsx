@@ -1,17 +1,29 @@
 import { createContext, useState, useContext, useEffect, useMemo } from 'react';
 import { initializeApi } from '../utils/api';
 import { toast } from 'react-hot-toast';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const API_URL = 'http://localhost:3000';
 
 // Create the context
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
+
+// Custom hook to use the auth context
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 // Provider component
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Function to get token
   const getToken = () => localStorage.getItem('token');
@@ -45,11 +57,24 @@ export function AuthProvider({ children }) {
         if (data.token) {
           localStorage.setItem('token', data.token);
         }
+
+        // If there's a redirect in the URL, navigate to it
+        const params = new URLSearchParams(location.search);
+        const redirect = params.get('redirect');
+        if (redirect) {
+          navigate(redirect);
+        }
       } else {
         console.log('No user data found');
         setUser(null);
         setError('Authentication required');
         localStorage.removeItem('token');
+        
+        // Only redirect to login if not already there and not a public route
+        const isPublicRoute = ['/login', '/signup', '/'].includes(location.pathname);
+        if (!isPublicRoute) {
+          navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+        }
       }
     } catch (error) {
       console.error('Auth check error:', error);
@@ -57,6 +82,12 @@ export function AuthProvider({ children }) {
       // Clear token on error
       localStorage.removeItem('token');
       setUser(null);
+      
+      // Only redirect to login if not already there and not a public route
+      const isPublicRoute = ['/login', '/signup', '/'].includes(location.pathname);
+      if (!isPublicRoute) {
+        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -122,6 +153,7 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         toast.success('Logged out successfully');
+        navigate('/login');
       }
     } catch (error) {
       console.error('Logout error:', error);
@@ -129,6 +161,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      navigate('/login');
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +181,7 @@ export function AuthProvider({ children }) {
     }
     // Then verify with server
     checkAuth();
-  }, []);
+  }, []); // Only run on mount
 
   // Save user to localStorage whenever it changes
   useEffect(() => {
@@ -166,7 +199,7 @@ export function AuthProvider({ children }) {
     checkAuth,
     isLoading,
     error,
-    getToken // Export getToken function
+    getToken
   }), [user, isLoading, error]);
 
   return (
@@ -174,15 +207,6 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-// Custom hook to use the auth context
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }
 
 export default AuthContext; 

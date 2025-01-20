@@ -16,6 +16,7 @@ import OverviewSection from './sections/OverviewSection';
 import LearningSection from './sections/LearningSection';
 import DiscussionSection from './sections/DiscussionSection';
 import CommunitySection from './sections/CommunitySection';
+import MaterialsSection from './sections/MaterialsSection';
 
 // Modal Component
 const Modal = ({ isOpen, onClose, title, children }) => {
@@ -60,17 +61,37 @@ const SquadDetail = () => {
   const fetchSquadData = async () => {
     try {
       setLoading(true);
-      const [squadData, materialsData, discussionsData] = await Promise.all([
-        getSquadById(id),
+      console.log('Fetching squad data for ID:', id);
+      
+      // Fetch squad data first
+      const squadData = await getSquadById(id);
+      console.log('Fetched squad data:', squadData);
+      
+      // Then fetch materials and discussions
+      const [materialsData, discussionsData] = await Promise.all([
         getSquadMaterials(id),
         getDiscussions(id)
       ]);
       
-      setSquad(squadData);
+      console.log('Fetched materials:', materialsData);
+      console.log('Fetched discussions:', discussionsData);
+      
+      // Update squad data with counts
+      const updatedSquadData = {
+        ...squadData,
+        _count: {
+          materials: materialsData.length,
+          discussions: discussionsData.length,
+          members: squadData.memberCount || 0
+        }
+      };
+      
+      setSquad(updatedSquadData);
       setMaterials(materialsData);
       setDiscussions(discussionsData);
       setError(null);
     } catch (err) {
+      console.error('Error fetching squad data:', err);
       setError(err.message);
       toast.error(err.message || 'Failed to fetch squad data');
     } finally {
@@ -79,7 +100,9 @@ const SquadDetail = () => {
   };
 
   useEffect(() => {
-    fetchSquadData();
+    if (id) {
+      fetchSquadData();
+    }
   }, [id]);
 
   const handleJoinSquad = async () => {
@@ -198,9 +221,9 @@ const SquadDetail = () => {
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">{squad.name}</h1>
                 <div className="flex items-center gap-4 text-gray-300">
-                  <span>{squad.members?.length || 0} members</span>
-                  <span>{squad.materials?.length || 0} materials</span>
-                  <span>{squad.discussions?.length || 0} discussions</span>
+                  <span>{squad._count?.members || 0} members</span>
+                  <span>{squad._count?.materials || 0} materials</span>
+                  <span>{squad._count?.discussions || 0} discussions</span>
                 </div>
               </div>
             </div>
@@ -212,89 +235,105 @@ const SquadDetail = () => {
       <div className="bg-black border-b border-gray-800">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
+                  className={`text-sm font-medium transition-colors ${
                     activeTab === tab.id
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-300 hover:bg-gray-800'
+                      ? 'text-white border-b-2 border-blue-500 -mb-[17px] pb-4'
+                      : 'text-gray-400 hover:text-white'
                   }`}
                 >
                   {tab.label}
                 </button>
               ))}
             </div>
-            {!squad.isMember ? (
+            {squad.isMember ? (
               <button
-                onClick={handleJoinSquad}
-                disabled={joining}
-                className={`px-6 py-2 rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed`}
+                onClick={handleLeaveSquad}
+                className="px-4 py-2 text-red-500 hover:text-red-600 transition-colors"
+                disabled={isAdmin}
               >
-                {joining ? 'Joining...' : 'Join Squad'}
+                {isAdmin ? "Can't leave (Admin)" : "Leave Squad"}
               </button>
             ) : (
               <button
-                onClick={handleLeaveSquad}
-                className="px-6 py-2 rounded-lg bg-red-500 text-white transition-colors hover:bg-red-600"
+                onClick={handleJoinSquad}
+                disabled={joining}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
-                Leave Squad
+                {joining ? 'Joining...' : 'Join Squad'}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Squad Content */}
-      <div className="container mx-auto px-4 py-6">
-        {activeTab === 'overview' && <OverviewSection squad={squad} />}
-        {activeTab === 'materials' && squad.isMember && <LearningSection squad={squad} />}
-        {activeTab === 'discussions' && squad.isMember && <DiscussionSection squad={squad} />}
-        {activeTab === 'members' && squad.isMember && <CommunitySection squad={squad} />}
-        {activeTab === 'admin' && isAdmin && <AdminSection squad={squad} setSquad={setSquad} />}
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8">
+        {activeTab === 'overview' && (
+          <OverviewSection squad={squad} onRefresh={fetchSquadData} />
+        )}
+        {activeTab === 'materials' && (
+          <MaterialsSection squad={squad} />
+        )}
+        {activeTab === 'discussions' && (
+          <DiscussionSection squad={squad} />
+        )}
+        {activeTab === 'members' && (
+          <CommunitySection squad={squad} />
+        )}
+        {activeTab === 'admin' && isAdmin && (
+          <AdminSection squad={squad} />
+        )}
       </div>
 
       {/* Create Material Modal */}
       <Modal
-        isOpen={activeModal === 'create-material'}
+        isOpen={activeModal === 'material'}
         onClose={() => setActiveModal(null)}
-        title="Create New Material"
+        title="Create Material"
       >
         <form onSubmit={handleCreateMaterial} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Title</label>
+            <label className="block text-sm font-medium text-gray-200 mb-1">
+              Title
+            </label>
             <input
               type="text"
               name="materialTitle"
               value={formData.materialTitle}
               onChange={handleInputChange}
-              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white"
-              required
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+              placeholder="Enter material title..."
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-200 mb-1">
+              Description
+            </label>
             <textarea
               name="materialDescription"
               value={formData.materialDescription}
               onChange={handleInputChange}
-              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white h-32"
-              required
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+              rows="4"
+              placeholder="Enter material description..."
             />
           </div>
           <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              className="px-4 py-2 text-gray-400 hover:text-white"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Create Material
             </button>
@@ -304,45 +343,50 @@ const SquadDetail = () => {
 
       {/* Create Discussion Modal */}
       <Modal
-        isOpen={activeModal === 'create-discussion'}
+        isOpen={activeModal === 'discussion'}
         onClose={() => setActiveModal(null)}
-        title="Start New Discussion"
+        title="Create Discussion"
       >
         <form onSubmit={handleCreateDiscussion} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Title</label>
+            <label className="block text-sm font-medium text-gray-200 mb-1">
+              Title
+            </label>
             <input
               type="text"
               name="discussionTitle"
               value={formData.discussionTitle}
               onChange={handleInputChange}
-              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white"
-              required
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+              placeholder="Enter discussion title..."
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Content</label>
+            <label className="block text-sm font-medium text-gray-200 mb-1">
+              Content
+            </label>
             <textarea
               name="discussionContent"
               value={formData.discussionContent}
               onChange={handleInputChange}
-              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white h-32"
-              required
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+              rows="4"
+              placeholder="Enter discussion content..."
             />
           </div>
           <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              className="px-4 py-2 text-gray-400 hover:text-white"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Start Discussion
+              Create Discussion
             </button>
           </div>
         </form>

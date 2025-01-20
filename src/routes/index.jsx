@@ -23,12 +23,12 @@ const UpService = lazy(() => import('../components/feature/upservice/UpService')
 const LearningPage = lazy(() => import('../components/feature/courses/materials/learning/LearningPage'));
 
 const AppRoutes = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const location = useLocation();
 
-  // If user is not authenticated and not on a public route, redirect to login
-  if (!user && !location.pathname.match(/^\/(login|signup)?$/)) {
-    return <Navigate to="/login" state={{ from: location.pathname }} />;
+  // Wait for auth check to complete
+  if (isLoading) {
+    return <LoadingScreen />;
   }
 
   return (

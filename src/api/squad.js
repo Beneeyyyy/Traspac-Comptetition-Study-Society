@@ -116,7 +116,43 @@ export const getSquadMembers = async (squadId) => {
   return response.data;
 };
 
-// Create new material
+// Learning Path Management
+export const createLearningPath = async (squadId, data) => {
+  try {
+    const response = await axios.post(`/api/squads/${squadId}/learning-paths`, data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.error || 'Failed to create learning path';
+  }
+};
+
+export const updateLearningPath = async (squadId, pathId, data) => {
+  try {
+    const response = await axios.put(`/api/squads/${squadId}/learning-paths/${pathId}`, data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.error || 'Failed to update learning path';
+  }
+};
+
+export const deleteLearningPath = async (squadId, pathId) => {
+  try {
+    await axios.delete(`/api/squads/${squadId}/learning-paths/${pathId}`);
+  } catch (error) {
+    throw error.response?.data?.error || 'Failed to delete learning path';
+  }
+};
+
+export const getLearningPaths = async (squadId) => {
+  try {
+    const response = await axios.get(`/api/squads/${squadId}/learning-paths`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.error || 'Failed to fetch learning paths';
+  }
+};
+
+// Material Management
 export const createMaterial = async (squadId, data) => {
   try {
     const response = await axios.post(`/api/squads/${squadId}/materials`, data);
@@ -126,7 +162,6 @@ export const createMaterial = async (squadId, data) => {
   }
 };
 
-// Update material
 export const updateMaterial = async (squadId, materialId, data) => {
   try {
     const response = await axios.put(`/api/squads/${squadId}/materials/${materialId}`, data);
@@ -136,7 +171,6 @@ export const updateMaterial = async (squadId, materialId, data) => {
   }
 };
 
-// Delete material
 export const deleteMaterial = async (squadId, materialId) => {
   try {
     await axios.delete(`/api/squads/${squadId}/materials/${materialId}`);

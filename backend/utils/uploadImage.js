@@ -20,21 +20,34 @@ const uploadImage = async (base64Image) => {
       return base64Image;
     }
 
+    // Log Cloudinary configuration (without sensitive data)
+    console.log('Cloudinary Configuration:', {
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      configured: !!process.env.CLOUDINARY_API_KEY && !!process.env.CLOUDINARY_API_SECRET
+    });
+
     console.log('Uploading image to Cloudinary...');
     
     // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(base64Image, {
-      folder: 'study-society/forum',
+      folder: 'study-society/materials',
       resource_type: 'auto',
       quality: 'auto:good',
       fetch_format: 'auto',
     });
 
-    console.log('Image uploaded successfully:', result.secure_url);
+    console.log('Image uploaded successfully. URL:', result.secure_url);
     return result.secure_url;
   } catch (error) {
     console.error('Error uploading image to Cloudinary:', error);
-    throw new Error('Failed to upload image to Cloudinary');
+    // Log detailed error information
+    if (error.http_code) {
+      console.error('HTTP Status:', error.http_code);
+    }
+    if (error.error) {
+      console.error('Cloudinary Error:', error.error);
+    }
+    throw new Error('Failed to upload image to Cloudinary: ' + error.message);
   }
 };
 

@@ -66,7 +66,7 @@ const StatCard = ({ icon: Icon, label, value, color }) => (
   </div>
 )
 
-const OverviewSection = ({ squad }) => {
+const OverviewSection = ({ squad, onRefresh }) => {
   const { user } = useAuth();
   const { setSquads } = useSquads();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -108,6 +108,11 @@ const OverviewSection = ({ squad }) => {
       setSquads(prev => prev.map(s => s.id === squad.id ? updatedSquad : s));
       setIsEditModalOpen(false);
       toast.success('Squad info updated successfully');
+      
+      // Refresh squad data
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to update squad info');
     }
@@ -127,6 +132,11 @@ const OverviewSection = ({ squad }) => {
       setFormData(prev => ({ ...prev, newRule: '' }));
       setIsRulesModalOpen(false);
       toast.success('Rule added successfully');
+      
+      // Refresh squad data
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to add rule');
     }
@@ -141,6 +151,11 @@ const OverviewSection = ({ squad }) => {
       
       setSquads(prev => prev.map(s => s.id === squad.id ? updatedSquad : s));
       toast.success('Rule removed successfully');
+      
+      // Refresh squad data
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to remove rule');
     }
@@ -150,25 +165,29 @@ const OverviewSection = ({ squad }) => {
     { 
       icon: FiUsers, 
       label: "Total Members", 
-      value: `${squad?.memberCount || 0} Members`, 
+      value: squad?.memberCount || 0, 
       color: "text-blue-400" 
     },
     { 
       icon: FiBook, 
       label: "Materials", 
-      value: `${squad?._count?.materials || 0} Materials`, 
+      value: squad?._count?.materials || 0, 
       color: "text-purple-400" 
     },
     { 
       icon: FiStar, 
       label: "Discussions", 
-      value: `${squad?._count?.discussions || 0}`, 
+      value: squad?._count?.discussions || 0, 
       color: "text-amber-400" 
     },
     { 
       icon: FiCalendar, 
       label: "Created", 
-      value: squad?.createdAt ? new Date(squad.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '-', 
+      value: squad?.createdAt ? new Date(squad.createdAt).toLocaleDateString('en-US', { 
+        month: 'short',
+        year: 'numeric',
+        day: 'numeric'
+      }) : '-', 
       color: "text-emerald-400" 
     }
   ]

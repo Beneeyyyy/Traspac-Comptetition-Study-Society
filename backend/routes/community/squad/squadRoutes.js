@@ -237,6 +237,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     console.log(`Fetching squad with ID: ${squadId}`);
 
+    // Get squad with counts and members
     const squad = await prisma.squad.findUnique({
       where: { id: squadId },
       include: {
@@ -248,11 +249,24 @@ router.get('/:id', requireAuth, async (req, res) => {
           }
         },
         members: {
-          where: {
-            userId: userId
-          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true
+              }
+            }
+          }
+        },
+        materials: {
           select: {
-            role: true
+            id: true
+          }
+        },
+        discussions: {
+          select: {
+            id: true
           }
         }
       }
@@ -262,6 +276,9 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Squad not found' });
     }
 
+    // Check if user is a member
+    const member = squad.members.find(m => m.user.id === userId);
+
     // Transform squad data
     const transformedSquad = {
       id: squad.id,
@@ -270,12 +287,26 @@ router.get('/:id', requireAuth, async (req, res) => {
       isPublic: squad.isPublic,
       banner: squad.banner,
       image: squad.image,
+      about: squad.about,
+      rules: squad.rules || [],
       memberCount: squad._count.members,
-      materialsCount: squad._count.materials,
-      discussionsCount: squad._count.discussions,
-      isMember: squad.members.length > 0,
-      role: squad.members[0]?.role
+      _count: {
+        members: squad._count.members,
+        materials: squad._count.materials,
+        discussions: squad._count.discussions
+      },
+      isMember: !!member,
+      role: member?.role || null,
+      members: squad.members,
+      createdAt: squad.createdAt,
+      updatedAt: squad.updatedAt
     };
+
+    console.log('Sending transformed squad:', {
+      id: transformedSquad.id,
+      name: transformedSquad.name,
+      counts: transformedSquad._count
+    });
 
     res.json(transformedSquad);
   } catch (error) {
@@ -1456,20 +1487,26 @@ router.get('/:id/materials/:materialId', requireAuth, async (req, res) => {
     const transformedStages = material.stages.map(stage => {
       let contents = [];
       try {
-        // Try to parse contents from either contents or content field
-        contents = stage.contents ? 
-          (typeof stage.contents === 'string' ? JSON.parse(stage.contents) : stage.contents) :
-          (stage.content ? JSON.parse(stage.content) : []);
-          
-        // Ensure contents is an array
-        if (!Array.isArray(contents)) {
-          contents = [];
+        // Try to parse contents if it's a string
+        if (typeof stage.contents === 'string') {
+          contents = JSON.parse(stage.contents);
+        } else if (Array.isArray(stage.contents)) {
+          contents = stage.contents;
+        } else if (stage.content) { // Fallback to content field
+          contents = typeof stage.content === 'string' ? JSON.parse(stage.content) : stage.content;
         }
         
-        // Sort contents by order if available
-        contents.sort((a, b) => (a.order || 0) - (b.order || 0));
+        // Ensure contents is an array
+        if (!Array.isArray(contents)) {
+          console.warn(`Stage ${stage.id} contents is not an array:`, contents);
+          contents = [];
+        }
+
+        // Log the contents structure
+        console.log(`Stage ${stage.id} contents:`, contents);
+        
       } catch (error) {
-        console.error('Error parsing stage contents:', error);
+        console.error(`Error parsing stage ${stage.id} contents:`, error);
         contents = [];
       }
 
@@ -1500,11 +1537,17 @@ router.get('/:id/materials/:materialId', requireAuth, async (req, res) => {
       updatedAt: material.updatedAt
     };
 
-    console.log('Transformed material stages:', transformedStages.map(s => ({
-      id: s.id,
-      title: s.title,
-      contentsLength: s.contents.length
-    })));
+    console.log('Transformed material:', {
+      id: transformedMaterial.id,
+      title: transformedMaterial.title,
+      stagesCount: transformedMaterial.stages.length,
+      stages: transformedMaterial.stages.map(s => ({
+        id: s.id,
+        title: s.title,
+        contentsCount: s.contents.length,
+        contents: s.contents
+      }))
+    });
 
     res.json({ material: transformedMaterial });
 

@@ -58,7 +58,12 @@ router.get('/', requireAuth, async (req, res) => {
       include: {
         materials: {
           include: {
-            stages: true
+            stages: {
+              orderBy: {
+                order: 'asc'
+              }
+            },
+            category: true
           }
         },
         createdBy: {
@@ -68,16 +73,58 @@ router.get('/', requireAuth, async (req, res) => {
             image: true
           }
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
       }
     });
 
-    res.json(learningPaths);
+    // Transform stages to include properly formatted contents
+    const transformedPaths = learningPaths.map(path => ({
+      ...path,
+      materials: path.materials.map(material => ({
+        ...material,
+        stages: material.stages.map(stage => {
+          let contents = [];
+          try {
+            contents = stage.contents ? 
+              (typeof stage.contents === 'string' ? JSON.parse(stage.contents) : stage.contents) :
+              (stage.content ? JSON.parse(stage.content) : []);
+            
+            if (!Array.isArray(contents)) {
+              contents = [];
+            }
+            
+            contents.sort((a, b) => (a.order || 0) - (b.order || 0));
+          } catch (error) {
+            console.error('Error parsing stage contents:', error);
+            contents = [];
+          }
+
+          return {
+            ...stage,
+            contents
+          };
+        })
+      }))
+    }));
+
+    console.log('Sending transformed learning paths:', transformedPaths.map(path => ({
+      id: path.id,
+      title: path.title,
+      materialsCount: path.materials.length,
+      materials: path.materials.map(m => ({
+        id: m.id,
+        title: m.title,
+        stagesCount: m.stages.length
+      }))
+    })));
+
+    res.json(transformedPaths);
   } catch (error) {
     console.error('Error fetching learning paths:', error);
-    res.status(500).json({ error: 'Failed to fetch learning paths' });
+    res.status(500).json({ 
+      error: 'Failed to fetch learning paths',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -93,7 +140,12 @@ router.get('/:pathId', requireAuth, async (req, res) => {
       include: {
         materials: {
           include: {
-            stages: true
+            stages: {
+              orderBy: {
+                order: 'asc'
+              }
+            },
+            category: true
           }
         },
         createdBy: {
@@ -110,10 +162,55 @@ router.get('/:pathId', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Learning path not found' });
     }
 
-    res.json(learningPath);
+    // Transform stages to include properly formatted contents
+    const transformedPath = {
+      ...learningPath,
+      materials: learningPath.materials.map(material => ({
+        ...material,
+        stages: material.stages.map(stage => {
+          let contents = [];
+          try {
+            contents = stage.contents ? 
+              (typeof stage.contents === 'string' ? JSON.parse(stage.contents) : stage.contents) :
+              (stage.content ? JSON.parse(stage.content) : []);
+            
+            if (!Array.isArray(contents)) {
+              contents = [];
+            }
+            
+            contents.sort((a, b) => (a.order || 0) - (b.order || 0));
+          } catch (error) {
+            console.error('Error parsing stage contents:', error);
+            contents = [];
+          }
+
+          return {
+            ...stage,
+            contents
+          };
+        })
+      }))
+    };
+
+    console.log('Sending transformed learning path:', {
+      id: transformedPath.id,
+      title: transformedPath.title,
+      materialsCount: transformedPath.materials.length,
+      materials: transformedPath.materials.map(m => ({
+        id: m.id,
+        title: m.title,
+        stagesCount: m.stages.length
+      }))
+    });
+
+    res.json(transformedPath);
   } catch (error) {
     console.error('Error fetching learning path:', error);
-    res.status(500).json({ error: 'Failed to fetch learning path' });
+    res.status(500).json({ 
+      error: 'Failed to fetch learning path',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

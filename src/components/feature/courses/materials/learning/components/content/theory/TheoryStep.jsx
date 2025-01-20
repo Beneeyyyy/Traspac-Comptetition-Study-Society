@@ -161,7 +161,6 @@ const TheoryStep = ({ material }) => {
   const mainContentRef = useRef(null);
   const [isStageLoading, setIsStageLoading] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
-    // Check if user has seen the modal before
     const hasSeenModal = localStorage.getItem(`welcome_modal_seen_${material?.id}`);
     return !hasSeenModal;
   });
@@ -176,9 +175,7 @@ const TheoryStep = ({ material }) => {
   const { squadId } = useParams();
 
   const currentStage = material?.stages?.[activeSection] || null;
-  const sortedContents = currentStage?.contents ? 
-    (Array.isArray(currentStage.contents) ? currentStage.contents.sort((a, b) => a.order - b.order) : [])
-    : [];
+  const sortedContents = currentStage?.contents || [];
 
   // Early return if no material or stages
   if (!material || !material.stages || material.stages.length === 0) {
@@ -1111,17 +1108,17 @@ const TheoryStep = ({ material }) => {
               <div className="max-w-4xl mx-auto">
                 {currentStage?.contents && (
                   <ContentRenderer 
-                    contents={currentStage.contents}
+                    contents={sortedContents}
                     currentStage={currentStage}
                     onNextStage={handleNext}
                     currentContentIndex={activeContentIndex}
                     onContentChange={setActiveContentIndex}
                     savedContentIndex={materialProgress?.activeContentIndex}
                     onProgressUpdate={handleProgressUpdate}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
-                          transition={{ duration: 0.3 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
                   />
                 )}
               </div>
