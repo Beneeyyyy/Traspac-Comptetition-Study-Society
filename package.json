@@ -19,9 +19,14 @@
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.5.1",
     "cloudinary-react": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "daisyui": "^4.12.22",
     "dompurify": "^3.2.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "framer-motion": "^11.15.0",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
@@ -35,6 +40,7 @@
     "streamifier": "^0.1.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.26.7",
     "@eslint/js": "^9.17.0",
     "@types/react": "18.2.64",
     "@types/react-dom": "18.2.21",
